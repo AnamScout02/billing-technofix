@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manajemen Perangkat — MikroTik Billing</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- Icons -->
+ <link rel="stylesheet" href="/app/frontend/statis/node_modules/@tabler/icons-webfont/dist/tabler-icons.min.css" />
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="/app/frontend/statis/input_mikrotik.css" />
+</head>
+<body>
+
+  <!-- ══ TOP BAR ══ -->
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="topbar-brand">
+        <div class="topbar-logo">
+          <i class="ti ti-router"></i>
+        </div>
+        <span class="topbar-name">Management Hub</span>
+      </div>
+
+      <nav class="topbar-nav">
+        <a href="#">Dashboard</a>
+        <a href="/app/frontend/pelanggan/pelanggan.html">Pelanggan</a>
+        <a href="/app/frontend/input_perangkat/input_mikrotik.html" class="active">Mikrotik</a>
+        <a href="/app/frontend/olt/olt.html">OLT</a>
+        <a href="#">Peta</a>
+      </nav>
+
+      <div class="topbar-avatar">
+        <i class="ti ti-user"></i>
+      </div>
+    </div>
+  </header>
+
+  <!-- ══ PAGE ══ -->
+  <div class="page">
+
+    <!-- PAGE HEADER -->
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1 class="page-title">
+          <i class="ti ti-router"></i>
+          Manajemen Perangkat
+        </h1>
+        <p class="page-desc">Kelola perangkat MikroTik yang terhubung ke sistem billing Anda.</p>
+      </div>
+      <div class="page-header-right">
+        <button class="btn btn-sm" onclick="syncAll()">
+          <i class="ti ti-refresh" id="sync-all-icon"></i> Sinkron Semua
+        </button>
+        <button class="btn btn-primary btn-sm" id="add-btn" onclick="showForm()">
+          <i class="ti ti-plus"></i> Tambah Perangkat
+        </button>
+      </div>
+    </div>
+
+    <!-- STATS -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-icon green"><i class="ti ti-wifi"></i></div>
+        <div>
+          <div class="stat-num" id="stat-connected">0</div>
+          <div class="stat-label">Terhubung</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon red"><i class="ti ti-wifi-off"></i></div>
+        <div>
+          <div class="stat-num" id="stat-failed">0</div>
+          <div class="stat-label">Gagal Terhubung</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon blue"><i class="ti ti-devices"></i></div>
+        <div>
+          <div class="stat-num" id="stat-total">0</div>
+          <div class="stat-label">Total Perangkat</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FORM (diisi JS) -->
+    <div id="form-container"></div>
+
+    <!-- LIST HEADER -->
+    <div class="list-header">
+      <span class="list-title">Daftar Perangkat</span>
+      <span id="device-count"></span>
+    </div>
+
+    <!-- DEVICE LIST (diisi JS) -->
+    <div id="device-list"></div>
+
+  </div>
+
+  <!-- MODAL (diisi JS) -->
+  <div id="modal-container"></div>
+
+  <!-- TOAST -->
+  <div id="toast" class="hidden"></div>
+
+  <!-- Script (tidak berubah) -->
+  <script src="input_mikrotik.js"></script>
+
+</body>
+</html>

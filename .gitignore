@@ -1,0 +1,16 @@
+# Abaikan folder node_modules (isinya terlalu banyak dan berat)
+node_modules/
+
+# Abaikan file shortcut Google Drive yang bikin error
+*.gdoc
+*.gsheet
+*.gslides
+
+# Abaikan folder virtual environment Python
+venv/
+.env
+
+# Abaikan database lokal (jika tidak ingin di-upload)
+*.db
+
+*.exe
