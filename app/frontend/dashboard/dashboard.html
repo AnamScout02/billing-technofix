@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — TechnoFix Billing</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Poppins:wght@400;500;600&display=swap"
+    rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
+    rel="stylesheet" />
+  <!-- global.css WAJIB pertama — semua base ada di sini -->
+  <link rel="stylesheet" href="/app/frontend/statis/global.css" />
+  <link rel="stylesheet" href="/app/frontend/dashboard/dashboard.css" />
+</head>
+
+
+
+<body>
+
+  <!-- ══ HEADER ══ -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="header-brand">
+        <div class="brand-logo">
+          <span class="material-symbols-outlined">router</span>
+        </div>
+        <div>
+          <div class="brand-name">TechnoFix</div>
+          <div class="brand-sub">Monitoring status jaringan &amp; pelanggan</div>
+        </div>
+      </div>
+      <nav class="topbar-nav">
+        <a href="dashboard.html" class="active">
+          <span class="material-symbols-outlined">dashboard</span>Dashboard
+        </a>
+        <a href="/app/frontend/pelanggan/pelanggan.html">
+          <span class="material-symbols-outlined">group</span>Pelanggan
+        </a>
+        <a href="/app/frontend/profie/profile.html">
+          <span class="material-symbols-outlined">person</span>Profile
+        </a>
+        <a href="#" onclick="openPerangkatSheet(event)">
+          <span class="material-symbols-outlined">router</span>Perangkat
+        </a>
+        <a href="#">
+          <span class="material-symbols-outlined">payments</span>Keuangan
+        </a>
+        <a href="#">
+          <span class="material-symbols-outlined">map</span>Maps
+        </a>
+      </nav>
+      <div class="header-actions">
+        <button class="icon-btn" id="btn-refresh" onclick="refreshDashboard()" title="Refresh data">
+          <span class="material-symbols-outlined" id="refresh-icon">refresh</span>
+        </button>
+        <div class="profile-wrap" id="profile-wrap">
+          <button class="profile-btn" onclick="toggleProfileMenu()" title="Profil">
+            <div class="avatar-circle">AD</div>
+            <span class="profile-username">Admin</span>
+            <span class="material-symbols-outlined profile-chevron">expand_more</span>
+          </button>
+          <div class="profile-dropdown" id="profile-dropdown">
+            <a href="#" class="profile-menu-item"><span class="material-symbols-outlined">person</span>Profil</a>
+            <a href="#" class="profile-menu-item"><span class="material-symbols-outlined">settings</span>Setting</a>
+            <a href="#" class="profile-menu-item"><span
+                class="material-symbols-outlined">manage_accounts</span>Manajemen User</a>
+            <div class="profile-menu-divider"></div>
+            <a href="#" class="profile-menu-item logout"><span class="material-symbols-outlined">logout</span>Logout</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ══ BOTTOM NAVBAR — MOBILE ONLY (myBCA style) ══ -->
+  <nav class="bottom-nav">
+    <div class="bottom-nav-inner">
+
+      <!-- Garis sliding indicator — diposisikan via JS -->
+      <div class="bottom-nav-indicator" id="bottom-nav-indicator"></div>
+
+      <a href="/app/frontend/dashboard/dashboard.html" class="bottom-nav-item active">
+        <div class="bottom-nav-icon">
+          <span class="material-symbols-outlined">dashboard</span>
+        </div>
+        <span class="bottom-nav-label">Dashboard</span>
+      </a>
+      <a href="/app/frontend/pelanggan/pelanggan.html" class="bottom-nav-item">
+        <div class="bottom-nav-icon">
+          <span class="material-symbols-outlined">group</span>
+        </div>
+        <span class="bottom-nav-label">Pelanggan</span>
+      </a>
+      <a href="#" class="bottom-nav-item">
+        <div class="bottom-nav-icon">
+          <span class="material-symbols-outlined">person</span>
+        </div>
+        <span class="bottom-nav-label">Profile</span>
+      </a>
+      <a href="#" class="bottom-nav-item" onclick="openPerangkatSheet(event)">
+        <div class="bottom-nav-icon">
+          <span class="material-symbols-outlined">router</span>
+        </div>
+        <span class="bottom-nav-label">Perangkat</span>
+      </a>
+      <a href="#" class="bottom-nav-item">
+        <div class="bottom-nav-icon">
+          <span class="material-symbols-outlined">payments</span>
+        </div>
+        <span class="bottom-nav-label">Keuangan</span>
+      </a>
+      <a href="#" class="bottom-nav-item">
+        <div class="bottom-nav-icon">
+          <span class="material-symbols-outlined">map</span>
+        </div>
+        <span class="bottom-nav-label">Maps</span>
+      </a>
+
+    </div>
+  </nav>
+
+  <!-- ══ MAIN PAGE ══ -->
+  <main class="page">
+
+    <!-- PAGE TOP -->
+    <div class="page-top">
+      <div>
+        <h1 class="page-title">Dashboard</h1>
+        <p class="page-sub" id="last-update">Ringkasan operasional TechnoFix hari ini</p>
+      </div>
+      <div class="page-top-actions">
+        <span class="date-badge">
+          <span class="material-symbols-outlined">calendar_today</span>
+          <span id="today-date">—</span>
+        </span>
+      </div>
+    </div>
+
+    <!-- ══ STAT CARDS ══ -->
+    <div class="stat-row stat-row-4">
+      <div class="stat-card">
+        <div class="stat-icon green">
+          <span class="material-symbols-outlined">wifi_tethering</span>
+        </div>
+        <div class="stat-body">
+          <div class="stat-num" id="stat-online-aktif">-</div>
+          <div class="stat-label">Pelanggan Aktif</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon amber">
+          <span class="material-symbols-outlined">event_available</span>
+        </div>
+        <div class="stat-body">
+          <div class="stat-num" id="stat-tempo-hari">-</div>
+          <div class="stat-label">Tempo Hari Ini</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon red">
+          <span class="material-symbols-outlined">date_range</span>
+        </div>
+        <div class="stat-body">
+          <div class="stat-num" id="stat-tempo-minggu">-</div>
+          <div class="stat-label">Tempo Minggu Ini</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon blue">
+          <span class="material-symbols-outlined">account_balance_wallet</span>
+        </div>
+        <div class="stat-body">
+          <div class="stat-num" id="stat-pendapatan">-</div>
+          <div class="stat-label">Pendapatan Bulan Ini</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card jatuh-card">
+      <div class="card-head">
+        <div class="card-title-wrap">
+          <span class="material-symbols-outlined text-amber">hourglass_empty</span>
+          <span class="card-title">Daftar Jatuh Tempo</span>
+        </div>
+      </div>
+
+      <div class="table-v-scroll">
+        <div class="table-responsive-freeze">
+          <table class="jatuh-tempo-table-modern">
+            <thead>
+              <tr>
+                <th class="sticky-col-1">No</th>
+                <th class="sticky-col-2">Username</th>
+                <th>Layanan</th>
+                <th>Wilayah</th>
+                <th>Tagihan</th>
+                <th>Jatuh Tempo</th>
+                <th class="col-aksi">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="jatuh-tempo-list">
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ MIDDLE SECTION ══ -->
+    <div class="mid-grid">
+
+      <!-- GRAFIK KIRI -->
+      <div class="mid-left">
+
+        <!-- Line Chart: Pertumbuhan Pelanggan -->
+        <div class="card chart-card">
+          <div class="card-head">
+            <div>
+              <div class="card-title">Pertumbuhan Pelanggan</div>
+              <div class="card-sub">Pelanggan aktif per bulan</div>
+            </div>
+            <div class="chart-legend">
+              <span class="legend-dot blue-dot"></span><span>Pelanggan</span>
+            </div>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="chartPelanggan" role="img"
+              aria-label="Grafik pertumbuhan pelanggan per bulan dari Januari hingga Juni">Data pertumbuhan
+              pelanggan.</canvas>
+          </div>
+        </div>
+
+        <!-- Bar Chart: Pendapatan -->
+        <div class="card chart-card">
+          <div class="card-head">
+            <div>
+              <div class="card-title">Pendapatan Bulanan</div>
+              <div class="card-sub">Total tagihan terkumpul (juta Rp)</div>
+            </div>
+            <div class="chart-legend">
+              <span class="legend-dot green-dot"></span><span>Pendapatan</span>
+            </div>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="chartPendapatan" role="img"
+              aria-label="Grafik bar pendapatan per bulan dari Januari hingga Juni">Data pendapatan bulanan.</canvas>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- STATUS JARINGAN KANAN -->
+      <div class="mid-right">
+        <div class="card network-card">
+          <div class="card-head">
+            <div>
+              <div class="card-title">Status Jaringan</div>
+              <div class="card-sub">Realtime — diperbarui setiap 30 detik</div>
+            </div>
+            <button class="icon-btn-sm" onclick="refreshNetwork()" title="Refresh status">
+              <span class="material-symbols-outlined">sync</span>
+            </button>
+          </div>
+
+          <!-- MikroTik Devices -->
+          <div class="net-section-label">
+            <span class="material-symbols-outlined">router</span>Perangkat MikroTik
+          </div>
+          <div class="device-list" id="list-mikrotik">
+            <div class="device-item">
+              <div class="device-info">
+                <div class="device-status-dot online"></div>
+                <div>
+                  <div class="device-name">MK-Main-Tower</div>
+                  <div class="device-ip">192.168.1.1</div>
+                </div>
+              </div>
+              <div class="device-right">
+                <div class="device-badge online-badge">Online</div>
+                <div class="device-user-count"><span class="material-symbols-outlined">people</span>87</div>
+              </div>
+            </div>
+            <div class="device-item">
+              <div class="device-info">
+                <div class="device-status-dot online"></div>
+                <div>
+                  <div class="device-name">MK-Node-Selatan</div>
+                  <div class="device-ip">192.168.2.1</div>
+                </div>
+              </div>
+              <div class="device-right">
+                <div class="device-badge online-badge">Online</div>
+                <div class="device-user-count"><span class="material-symbols-outlined">people</span>64</div>
+              </div>
+            </div>
+            <div class="device-item">
+              <div class="device-info">
+                <div class="device-status-dot offline"></div>
+                <div>
+                  <div class="device-name">MK-Node-Utara</div>
+                  <div class="device-ip">192.168.3.1</div>
+                </div>
+              </div>
+              <div class="device-right">
+                <div class="device-badge offline-badge">Offline</div>
+                <div class="device-user-count offline-count"><span class="material-symbols-outlined">people_off</span>—
+                </div>
+              </div>
+            </div>
+            <div class="device-item">
+              <div class="device-info">
+                <div class="device-status-dot online"></div>
+                <div>
+                  <div class="device-name">MK-Node-Timur</div>
+                  <div class="device-ip">192.168.4.1</div>
+                </div>
+              </div>
+              <div class="device-right">
+                <div class="device-badge online-badge">Online</div>
+                <div class="device-user-count"><span class="material-symbols-outlined">people</span>96</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- OLT Devices -->
+          <div class="net-section-label net-section-label--mt">
+            <span class="material-symbols-outlined">device_hub</span>Status OLT
+          </div>
+          <div class="device-list" id="list-olt">
+            <div class="device-item">
+              <div class="device-info">
+                <div class="device-status-dot online"></div>
+                <div>
+                  <div class="device-name">OLT-Huawei-01</div>
+                  <div class="device-ip">10.10.1.1 — Port: 16 aktif</div>
+                </div>
+              </div>
+              <div class="device-right">
+                <div class="device-badge online-badge">Online</div>
+              </div>
+            </div>
+            <div class="device-item">
+              <div class="device-info">
+                <div class="device-status-dot online"></div>
+                <div>
+                  <div class="device-name">OLT-ZTE-02</div>
+                  <div class="device-ip">10.10.1.2 — Port: 8 aktif</div>
+                </div>
+              </div>
+              <div class="device-right">
+                <div class="device-badge online-badge">Online</div>
+              </div>
+            </div>
+            <div class="device-item">
+              <div class="device-info">
+                <div class="device-status-dot offline"></div>
+                <div>
+                  <div class="device-name">OLT-ZTE-03</div>
+                  <div class="device-ip">10.10.1.3 — Tidak terhubung</div>
+                </div>
+              </div>
+              <div class="device-right">
+                <div class="device-badge offline-badge">Offline</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Summary bar -->
+          <div class="card network-card">
+            <div class="card-head">
+              <div class="card-title-wrap">
+                <span class="material-symbols-outlined text-primary">lan</span>
+                <span class="card-title">Status Infrastruktur</span>
+              </div>
+            </div>
+
+            <div class="net-summary">
+              <div class="net-item">
+                <div class="stat-label">Router MikroTik</div>
+                <div class="stat-num net-count net-count--primary" id="net-mt-count">
+                  0/0 Online</div>
+              </div>
+
+              <div class="net-sum-divider"></div>
+
+              <div class="net-item">
+                <div class="stat-label">Perangkat OLT</div>
+                <div class="stat-num net-count net-count--green" id="net-olt-count">
+                  0/0 Online</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    
+    <!-- AKTIVITAS TERBARU -->
+    <div class="card activity-card">
+      <div class="card-head">
+        <div>
+          <div class="card-title">Aktivitas Terbaru</div>
+          <div class="card-sub">Log perubahan sistem & jaringan</div>
+        </div>
+        <button class="icon-btn-sm" title="Filter log">
+          <span class="material-symbols-outlined">filter_list</span>
+        </button>
+      </div>
+      <div class="activity-list" id="activity-list">
+        <div class="activity-item">
+          <div class="act-icon-wrap blue-act">
+            <span class="material-symbols-outlined">person_add</span>
+          </div>
+          <div class="act-body">
+            <div class="act-title">Pelanggan baru ditambahkan</div>
+            <div class="act-detail">Hendra Kusuma — ppp_hendra12 — 10 Mbps</div>
+            <div class="act-time">2 menit lalu</div>
+          </div>
+        </div>
+        <div class="activity-item">
+          <div class="act-icon-wrap red-act">
+            <span class="material-symbols-outlined">wifi_off</span>
+          </div>
+          <div class="act-body">
+            <div class="act-title">Perangkat offline terdeteksi</div>
+            <div class="act-detail">MK-Node-Utara tidak merespons ping</div>
+            <div class="act-time">18 menit lalu</div>
+          </div>
+        </div>
+        <div class="activity-item">
+          <div class="act-icon-wrap green-act">
+            <span class="material-symbols-outlined">autorenew</span>
+          </div>
+          <div class="act-body">
+            <div class="act-title">Perpanjangan berhasil</div>
+            <div class="act-detail">Siti Rahayu — +30 hari — Rp 150.000</div>
+            <div class="act-time">34 menit lalu</div>
+          </div>
+        </div>
+        <div class="activity-item">
+          <div class="act-icon-wrap amber-act">
+            <span class="material-symbols-outlined">edit</span>
+          </div>
+          <div class="act-body">
+            <div class="act-title">Data pelanggan diubah</div>
+            <div class="act-detail">Budi Santoso — paket 5Mbps → 10Mbps</div>
+            <div class="act-time">1 jam lalu</div>
+          </div>
+        </div>
+        <div class="activity-item">
+          <div class="act-icon-wrap red-act">
+            <span class="material-symbols-outlined">delete</span>
+          </div>
+          <div class="act-body">
+            <div class="act-title">Pelanggan dihapus</div>
+            <div class="act-detail">ppp_lama99 — dihapus oleh Admin</div>
+            <div class="act-time">2 jam lalu</div>
+          </div>
+        </div>
+        <div class="activity-item">
+          <div class="act-icon-wrap blue-act">
+            <span class="material-symbols-outlined">person_add</span>
+          </div>
+          <div class="act-body">
+            <div class="act-title">Pelanggan baru ditambahkan</div>
+            <div class="act-detail">Yanti Permata — ppp_yanti07 — 20 Mbps</div>
+            <div class="act-time">3 jam lalu</div>
+          </div>
+        </div>
+        <div class="activity-item">
+          <div class="act-icon-wrap green-act">
+            <span class="material-symbols-outlined">wifi</span>
+          </div>
+          <div class="act-body">
+            <div class="act-title">Perangkat kembali online</div>
+            <div class="act-detail">OLT-ZTE-02 — terhubung kembali setelah restart</div>
+            <div class="act-time">5 jam lalu</div>
+          </div>
+        </div>
+        <div class="activity-item">
+          <div class="act-icon-wrap amber-act">
+            <span class="material-symbols-outlined">block</span>
+          </div>
+          <div class="act-body">
+            <div class="act-title">Modem di-disable</div>
+            <div class="act-detail">SN: HWTC1A2B3C4D — belum bayar</div>
+            <div class="act-time">6 jam lalu</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    </div>
+  </main>
+
+  <!-- TOAST -->
+  <div id="toast"></div>
+
+  <!-- Chart.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <!-- global.js WAJIB sebelum dashboard.js -->
+  <script src="/app/frontend/statis/global.js"></script>
+  <script src="/app/frontend/dashboard/dashboard.js"></script>
+  <!-- initBottomNav, toggleProfileMenu, openPerangkatSheet, closePerangkatSheet,
+       initDateBadge, initHeaderCanvas → sudah di global.js -->
+
+  <!-- ══ PERANGKAT SHEET ══ -->
+  <div class="psheet-overlay" id="psheet-overlay" onclick="closePerangkatSheet()"></div>
+  <div class="psheet" id="psheet" role="dialog" aria-modal="true" aria-label="Pilih Perangkat">
+    <div class="psheet-handle"></div>
+    <div class="psheet-head">
+      <div>
+        <p class="psheet-eyebrow">Manajemen Jaringan</p>
+        <h2 class="psheet-title">Pilih Perangkat</h2>
+      </div>
+      <button class="psheet-close" onclick="closePerangkatSheet()" aria-label="Tutup">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <div class="psheet-list">
+      <a href="/app/frontend/input_perangkat/input_mikrotik.html" class="psheet-item psheet-mikrotik">
+        <div class="psheet-item-icon"><span class="material-symbols-outlined">router</span></div>
+        <div class="psheet-item-body">
+          <div class="psheet-item-name">MikroTik</div>
+          <div class="psheet-item-desc">Router, firewall, dan manajemen bandwidth</div>
+        </div>
+        <span class="psheet-item-badge">Router</span>
+        <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
+      </a>
+      <a href="/app/frontend/input_perangkat/input_olt.html" class="psheet-item psheet-olt">
+        <div class="psheet-item-icon"><span class="material-symbols-outlined">settings_input_antenna</span></div>
+        <div class="psheet-item-body">
+          <div class="psheet-item-name">OLT</div>
+          <div class="psheet-item-desc">Optical Line Terminal — kontrol jaringan fiber</div>
+        </div>
+        <span class="psheet-item-badge">Fiber</span>
+        <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
+      </a>
+      <a href="/app/frontend/input_perangkat/input_odp.html" class="psheet-item psheet-odp">
+        <div class="psheet-item-icon"><span class="material-symbols-outlined">hub</span></div>
+        <div class="psheet-item-body">
+          <div class="psheet-item-name">ODP</div>
+          <div class="psheet-item-desc">Optical Distribution Point — titik distribusi kabel</div>
+        </div>
+        <span class="psheet-item-badge">Distribusi</span>
+        <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
+      </a>
+    </div>
+  </div>
+
+</body>
+
+</html>

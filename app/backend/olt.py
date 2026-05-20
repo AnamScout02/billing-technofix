@@ -1,58 +1,43 @@
+"""
+olt.py — TechnoFix · Blueprint OLT
+====================================
+CRUD endpoint untuk perangkat OLT (Optical Line Terminal).
 
-import os
-import socket
+Menggunakan utils.py untuk helper terpusat:
+  - get_db(), olt_to_dict(), try_connect_olt()
+"""
+
 import logging
-import re
-from scrapli.driver.generic import GenericDriver
-import sqlite3
-
-
 from flask import Blueprint, request, jsonify
 
-# ── Blueprint ─────────────────────────────────────────────────
+# ── Shared helpers ─────────────────────────────────────────────
+from utils import get_db, olt_to_dict, try_connect_olt
+
+# ── Blueprint ──────────────────────────────────────────────────
 olt_bp = Blueprint('olt', __name__)
 
-# ── Path database (sama dengan input.py) ─────────────────────
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH  = os.path.join(BASE_DIR, '..', 'database', 'devices.db')
-
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 
 
 # ══════════════════════════════════════════════════════════════
-# DATABASE HELPERS
+# INISIALISASI TABEL OLT
 # ══════════════════════════════════════════════════════════════
-
-def get_db():
-    """Buka koneksi SQLite, hasil query bisa diakses seperti dict."""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
-
 
 def init_olt_table():
     """
     Buat tabel 'olt' jika belum ada.
-    Dipanggil otomatis saat Blueprint pertama kali diload.
+    Dipanggil otomatis saat Blueprint diload.
 
     Kolom:
-    - id         : primary key otomatis
-    - name       : nama perangkat OLT (wajib)
-    - tipe        : merek/tipe OLT (Huawei, ZTE, dll)
-    - ip         : IP address OLT (wajib)
-    - port       : port koneksi (default 23 = Telnet)
-    - username   : username login OLT (wajib)
-    - password   : password login OLT (wajib)
-    - snmp       : SNMP community string (opsional)
-    - lokasi     : lokasi fisik perangkat (opsional)
-    - keterangan : catatan tambahan (opsional)
-    - status     : 'pending' | 'connected' | 'failed'
+      - tipe        : merek/tipe OLT (Huawei, ZTE, dll)
+      - rx_power / tx_power : cache nilai daya ONU terakhir (global per OLT)
     """
     conn = get_db()
     conn.execute('''
         CREATE TABLE IF NOT EXISTS olt (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             name        TEXT    NOT NULL,
+            tipe        TEXT    DEFAULT '',
             ip          TEXT    NOT NULL,
             port        INTEGER NOT NULL DEFAULT 23,
             username    TEXT    NOT NULL,
@@ -63,73 +48,20 @@ def init_olt_table():
             status      TEXT    NOT NULL DEFAULT 'pending'
         )
     ''')
+
+    # Migrasi: tambah kolom 'tipe' jika belum ada
+    try:
+        conn.execute("ALTER TABLE olt ADD COLUMN tipe TEXT DEFAULT ''")
+    except Exception:
+        pass
+
     conn.commit()
     conn.close()
     logging.info('[OLT] Tabel olt siap.')
 
 
-def olt_to_dict(row) -> dict:
-    """
-    Ubah sqlite3.Row → dict.
-    Password TIDAK disertakan untuk keamanan.
-    """
-    return {
-        'id':         row['id'],
-        'name':       row['name'],
-        'tipe':       row['tipe']        or '',
-        'ip':         row['ip'],
-        'port':       row['port'],
-        'username':   row['username'],
-        'snmp':       row['snmp']        or '',
-        'lokasi':     row['lokasi']      or '',
-        'keterangan': row['keterangan']  or '',
-        'status':     row['status'],
-    }
-
-
-# ── Inisialisasi tabel saat modul diimport ────────────────────
+# Inisialisasi tabel saat modul diimport
 init_olt_table()
-
-
-# ══════════════════════════════════════════════════════════════
-# KONEKSI KE OLT
-# ══════════════════════════════════════════════════════════════
-
-def try_connect_olt(ip: str, port: int, username: str, password: str):
-    """
-    Tes koneksi ke OLT dengan membuka socket TCP ke ip:port.
-    Jika port terbuka → status 'connected'.
-
-    Untuk koneksi Telnet / SSH penuh, ganti bagian ini dengan:
-    - Telnet : library 'telnetlib' (bawaan Python)
-    - SSH    : library 'paramiko'  (pip install paramiko)
-    - SNMP   : library 'pysnmp'    (pip install pysnmp)
-
-    Return:
-        (True,  'pesan sukses')
-        (False, 'pesan error')
-    """
-    try:
-        port = int(port) if str(port).strip().isdigit() else 23
-        sock = socket.create_connection((ip, port), timeout=8)
-        sock.close()
-        logging.info(f'[OLT] Koneksi berhasil ke {ip}:{port}')
-        return True, f'Berhasil terhubung ke {ip}:{port}'
-
-    except socket.timeout:
-        msg = f'Koneksi ke {ip}:{port} timeout (8 detik)'
-        logging.warning(f'[OLT] {msg}')
-        return False, msg
-
-    except ConnectionRefusedError:
-        msg = f'Port {port} di {ip} ditolak atau tidak aktif'
-        logging.warning(f'[OLT] {msg}')
-        return False, msg
-
-    except OSError as e:
-        msg = f'Tidak dapat menjangkau {ip}:{port} — {e}'
-        logging.error(f'[OLT] {msg}')
-        return False, msg
 
 
 # ══════════════════════════════════════════════════════════════
@@ -139,6 +71,8 @@ def try_connect_olt(ip: str, port: int, username: str, password: str):
 @olt_bp.route('', methods=['GET'])
 def get_olt():
     """
+    Mengembalikan daftar semua OLT.
+
     Response contoh:
     [
       { "id":1, "name":"OLT-Pusat", "tipe":"Huawei",
@@ -160,7 +94,7 @@ def get_olt():
 @olt_bp.route('', methods=['POST'])
 def add_olt():
     """
-    Body JSON yang diterima:
+    Body JSON:
     {
       "name"       : "OLT-Pusat",
       "tipe"       : "Huawei",
@@ -187,23 +121,17 @@ def add_olt():
     lokasi     = data.get('lokasi',     '').strip()
     keterangan = data.get('keterangan', '').strip()
 
-    # Validasi field wajib
-    if not name:
-        return jsonify({'status': 'error', 'message': 'Nama OLT wajib diisi'}), 400
-    if not ip:
-        return jsonify({'status': 'error', 'message': 'IP Address wajib diisi'}), 400
-    if not username:
-        return jsonify({'status': 'error', 'message': 'Username wajib diisi'}), 400
-    if not password:
-        return jsonify({'status': 'error', 'message': 'Password wajib diisi'}), 400
+    if not name:     return jsonify({'status': 'error', 'message': 'Nama OLT wajib diisi'}), 400
+    if not ip:       return jsonify({'status': 'error', 'message': 'IP Address wajib diisi'}), 400
+    if not username: return jsonify({'status': 'error', 'message': 'Username wajib diisi'}), 400
+    if not password: return jsonify({'status': 'error', 'message': 'Password wajib diisi'}), 400
 
     port = int(port) if str(port).strip().isdigit() else 23
 
-    # Tes koneksi dulu sebelum simpan
     ok, msg = try_connect_olt(ip, port, username, password)
     status  = 'connected' if ok else 'failed'
 
-    conn = get_db()
+    conn   = get_db()
     cursor = conn.execute(
         '''INSERT INTO olt
            (name, tipe, ip, port, username, password, snmp, lokasi, keterangan, status)
@@ -212,6 +140,7 @@ def add_olt():
     )
     new_id = cursor.lastrowid
     conn.commit()
+
     row = conn.execute('SELECT * FROM olt WHERE id = ?', (new_id,)).fetchone()
     conn.close()
 
@@ -224,14 +153,13 @@ def add_olt():
 
 # ══════════════════════════════════════════════════════════════
 # ENDPOINT 3 — PUT /olt/<id>
-# Edit data OLT, password boleh dikosongkan (pakai password lama)
+# Edit data OLT, password boleh dikosongkan
 # ══════════════════════════════════════════════════════════════
 @olt_bp.route('/<int:olt_id>', methods=['PUT'])
 def update_olt(olt_id):
     """
-    Contoh URL: PUT /olt/3
-    Password boleh dikosongkan → sistem pakai password lama.
-    Setelah edit, status direset ke 'pending' (perlu sinkron ulang).
+    Password boleh dikosongkan → pakai password lama.
+    Status direset ke 'pending' (perlu sinkron ulang).
     """
     data = request.get_json()
     if not data:
@@ -258,7 +186,6 @@ def update_olt(olt_id):
         conn.close()
         return jsonify({'status': 'error', 'message': 'Perangkat OLT tidak ditemukan'}), 404
 
-    # Jika password dikosongkan → pakai password lama
     final_password = password if password else current['password']
 
     conn.execute(
@@ -270,6 +197,7 @@ def update_olt(olt_id):
          snmp, lokasi, keterangan, 'pending', olt_id)
     )
     conn.commit()
+
     row = conn.execute('SELECT * FROM olt WHERE id = ?', (olt_id,)).fetchone()
     conn.close()
 
@@ -282,11 +210,10 @@ def update_olt(olt_id):
 
 # ══════════════════════════════════════════════════════════════
 # ENDPOINT 4 — DELETE /olt/<id>
-# Hapus perangkat OLT dari database
 # ══════════════════════════════════════════════════════════════
 @olt_bp.route('/<int:olt_id>', methods=['DELETE'])
 def delete_olt(olt_id):
-    """Contoh URL: DELETE /olt/3"""
+    """Hapus perangkat OLT dari database."""
     conn     = get_db()
     affected = conn.execute('DELETE FROM olt WHERE id = ?', (olt_id,)).rowcount
     conn.commit()
@@ -305,11 +232,12 @@ def delete_olt(olt_id):
 @olt_bp.route('/<int:olt_id>/sync', methods=['POST'])
 def sync_olt(olt_id):
     """
-    Contoh URL: POST /olt/3/sync
+    Tes koneksi ke OLT. Update status di DB.
+
     Response:
     {
       "status"    : "success" | "error",
-      "message"   : "keterangan hasil koneksi",
+      "message"   : "...",
       "connected" : true | false
     }
     """

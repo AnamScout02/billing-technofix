@@ -10,21 +10,22 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
-    href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=JetBrains+Mono:wght@400;500&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Poppins:wght@400;500;600&display=swap"
     rel="stylesheet" />
 
   <!-- Material Icons -->
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
     rel="stylesheet" />
 
-  <!-- Stylesheet -->
+  <!-- global.css wajib di-load PERTAMA -->
+  <link rel="stylesheet" href="/app/frontend/statis/global.css" />
   <link rel="stylesheet" href="/app/frontend/statis/pelanggan.css" />
 </head>
 
 <body>
 
   <!-- ══ HEADER ══ -->
-  <header class="header glass">
+  <header class="header">
     <div class="header-inner">
       <div class="header-brand">
         <div class="brand-logo">
@@ -35,22 +36,108 @@
           <div class="brand-sub">Monitoring status jaringan &amp; pelanggan</div>
         </div>
       </div>
+
       <nav class="topbar-nav">
-        <a href="#">Dashboard</a>
-        <a href="/app/frontend/pelanggan/pelanggan.html">Pelanggan</a>
-        <a href="/app/frontend/input_perangkat/input_mikrotik.html" class="active">Mikrotik</a>
-        <a href="/app/frontend/olt/olt.html">OLT</a>
-        <a href="#">Support</a>
+        <a href="/app/frontend/dashboard/dashboard.html">
+          <span class="material-symbols-outlined">dashboard</span>Dashboard
+        </a>
+        <a href="/app/frontend/pelanggan/pelanggan.html" class="active">
+          <span class="material-symbols-outlined">group</span>Pelanggan
+        </a>
+        <a href="#">
+          <span class="material-symbols-outlined">person</span>Profile
+        </a>
+        <a href="#" onclick="openPerangkatSheet(event)">
+          <span class="material-symbols-outlined">router</span>Perangkat
+        </a>
+        <a href="#">
+          <span class="material-symbols-outlined">payments</span>Keuangan
+        </a>
+        <a href="#">
+          <span class="material-symbols-outlined">map</span>Maps
+        </a>
       </nav>
 
       <div class="header-actions">
-        <button class="icon-btn" id="btn-refresh" onclick="loadPelanggan()" title="Refresh data">
+        <!-- Tombol refresh data utama -->
+        <button class="icon-btn" onclick="loadPelanggan()" title="Refresh data pelanggan">
           <span class="material-symbols-outlined" id="refresh-icon">refresh</span>
         </button>
-        <div class="avatar-circle">AD</div>
+        <!-- Tombol refresh RX/TX realtime dari OLT -->
+        <button class="icon-btn" onclick="refreshRxTx()" title="Refresh sinyal RX/TX dari OLT">
+          <span class="material-symbols-outlined">signal_cellular_alt</span>
+        </button>
+        <div class="profile-wrap" id="profile-wrap">
+          <button class="profile-btn" onclick="toggleProfileMenu()" title="Profil">
+            <div class="avatar-circle" id="avatar-initials">AD</div>
+            <span class="profile-username" id="profile-username">Admin</span>
+            <span class="material-symbols-outlined profile-chevron">expand_more</span>
+          </button>
+          <div class="profile-dropdown" id="profile-dropdown">
+            <a href="#" class="profile-menu-item">
+              <span class="material-symbols-outlined">person</span>Profil
+            </a>
+            <a href="#" class="profile-menu-item">
+              <span class="material-symbols-outlined">settings</span>Setting
+            </a>
+            <a href="#" class="profile-menu-item">
+              <span class="material-symbols-outlined">manage_accounts</span>Manajemen User
+            </a>
+            <div class="profile-menu-divider"></div>
+            <a href="#" class="profile-menu-item logout">
+              <span class="material-symbols-outlined">logout</span>Logout
+            </a>
+          </div>
+        </div>
       </div>
     </div>
   </header>
+
+
+  <!-- ══ BOTTOM NAVBAR — MOBILE ONLY ══ -->
+  <nav class="bottom-nav">
+    <div class="bottom-nav-inner">
+      <div class="bottom-nav-indicator" id="bottom-nav-indicator"></div>
+
+      <a href="/app/frontend/dashboard/dashboard.html" class="bottom-nav-item">
+        <div class="bottom-nav-icon">
+          <span class="material-symbols-outlined">dashboard</span>
+        </div>
+        <span class="bottom-nav-label">Dashboard</span>
+      </a>
+      <a href="/app/frontend/pelanggan/pelanggan.html" class="bottom-nav-item active">
+        <div class="bottom-nav-icon">
+          <span class="material-symbols-outlined">group</span>
+        </div>
+        <span class="bottom-nav-label">Pelanggan</span>
+      </a>
+      <a href="#" class="bottom-nav-item">
+        <div class="bottom-nav-icon">
+          <span class="material-symbols-outlined">person</span>
+        </div>
+        <span class="bottom-nav-label">Profile</span>
+      </a>
+      <a href="#" class="bottom-nav-item" onclick="openPerangkatSheet(event)">
+        <div class="bottom-nav-icon">
+          <span class="material-symbols-outlined">router</span>
+        </div>
+        <span class="bottom-nav-label">Perangkat</span>
+      </a>
+      <a href="#" class="bottom-nav-item">
+        <div class="bottom-nav-icon">
+          <span class="material-symbols-outlined">payments</span>
+        </div>
+        <span class="bottom-nav-label">Keuangan</span>
+      </a>
+      <a href="#" class="bottom-nav-item">
+        <div class="bottom-nav-icon">
+          <span class="material-symbols-outlined">map</span>
+        </div>
+        <span class="bottom-nav-label">Maps</span>
+      </a>
+    </div>
+  </nav>
+
 
   <!-- ══ PAGE ══ -->
   <main class="page">
@@ -61,10 +148,16 @@
         <h1 class="page-title">Manajemen Pelanggan</h1>
         <p class="page-sub">Data pelanggan dari database &amp; status realtime MikroTik</p>
       </div>
-      <button class="btn-primary" onclick="openModalTambah()">
-        <span class="material-symbols-outlined">person_add</span>
-        Tambah Pelanggan
-      </button>
+      <div class="page-top-actions">
+        <span class="date-badge">
+          <span class="material-symbols-outlined">calendar_today</span>
+          <span id="today-date">—</span>
+        </span>
+        <button class="btn-primary" onclick="showFormPelanggan()">
+          <span class="material-symbols-outlined">person_add</span>
+          Tambah Pelanggan
+        </button>
+      </div>
     </div>
 
     <!-- STAT CARDS -->
@@ -73,8 +166,8 @@
         <div class="stat-icon blue">
           <span class="material-symbols-outlined">group</span>
         </div>
-        <div>
-          <div class="stat-num" id="stat-total">—</div>
+        <div class="stat-body">
+          <div class="stat-num" id="stat-total">-</div>
           <div class="stat-label">Total Pelanggan</div>
         </div>
       </div>
@@ -82,8 +175,8 @@
         <div class="stat-icon green">
           <span class="material-symbols-outlined">wifi</span>
         </div>
-        <div>
-          <div class="stat-num" id="stat-aktif">—</div>
+        <div class="stat-body">
+          <div class="stat-num" id="stat-aktif">-</div>
           <div class="stat-label">Sedang Online</div>
         </div>
       </div>
@@ -91,105 +184,104 @@
         <div class="stat-icon red">
           <span class="material-symbols-outlined">wifi_off</span>
         </div>
-        <div>
-          <div class="stat-num" id="stat-nonaktif">—</div>
+        <div class="stat-body">
+          <div class="stat-num" id="stat-nonaktif">-</div>
           <div class="stat-label">Offline</div>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon amber">
-          <span class="material-symbols-outlined">payments</span>
-        </div>
-        <div>
-          <div class="stat-num" id="stat-online">—</div>
-          <div class="stat-label">Online Hari Ini</div>
         </div>
       </div>
     </div>
 
-    <!-- TOOLBAR: Search + Filter -->
+    <!-- TOOLBAR -->
     <div class="toolbar">
       <div class="search-wrap">
-        <span class="material-symbols-outlined search-icon">search</span>
-        <input type="text" id="input-search" class="search-input" placeholder="Cari username, no HP, SN, profil..."
+        <span class="material-symbols-outlined">search</span>
+        <input type="text" id="input-search"
+          placeholder="Cari username, no HP, SN, profil, slot, VLAN..."
           oninput="filterPelanggan()" />
       </div>
-      <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
-        <label style="font-size: 14px; color: #64748b;">Tampilkan:</label>
-        <select id="perPageSelect" onchange="ubahJumlahTampil()"
-          style="padding: 5px 10px; border-radius: 6px; border: 1px solid #ccc;">
+      <div class="filter-group">
+        <select class="filter-select" id="perPageSelect" onchange="ubahJumlahTampil()">
           <option value="50">50 baris</option>
           <option value="100">100 baris</option>
           <option value="200">200 baris</option>
         </select>
-      </div>
-      <div class="filter-group">
         <select id="filter-status" class="filter-select" onchange="filterPelanggan()">
           <option value="">Semua Status</option>
           <option value="aktif">Online</option>
           <option value="nonaktif">Offline</option>
         </select>
-        <select id="filter-profil" class="filter-select" onchange="filterPelanggan()">
-          <option value="">Semua Profil</option>
-        </select>
       </div>
     </div>
 
-    <!-- DEVICE SELECTOR -->
+    <!-- DEVICE SELECTOR BAR -->
     <div class="device-bar">
-      <span class="material-symbols-outlined" style="color:#0040a1;font-size:18px">router</span>
-      <span class="device-bar-label">Perangkat:</span>
-      <select id="select-device" class="device-select" onchange="loadPelanggan()">
-        <option value="">— Pilih Perangkat —</option>
-      </select>
+      <span class="material-symbols-outlined device-bar-icon">router</span>
+      <div class="device-bar-info">
+        <span class="device-bar-label">Perangkat</span>
+        <select id="select-device" class="device-select" onchange="loadPelanggan()">
+          <option value="">— Pilih Perangkat —</option>
+        </select>
+      </div>
       <span id="sync-status" class="sync-status"></span>
     </div>
 
     <!-- TABLE WRAPPER -->
-    <div class="table-wrap">
+    <div class="table-wrap" id="table-wrap">
 
-      <!-- Loading -->
+      <!-- State: Loading -->
       <div id="state-loading" class="state-box" style="display:none">
         <div class="spinner"></div>
-        <p>Mengambil data dari MikroTik...</p>
+        <p class="state-title">Mengambil data dari MikroTik...</p>
       </div>
 
-      <!-- Empty -->
+      <!-- State: Empty -->
       <div id="state-empty" class="state-box" style="display:none">
         <span class="material-symbols-outlined state-icon">inbox</span>
         <p class="state-title">Belum ada data</p>
         <p class="state-sub">Pilih perangkat atau tambahkan pelanggan baru</p>
+        <button class="btn-primary" style="margin-top:12px" onclick="showFormPelanggan()">
+          <span class="material-symbols-outlined">person_add</span> Tambah Pelanggan
+        </button>
       </div>
 
-      <!-- Error -->
+      <!-- State: Error -->
       <div id="state-error" class="state-box" style="display:none">
         <span class="material-symbols-outlined state-icon error-icon">wifi_off</span>
         <p class="state-title">Gagal terhubung</p>
         <p class="state-sub" id="error-msg">Periksa koneksi ke server Python</p>
-        <button class="btn-retry" onclick="loadPelanggan()">
+        <button class="btn btn-retry" onclick="loadPelanggan()">
           <span class="material-symbols-outlined">refresh</span> Coba Lagi
         </button>
       </div>
 
-      <!-- Tabel — kolom sesuai field di input.py -->
-      <table class="data-table" id="table-pelanggan">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Username</th>
-            <th>No HP</th>
-            <th>Profil</th>
-            <th>Slot / Port ONU</th>
-            <th>VLAN</th>
-            <th>SN</th>
-            <th>Status</th>
-            <th>Aksi</th>
-          </tr>
-        </thead>
-        <tbody id="tbody-pelanggan">
-          <!-- diisi oleh pelanggan.js -->
-        </tbody>
-      </table>
+      <!-- Tabel scroll: header freeze atas, kolom No+Username freeze kiri -->
+      <div class="table-scroll" id="table-scroll">
+        <table class="pelanggan-table" id="table-pelanggan">
+          <thead>
+            <tr>
+              <th class="sticky-col-1">#</th>
+              <th class="sticky-col-2">Username</th>
+              <th>No HP</th>
+              <th>Profil</th>
+              <th>Slot / Port ONU</th>
+              <th>VLAN</th>
+              <th>SN</th>
+              <th>Rx Signal</th>
+              <th>Status</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-pelanggan">
+            <!-- diisi oleh pelanggan.js -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Footer: jumlah data -->
+      <div class="table-footer">
+        <span id="device-count" style="font-size:12px;color:var(--text-dim)">—</span>
+        <span style="font-size:11px;color:var(--text-dim)" id="rx-tx-source"></span>
+      </div>
 
     </div><!-- /.table-wrap -->
 
@@ -199,125 +291,11 @@
   </main>
 
 
-  <!-- ══ MODAL: TAMBAH / EDIT PELANGGAN ══ -->
-  <div class="modal-overlay" id="modal-pelanggan" onclick="closeModalPelanggan(event)">
-    <div class="modal-sheet" onclick="event.stopPropagation()">
-      <div class="modal-handle"></div>
-
-      <div class="modal-head">
-        <div class="modal-head-left">
-          <div class="modal-head-icon">
-            <span class="material-symbols-outlined">person</span>
-          </div>
-          <div>
-            <div class="modal-title" id="modal-pelanggan-title">Tambah Pelanggan</div>
-            <div class="modal-sub">Data disimpan ke database lokal</div>
-          </div>
-        </div>
-        <button class="modal-close" onclick="tutupModalPelanggan()">
-          <span class="material-symbols-outlined">close</span>
-        </button>
-      </div>
-
-      <div class="modal-fields">
-
-        <!-- Perangkat Tujuan -->
-        <div class="field-group">
-          <label class="field-label">Perangkat MikroTik <span class="req">*</span></label>
-          <select class="field-input" id="f-device">
-            <option value="">— Pilih Perangkat —</option>
-          </select>
-        </div>
-        <div class="field-group">
-          <label class="field-label">Perangkat Olt <span class="req">*</span></label>
-          <select class="field-input" id="f-olt">
-            <option value="">-- Pilih OLT --</option>
-          </select>
-        </div>
-
-        <!-- Username + Password -->
-        <div class="field-row">
-          <div class="field-group">
-            <label class="field-label">Username <span class="req">*</span></label>
-            <input class="field-input mono" id="f-username" type="text" placeholder="cth: pelanggan01"
-              autocomplete="off" />
-          </div>
-          <div class="field-group">
-            <label class="field-label">Password <span class="req">*</span></label>
-            <div class="pwd-wrap">
-              <input class="field-input mono" id="f-password" type="password"
-                placeholder="Kosongkan jika tidak diubah" />
-              <button class="pwd-toggle" onclick="togglePwd('f-password','pwd-eye')" type="button">
-                <span class="material-symbols-outlined" id="pwd-eye">visibility</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- No HP + SN -->
-        <div class="field-row">
-          <div class="field-group">
-            <label class="field-label">No HP</label>
-            <input class="field-input" id="f-hp" type="text" placeholder="cth: 08123456789" />
-          </div>
-          <div class="field-group">
-            <label class="field-label">Serial Number (SN)</label>
-            <input class="field-input mono" id="f-sn" type="text" placeholder="cth: HWTC1A2B3C4D" />
-          </div>
-        </div>
-
-        <!-- Profil + Service -->
-        <div class="field-row">
-          <div class="field-group">
-            <label class="field-label">Profil <span class="req">*</span></label>
-            <select id="f-profil" class="field-input">
-              <option value="">— Pilih Profil —</option>
-            </select>
-          </div>
-          <div class="field-group">
-            <label>Service</label>
-            <select class="field-input" id="f-service">
-              <option value="any">any</option>
-              <option value="pppoe">pppoe</option>
-              <option value="l2tp">l2tp</option>
-              <option value="ovpn">ovpn</option>
-              <option value="sstp">sstp</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Slot Port ONU + VLAN -->
-        <div class="field-row">
-          <div class="field-group">
-            <label class="field-label">Slot/Port:ONU</label>
-            <input class="field-input mono" id="f-slot" type="text" placeholder="cth: 1/1:1" />
-          </div>
-          <div class="field-group">
-            <label class="field-label">VLAN</label>
-            <input class="field-input mono" id="f-vlan" type="text" placeholder="cth: 100" />
-          </div>
-        </div>
-
-        <!-- titik koordinat -->
-        <div class="field-group">
-          <label class="field-label">titik koordinat</label>
-          <input class="field-input mono" id="f-harga" type="text" placeholder="cth: -8.2678707. 000.0000000" />
-        </div>
-
-      </div><!-- /.modal-fields -->
-
-      <div class="modal-footer">
-        <button class="btn-cancel" onclick="tutupModalPelanggan()">Batal</button>
-        <button class="btn-save" id="btn-save-pelanggan" onclick="simpanPelanggan()">
-          <span class="material-symbols-outlined">save</span>
-          Simpan
-        </button>
-      </div>
-    </div>
-  </div>
-
-
-  <!-- ══ MODAL: KONFIRMASI HAPUS ══ -->
+  <!-- ══ MODAL: KONFIRMASI HAPUS ══
+       Modal detail sekarang dibuat secara dinamis oleh pelanggan.js
+       via openModalForm() — tidak perlu HTML statis lagi.
+       Modal hapus tetap statis karena strukturnya sederhana & tidak berubah.
+  ══ -->
   <div class="modal-overlay" id="modal-hapus" onclick="closeModalHapus(event)">
     <div class="modal-sheet small" onclick="event.stopPropagation()">
       <div class="modal-handle"></div>
@@ -327,22 +305,92 @@
       <div class="hapus-title">Hapus Pelanggan?</div>
       <div class="hapus-sub">
         Data pelanggan <strong id="hapus-username"></strong> akan dihapus
-        dari database secara permanen.
+        dari sistem secara permanen dan tidak dapat dikembalikan.
       </div>
       <div class="modal-footer">
-        <button class="btn-cancel" onclick="tutupModalHapus()">Batal</button>
-        <button class="btn-hapus" onclick="konfirmasiHapus()">
-          <span class="material-symbols-outlined">delete</span>
-          Ya, Hapus
+        <button class="btn btn-cancel" onclick="tutupModalHapus()">Batal</button>
+        <button class="btn btn-hapus" onclick="konfirmasiHapus()">
+          <span class="material-symbols-outlined">delete</span>Ya, Hapus
         </button>
       </div>
     </div>
   </div>
 
-  <!-- ══ TOAST ══ -->
+  <!-- TOAST -->
   <div id="toast"></div>
 
-  <script src="pelanggan.js"></script>
-</body>
+  <!-- global.js WAJIB sebelum pelanggan.js -->
+  <script src="/app/frontend/statis/global.js"></script>
+  <script src="/app/frontend/pelanggan/pelanggan.js"></script>
 
-</html
+  <script>
+    /* ── Deteksi scroll tabel → shadow freeze ── */
+    (function () {
+      const wrap   = document.getElementById('table-wrap');
+      const scroll = document.getElementById('table-scroll');
+      if (!scroll || !wrap) return;
+
+      function checkScroll() {
+        const canScroll = scroll.scrollWidth > scroll.clientWidth;
+        wrap.classList.toggle('has-scroll',
+          canScroll && scroll.scrollLeft < scroll.scrollWidth - scroll.clientWidth - 4);
+        scroll.setAttribute('data-scrolled', scroll.scrollLeft > 4 ? '1' : '');
+      }
+
+      scroll.addEventListener('scroll', checkScroll, { passive: true });
+      window.addEventListener('resize', checkScroll);
+
+      const tbody = document.getElementById('tbody-pelanggan');
+      if (tbody) new MutationObserver(checkScroll).observe(tbody, { childList: true });
+
+      checkScroll();
+    })();
+  </script>
+
+
+  <!-- ══ PERANGKAT SHEET ══ -->
+  <div class="psheet-overlay" id="psheet-overlay" onclick="closePerangkatSheet()"></div>
+  <div class="psheet" id="psheet" role="dialog" aria-modal="true" aria-label="Pilih Perangkat">
+    <div class="psheet-handle"></div>
+    <div class="psheet-head">
+      <div>
+        <p class="psheet-eyebrow">Manajemen Jaringan</p>
+        <h2 class="psheet-title">Pilih Perangkat</h2>
+      </div>
+      <button class="psheet-close" onclick="closePerangkatSheet()" aria-label="Tutup">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <div class="psheet-list">
+      <a href="/app/frontend/input_perangkat/input_mikrotik.html" class="psheet-item psheet-mikrotik">
+        <div class="psheet-item-icon"><span class="material-symbols-outlined">router</span></div>
+        <div class="psheet-item-body">
+          <div class="psheet-item-name">MikroTik</div>
+          <div class="psheet-item-desc">Router, firewall, dan manajemen bandwidth</div>
+        </div>
+        <span class="psheet-item-badge">Router</span>
+        <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
+      </a>
+      <a href="/app/frontend/input_perangkat/input_olt.html" class="psheet-item psheet-olt">
+        <div class="psheet-item-icon"><span class="material-symbols-outlined">settings_input_antenna</span></div>
+        <div class="psheet-item-body">
+          <div class="psheet-item-name">OLT</div>
+          <div class="psheet-item-desc">Optical Line Terminal — kontrol jaringan fiber</div>
+        </div>
+        <span class="psheet-item-badge">Fiber</span>
+        <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
+      </a>
+      <a href="/app/frontend/input_perangkat/input_odp.html" class="psheet-item psheet-odp">
+        <div class="psheet-item-icon"><span class="material-symbols-outlined">hub</span></div>
+        <div class="psheet-item-body">
+          <div class="psheet-item-name">ODP</div>
+          <div class="psheet-item-desc">Optical Distribution Point — titik distribusi kabel</div>
+        </div>
+        <span class="psheet-item-badge">Distribusi</span>
+        <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
+      </a>
+    </div>
+  </div>
+
+</body>
+</html>

@@ -1,122 +1,37 @@
 /* ============================================================
-   input_mikrotik.css — Manajemen Perangkat MikroTik
+   olt.css — Manajemen Perangkat OLT TechnoFix
    ⚠ Load SETELAH global.css
+   Pola identik dengan input_mikrotik.css
 
-   Hanya berisi komponen SPESIFIK halaman ini:
-   1.  Topbar (wrapper — .topbar-nav sudah di global.css)
-   2.  Page header layout
-   3.  Stats row
-   4.  Tombol tambahan: btn-blue, btn-amber, btn-red, btn-sm
-   5.  Form card & fields
-   6.  List header
-   7.  Device card
-   8.  Badge status modifier
-   9.  Modal konfirmasi override
-   10. Toast .hidden state
-   11. Spin alias
-   12. Responsive
+   1.  Stats row 4 kolom
+   2.  Tombol tambahan (btn-blue, btn-amber, btn-red, btn-sm)
+   3.  Form card & fields
+   4.  List header
+   5.  Device card OLT
+   6.  Badge status modifier
+   7.  Modal konfirmasi override
+   8.  Toast .hidden state
+   9.  Spin alias
+   10. Responsive
    ============================================================ */
 
 
 /* ══════════════════════════════════════════════════════════
-   1. TOPBAR
-   Dimensi & tampilan diseragamkan dengan .header global.css
-   agar identik dengan halaman pelanggan.
-══════════════════════════════════════════════════════════ */
-.topbar {
-  position: sticky; top: 0; z-index: 50;
-  height: var(--header-h);
-  background: rgba(255,255,255,.96);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid var(--border);
-  box-shadow: 0 1px 0 var(--border), 0 2px 12px rgba(0,0,0,.04);
-}
-.topbar-inner {
-  max-width: 100%; margin: 0 auto;
-  padding: 0 32px; height: 100%;
-  display: flex; align-items: center; justify-content: space-between; gap: 16px;
-}
-.topbar-brand {
-  display: flex; align-items: center;
-  gap: 10px; flex-shrink: 0;
-}
-.topbar-logo {
-  width: 38px; height: 38px; border-radius: 11px;
-  background: linear-gradient(135deg, var(--primary) 0%, #0055cc 100%);
-  display: flex; align-items: center; justify-content: center;
-  color: #fff; font-size: 20px;
-  box-shadow: 0 2px 10px rgba(0,64,161,.35);
-  flex-shrink: 0;
-}
-.topbar-name {
-  font-size: 15px; font-weight: 700;
-  font-family: var(--heading);
-  color: var(--primary); letter-spacing: -.02em;
-  line-height: 1.2;
-}
-/* .topbar-nav & .topbar-nav a sudah di global.css */
-.topbar-avatar {
-  width: 36px; height: 36px; border-radius: 50%;
-  background: linear-gradient(135deg, var(--primary) 0%, #0055cc 100%);
-  color: #fff; font-size: 14px; font-weight: 700;
-  font-family: var(--heading);
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer; letter-spacing: .04em;
-  box-shadow: 0 2px 8px rgba(0,64,161,.28);
-  transition: box-shadow .15s, transform .1s;
-}
-.topbar-avatar:hover {
-  box-shadow: 0 4px 14px rgba(0,64,161,.38);
-  transform: scale(1.05);
-}
-
-
-/* ══════════════════════════════════════════════════════════
-   2. PAGE HEADER
-   Selaras dengan .page-top global.css (margin-bottom 24px).
-   Pakai .page-header karena HTML sudah demikian.
-══════════════════════════════════════════════════════════ */
-.page-header {
-  display: flex; align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px; margin-bottom: 24px;
-  flex-wrap: wrap;
-}
-.page-header-left  { flex: 1; min-width: 0; }
-.page-header-right {
-  display: flex; align-items: center;
-  gap: 8px; flex-shrink: 0;
-}
-
-/* Selaraskan dengan .page-title global.css */
-.page-title {
-  font-size: 22px; font-weight: 700;
-  font-family: var(--heading);
-  color: var(--text); letter-spacing: -.03em;
-  display: flex; align-items: center; gap: 8px;
-}
-.page-title i { font-size: 22px; color: var(--primary); }
-
-.page-desc { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
-
-
-/* ══════════════════════════════════════════════════════════
-   3. STATS ROW
-   global.css: .stat-row (tanpa 's') — class berbeda, aman.
-   Nilai diseragamkan: gap 14px, margin-bottom 22px.
+   1. STATS ROW — 4 kolom (override default 3 kolom global)
 ══════════════════════════════════════════════════════════ */
 .stats-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 14px; margin-bottom: 22px;
 }
-/* .stat-card, .stat-icon, .stat-num, .stat-label — dari global.css */
+.stats-row-4 {
+  grid-template-columns: repeat(4, 1fr);
+}
 
 
 /* ══════════════════════════════════════════════════════════
-   4. TOMBOL TAMBAHAN
-   Belum ada di global.css. Warna sesuai token global.
+   2. TOMBOL TAMBAHAN
+   Identik dengan input_mikrotik.css
 ══════════════════════════════════════════════════════════ */
 .btn-blue {
   background: var(--blue-bg);
@@ -140,14 +55,13 @@
 .btn-red:hover { background: #fee2e2; border-color: #fca5a5; }
 
 .btn-sm   { padding: 5px 11px; font-size: 12px; }
-.btn-sm i { font-size: 13px; }
-/* .btn:disabled sudah di global.css */
+.btn-sm i,
+.btn-sm .material-symbols-outlined { font-size: 13px; }
 
 
 /* ══════════════════════════════════════════════════════════
-   5. FORM CARD & FIELDS
-   Ukuran & spasi diseragamkan dengan modal form pelanggan.css:
-   padding 20px 24px, gap 14px, font 13px, height input 40px.
+   3. FORM CARD & FIELDS
+   Identik dengan input_mikrotik.css
 ══════════════════════════════════════════════════════════ */
 .form-card {
   background: var(--bg);
@@ -158,7 +72,6 @@
   box-shadow: 0 0 0 3px var(--primary-ring), var(--shadow-md);
   animation: slideDown .22s cubic-bezier(.22,1,.36,1);
 }
-/* slideDown sudah di global.css */
 
 .form-card-title {
   font-size: 15px; font-weight: 700;
@@ -167,7 +80,8 @@
   margin-bottom: 20px;
   display: flex; align-items: center; gap: 12px;
 }
-.form-card-title i { font-size: 20px; color: var(--primary); }
+.form-card-title i,
+.form-card-title .material-symbols-outlined { font-size: 20px; color: var(--primary); }
 
 .form-grid {
   display: grid;
@@ -181,9 +95,7 @@
   font-size: 12px; font-weight: 600;
   color: var(--text-muted); letter-spacing: .01em;
 }
-/* .req sudah di global.css */
 
-/* Selaraskan dengan .field-input global.css */
 .form-input {
   height: 40px; padding: 0 12px;
   border: 1.5px solid var(--border);
@@ -200,17 +112,48 @@
 }
 .form-input::placeholder { color: var(--text-dim); }
 .form-input.mono {
-  font-family: var(--sans);
+  font-family: 'Courier New', Courier, monospace;
   font-size: 12px;
+}
+
+/* Textarea override */
+textarea.form-input {
+  height: auto;
+  padding: 10px 12px;
+  resize: none;
+  line-height: 1.6;
+}
+
+/* Select arrow */
+select.form-input {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238a96a8' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 32px;
+  cursor: pointer;
 }
 
 .ip-port-row                         { display: flex; gap: 8px; }
 .ip-port-row .form-input:first-child { flex: 1; }
-.ip-port-row .form-input:last-child  { width: 90px; text-align: center; }
+.ip-port-row .form-input.port        { width: 90px; text-align: center; }
+
+/* Password toggle */
+.form-pwd-wrap {
+  position: relative; display: flex; align-items: center;
+}
+.form-pwd-wrap .form-input { padding-right: 40px; }
+.form-pwd-toggle {
+  position: absolute; right: 10px;
+  background: none; border: none; cursor: pointer;
+  color: var(--text-dim); display: flex; align-items: center;
+  transition: color .15s; padding: 0;
+}
+.form-pwd-toggle:hover { color: var(--primary); }
+.form-pwd-toggle .material-symbols-outlined { font-size: 18px; }
 
 .form-hint { font-size: 11px; color: var(--text-dim); margin-top: 3px; }
 
-/* Selaraskan dengan .modal-footer pelanggan */
 .form-actions {
   display: flex; justify-content: flex-end; gap: 10px;
   margin-top: 24px; padding-top: 16px;
@@ -219,7 +162,8 @@
 
 
 /* ══════════════════════════════════════════════════════════
-   6. LIST HEADER
+   4. LIST HEADER
+   Identik dengan input_mikrotik.css
 ══════════════════════════════════════════════════════════ */
 .list-header {
   display: flex; align-items: center;
@@ -235,9 +179,8 @@
 
 
 /* ══════════════════════════════════════════════════════════
-   7. DEVICE CARD
-   Ukuran icon 42px (sama .stat-icon global), padding 16px 18px,
-   gap 14px, font-size 13px — selaras dengan card pelanggan.
+   5. DEVICE CARD OLT
+   Identik dengan .device-card mikrotik, tambah border kiri status
 ══════════════════════════════════════════════════════════ */
 .device-card {
   background: var(--bg);
@@ -250,12 +193,16 @@
   transition: border-color .2s, box-shadow .2s, transform .15s;
   animation: fadeUp .2s ease both;
 }
-/* fadeUp sudah di global.css */
 .device-card:hover {
   border-color: var(--border-2);
   box-shadow: var(--shadow-md);
   transform: translateY(-1px);
 }
+
+/* Border kiri warna status */
+.device-card.status-connected { border-left: 3px solid var(--green); }
+.device-card.status-failed    { border-left: 3px solid var(--red); }
+.device-card.status-pending   { border-left: 3px solid var(--amber); }
 
 .device-icon {
   width: 42px; height: 42px;
@@ -272,9 +219,17 @@
   gap: 8px; margin-bottom: 4px; flex-wrap: wrap;
 }
 
-/* Selaras .user-name pelanggan */
 .device-name {
   font-size: 13px; font-weight: 600; color: var(--text);
+}
+
+/* Badge tipe OLT (misal: ZTE, Huawei) */
+.device-tipe-badge {
+  font-size: 11px; font-weight: 600;
+  padding: 2px 8px; border-radius: 99px;
+  background: var(--primary-light); color: var(--primary);
+  border: 1px solid rgba(0,64,161,.2);
+  white-space: nowrap;
 }
 
 .device-meta {
@@ -284,18 +239,22 @@
 .device-meta-item {
   display: flex; align-items: center; gap: 5px;
   font-size: 12px; color: var(--text-muted);
-  font-family: var(--sans);
+  font-family: 'Courier New', Courier, monospace;
 }
-.device-meta-item i { font-size: 13px; color: var(--text-dim); }
+.device-meta-item i,
+.device-meta-item .material-symbols-outlined { font-size: 13px; color: var(--text-dim); }
 
-/* gap 5px selaras .td-actions pelanggan */
+.device-keterangan {
+  font-size: 11px; color: var(--text-dim);
+  margin-top: 5px; font-style: italic;
+}
+
 .device-actions { display: flex; gap: 5px; flex-shrink: 0; }
 
 
 /* ══════════════════════════════════════════════════════════
-   8. BADGE STATUS MODIFIER
-   global.css punya .badge-connected dst sebagai class mandiri.
-   JS halaman ini: class="badge connected" (modifier pada .badge).
+   6. BADGE STATUS MODIFIER
+   Identik dengan input_mikrotik.css
 ══════════════════════════════════════════════════════════ */
 .badge.connected            { background: var(--green-bg);  color: var(--green);    border-color: var(--green-border); }
 .badge.connected .badge-dot { background: var(--green); }
@@ -308,16 +267,13 @@
 
 .badge.syncing              { background: var(--blue-bg);   color: var(--blue);     border-color: var(--blue-border); }
 .badge.syncing .badge-dot   { background: var(--blue); animation: pulse-blue .8s infinite; }
-/* pulse-red & pulse-blue sudah di global.css */
 
 
 /* ══════════════════════════════════════════════════════════
-   9. MODAL KONFIRMASI OVERRIDE
-   global.css: align-items flex-end (bottom sheet).
-   Halaman ini: modal centered di tengah layar.
+   7. MODAL KONFIRMASI OVERRIDE
+   Modal centered (bukan bottom sheet) — identik mikrotik
 ══════════════════════════════════════════════════════════ */
 .modal-overlay { align-items: center; }
-/* .modal-overlay.open sudah di global.css */
 
 .modal {
   background: var(--bg);
@@ -328,7 +284,14 @@
   box-shadow: var(--shadow-lg);
   animation: popIn .22s cubic-bezier(.22,1,.36,1);
 }
-/* popIn sudah di global.css */
+
+.modal-title {
+  font-size: 15px; font-weight: 700;
+  font-family: var(--heading); color: var(--text);
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 12px;
+}
+.modal-title i { font-size: 20px; }
 
 .modal-body {
   font-size: 13px; color: var(--text-muted);
@@ -338,52 +301,69 @@
 
 
 /* ══════════════════════════════════════════════════════════
-   10. TOAST .hidden
-   JS halaman ini el.className = 'hidden' untuk sembunyi.
+   8. TOAST .hidden STATE
+   Identik mikrotik
 ══════════════════════════════════════════════════════════ */
 #toast.hidden { opacity: 0; transform: translateY(10px); pointer-events: none; }
 
 
 /* ══════════════════════════════════════════════════════════
-   11. SPIN ALIAS
-   global.css: .spinning — JS halaman ini pakai .spin.
+   9. SPIN ALIAS
+   Identik mikrotik
 ══════════════════════════════════════════════════════════ */
 .spin { animation: spinAnim .8s linear infinite; display: inline-block; }
-/* spinAnim sudah di global.css */
 
 
 /* ══════════════════════════════════════════════════════════
-   12. RESPONSIVE — breakpoint selaras dengan pelanggan.css
+   10. RESPONSIVE — selaras mikrotik & pelanggan
 ══════════════════════════════════════════════════════════ */
+@media (max-width: 1024px) {
+  .stats-row-4 { grid-template-columns: repeat(2, 1fr); }
+}
 
-/* Tablet portrait (≤768px) */
 @media (max-width: 768px) {
-  .topbar-inner      { padding: 0 16px; }
-  .page-header       { flex-direction: column; }
-  .page-header-right { width: 100%; }
-  .stats-row         { grid-template-columns: 1fr 1fr; gap: 10px; }
-  .device-card       { flex-wrap: wrap; }
-  .device-actions    { width: 100%; justify-content: flex-end; margin-top: 6px; }
-  .modal             { max-width: 100%; }
+  .stats-row-4    { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .device-card    { flex-wrap: wrap; }
+  .device-actions { width: 100%; justify-content: flex-end; margin-top: 6px; }
+  .modal          { max-width: 100%; }
 }
 
-/* Mobile (≤480px) */
 @media (max-width: 480px) {
-  .stats-row         { grid-template-columns: 1fr; gap: 8px; }
-  .form-grid         { grid-template-columns: 1fr; }
-  .form-group.full   { grid-column: 1; }
-  .device-name       { font-size: 12px; }
-  .device-meta-item  { font-size: 11.5px; }
-  .btn-sm            { font-size: 11.5px; padding: 4px 9px; }
-  .modal             { width: calc(100vw - 32px); }
+  .stats-row-4    { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .form-grid      { grid-template-columns: 1fr; }
+  .form-group.full{ grid-column: 1; }
+  .ip-port-row    { flex-direction: column; }
+  .ip-port-row .form-input.port { width: 100%; text-align: left; }
+  .device-name    { font-size: 12px; }
+  .device-meta-item { font-size: 11.5px; }
+  .btn-sm         { font-size: 11.5px; padding: 4px 9px; }
+  .modal          { width: calc(100vw - 32px); }
 }
 
-/* HP sangat kecil (≤360px) */
 @media (max-width: 360px) {
+  .stats-row-4  { grid-template-columns: 1fr; }
   .device-card  { padding: 12px 14px; }
   .device-icon  { width: 36px; height: 36px; font-size: 18px; }
 }
 
 @media (max-width: 480px) {
-  .stat-row { grid-template-columns: 1fr 1fr; }
+  .stat-row-4,
+  .stats-row-4 { grid-template-columns: 1fr 1fr; }
 }
+ 
+@media (max-width: 360px) {
+  .stat-row-4,
+  .stats-row-4 { grid-template-columns: 1fr; }
+}
+ 
+
+@media (max-width: 480px) {
+  .stat-row-4,
+  .stats-row-4 { grid-template-columns: 1fr 1fr; }
+}
+ 
+@media (max-width: 360px) {
+  .stat-row-4,
+  .stats-row-4 { grid-template-columns: 1fr; }
+}
+ 
