@@ -6,15 +6,22 @@
       API_BASE, escHtml, val, animNum, toast,
       togglePwd, parseRxTx, openModalForm, closeModalForm
 
+   ✅ PEMBARUAN — One-Click Provisioning:
+      - simpanPelanggan()  → payload lengkap (MikroTik + OLT + HP)
+      - openEdit()         → auto-fill No HP & parameter OLT dari cache
+      - openDetail()       → tampilkan No HP & Data OLT di detail
+      - renderTabel()      → tampilkan kolom No HP dari data (sudah ada di HTML)
+      - loadOltOptions()   → load OLT ke cache global (oltCache)
+      - generateCliScript()→ menggunakan data OLT terpilih
+
    Endpoint yang dipakai:
    GET    /devices                        → daftar perangkat
-   GET    /api/pelanggan/<device_id>      → pelanggan per perangkat
+   GET    /api/pelanggan/<device_id>      → pelanggan per perangkat (termasuk hp)
    GET    /api/pelanggan/<device_id>/rx-tx → data RX/TX power ONU
-   POST   /api/pelanggan                  → tambah pelanggan
-   PUT    /api/pelanggan/<id>             → edit pelanggan
+   POST   /api/pelanggan                  → tambah pelanggan (provisioning)
+   PUT    /api/pelanggan/<id>             → edit pelanggan (update OLT)
    DELETE /api/pelanggan/<id>             → hapus pelanggan
-   GET    /olt                            → daftar OLT (untuk form)
-   POST   /api/onu-mapping               → simpan data ONU
+   GET    /olt                            → daftar OLT (untuk form & cache)
    ============================================================ */
 
 'use strict';
@@ -34,13 +41,16 @@ let detailTarget   = null;
 // Cache RX/TX dari endpoint terpisah
 let rxTxCache = {};
 
+// ── BARU: Cache daftar OLT (agar tidak re-fetch setiap buka form) ──
+let oltCache = [];   // Array of { id, name, tipe, ip }
+
 
 /* ══════════════════════════════════════════════════════════
    INIT
 ══════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', () => {
   loadDevices();
-  loadOltOptions();
+  loadOltCache();   // BARU: load OLT ke cache saat halaman dibuka
 });
 
 
@@ -76,9 +86,26 @@ async function loadDevices() {
 
 
 /* ══════════════════════════════════════════════════════════
+   1b. LOAD OLT KE CACHE GLOBAL
+   GET /olt → simpan ke oltCache[]
+   ← BARU: dipakai untuk auto-fill form edit & generate CLI
+══════════════════════════════════════════════════════════ */
+async function loadOltCache() {
+  try {
+    const res  = await fetch(`${API_BASE}/olt`);
+    if (!res.ok) return;
+    const data = await res.json();
+    oltCache   = Array.isArray(data) ? data : [];
+  } catch (_) {
+    oltCache = [];
+  }
+}
+
+
+/* ══════════════════════════════════════════════════════════
    2. LOAD PELANGGAN
    GET /api/pelanggan/<device_id>
-   + GET /api/pelanggan/<device_id>/rx-tx  ← BARU
+   + GET /api/pelanggan/<device_id>/rx-tx
 ══════════════════════════════════════════════════════════ */
 async function loadPelanggan() {
   const deviceId = document.getElementById('select-device').value;
@@ -162,8 +189,6 @@ async function loadPelanggan() {
 
 /* ══════════════════════════════════════════════════════════
    2b. REFRESH RX/TX REALTIME
-   GET /api/pelanggan/<device_id>/rx-tx?realtime=1
-   ← Dipanggil dari tombol "Refresh RX/TX" jika ada
 ══════════════════════════════════════════════════════════ */
 async function refreshRxTx() {
   const deviceId = document.getElementById('select-device').value;
@@ -187,7 +212,6 @@ async function refreshRxTx() {
       }
     });
 
-    // Update data
     semuaPelanggan = semuaPelanggan.map(p => {
       const cached = rxTxCache[p.username];
       return cached ? { ...p, rx_power: cached.rx_power, tx_power: cached.tx_power } : p;
@@ -236,6 +260,9 @@ function filterPelanggan() {
 
 /* ══════════════════════════════════════════════════════════
    4. RENDER TABEL
+   ← Kolom "No HP" sudah ada di HTML thead.
+     Data hp sudah disertakan di response /api/pelanggan (dari onu_mapping.phone).
+     Tidak ada perubahan struktur HTML, cukup pastikan p.hp dirender.
 ══════════════════════════════════════════════════════════ */
 function renderTabel() {
   const tbody = document.getElementById('tbody-pelanggan');
@@ -265,7 +292,10 @@ function renderTabel() {
     else                   { badgeClass = 'nonaktif'; badgeLabel = 'Offline'; }
 
     /* ── RX/TX Power — gunakan parseRxTx dari global.js ── */
-    const rxInfo = parseRxTx(p);  // ← dari global.js, handle semua field name
+    const rxInfo = parseRxTx(p);
+
+    /* ── Nama OLT dari cache ── */
+    const namaOlt = _getNamaOlt(p.olt_id);
 
     return `
       <tr>
@@ -313,6 +343,16 @@ function renderTabel() {
 
   const deviceCount = document.getElementById('device-count');
   if (deviceCount) deviceCount.textContent = `${filteredData.length} pelanggan`;
+}
+
+
+/* ══════════════════════════════════════════════════════════
+   HELPER — Ambil nama OLT dari cache
+══════════════════════════════════════════════════════════ */
+function _getNamaOlt(oltId) {
+  if (!oltId) return '—';
+  const found = oltCache.find(o => String(o.id) === String(oltId));
+  return found ? found.name : `OLT #${oltId}`;
 }
 
 
@@ -373,9 +413,11 @@ function updateStats() {
 
 /* ══════════════════════════════════════════════════════════
    7. MODAL FORM TAMBAH / EDIT PELANGGAN
-   Menggunakan openModalForm() dari global.js
-   → Form muncul sebagai modal popup di tengah halaman
-   → Latar page sedikit blur, header & navbar tetap jernih
+   ← PEMBARUAN:
+     - Form field "No HP" sudah ada → tetap dipertahankan
+     - Tambah field: OLT (dropdown), Slot/Port, VLAN, SN sudah ada
+     - Tambah checkbox "Re-provisioning OLT" saat mode edit
+     - Auto-fill hp & data OLT saat openEdit()
 ══════════════════════════════════════════════════════════ */
 function showFormPelanggan(prefill) {
   prefill   = prefill || null;
@@ -393,6 +435,16 @@ function showFormPelanggan(prefill) {
   });
 
   const v = k => prefill ? escHtml(prefill[k] || '') : '';
+
+  // Checkbox re-provisioning (hanya mode edit & ada data OLT)
+  const reProvisionRow = isEdit ? `
+    <div class="form-group full" style="margin-top:4px;">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;
+             font-size:13px;color:var(--text-muted);">
+        <input type="checkbox" id="f-reprovision" style="width:16px;height:16px;accent-color:var(--primary);">
+        Kirim ulang perintah provisioning ke OLT (re-provisioning)
+      </label>
+    </div>` : '';
 
   const html = `
     <div class="modal" style="max-width:560px;width:100%;max-height:90vh;overflow-y:auto;">
@@ -414,16 +466,13 @@ function showFormPelanggan(prefill) {
       <div style="padding:20px;">
         <div class="form-grid">
 
+          <!-- Perangkat MikroTik -->
           <div class="form-group full">
             <label class="form-label">Perangkat MikroTik <span class="req">*</span></label>
             <select class="form-input" id="f-device">${deviceOptions}</select>
           </div>
 
-          <div class="form-group full">
-            <label class="form-label">Perangkat OLT</label>
-            <select class="form-input" id="f-olt"><option value="">-- Pilih OLT --</option></select>
-          </div>
-
+          <!-- Username & Password -->
           <div class="form-group">
             <label class="form-label">Username <span class="req">*</span></label>
             <input class="form-input" id="f-username" type="text"
@@ -443,27 +492,41 @@ function showFormPelanggan(prefill) {
             </div>
           </div>
 
+          <!-- No HP -->
           <div class="form-group">
-            <label class="form-label">No HP</label>
+            <label class="form-label">No. Telepon / HP</label>
             <input class="form-input" id="f-hp" type="text"
               placeholder="cth: 08123456789" value="${v('hp')}">
           </div>
 
+          <!-- Profil -->
           <div class="form-group">
-            <label class="form-label">Serial Number (SN)</label>
-            <input class="form-input" id="f-sn" type="text"
-              placeholder="cth: HWTC1A2B3C4D" value="${v('sn')}">
-          </div>
-
-          <div class="form-group full">
             <label class="form-label">Profil <span class="req">*</span></label>
             <select class="form-input" id="f-profil">
               <option value="">— Pilih Profil —</option>
             </select>
           </div>
 
+          <!-- Separator OLT -->
+          <div class="form-group full" style="margin:4px 0 0;">
+            <div style="font-size:11px;font-weight:700;color:var(--text-dim);
+                 letter-spacing:.08em;text-transform:uppercase;padding:6px 0 2px;
+                 border-top:1px solid var(--border);">
+              Data OLT — Provisioning ONU
+            </div>
+          </div>
+
+          <!-- Pilih OLT -->
+          <div class="form-group full">
+            <label class="form-label">Perangkat OLT</label>
+            <select class="form-input" id="f-olt">
+              <option value="">-- Pilih OLT (opsional) --</option>
+            </select>
+          </div>
+
+          <!-- Slot/Port & VLAN -->
           <div class="form-group">
-            <label class="form-label">Slot/Port:ONU</label>
+            <label class="form-label">Slot/Port : ONU-ID</label>
             <input class="form-input" id="f-slot" type="text"
               placeholder="cth: 0/1/1:3" value="${v('slot_port')}">
           </div>
@@ -474,16 +537,36 @@ function showFormPelanggan(prefill) {
               placeholder="cth: 100" value="${v('vlan')}">
           </div>
 
+          <!-- Serial Number -->
+          <div class="form-group full">
+            <label class="form-label">Serial Number (SN) Modem/ONU</label>
+            <input class="form-input" id="f-sn" type="text"
+              placeholder="cth: ZTEG1A2B3C4D atau HWTC1A2B3C4D" value="${v('sn')}">
+          </div>
+
+          ${reProvisionRow}
+
+          <!-- Separator Info Tambahan -->
+          <div class="form-group full" style="margin:4px 0 0;">
+            <div style="font-size:11px;font-weight:700;color:var(--text-dim);
+                 letter-spacing:.08em;text-transform:uppercase;padding:6px 0 2px;
+                 border-top:1px solid var(--border);">
+              Info Tambahan
+            </div>
+          </div>
+
+          <!-- Tanggal Pemasangan & Jatuh Tempo -->
           <div class="form-group">
-            <label class="form-label">Tanggal Pemasangan <span class="req">*</span></label>
+            <label class="form-label">Tanggal Pemasangan</label>
             <input class="form-input" id="f-tgl-pasang" type="date" value="${v('tgl_pasang')}">
           </div>
 
           <div class="form-group">
-            <label class="form-label">Tanggal Jatuh Tempo <span class="req">*</span></label>
+            <label class="form-label">Tanggal Jatuh Tempo</label>
             <input class="form-input" id="f-tgl-jatuh" type="date" value="${v('tgl_jatuh')}">
           </div>
 
+          <!-- Titik Koordinat -->
           <div class="form-group full">
             <label class="form-label">Titik Koordinat</label>
             <input class="form-input" id="f-harga" type="text"
@@ -497,8 +580,8 @@ function showFormPelanggan(prefill) {
             <span class="material-symbols-outlined">close</span> Batal
           </button>
           <button class="btn-primary" id="btn-save-pelanggan" onclick="simpanPelanggan()">
-            <span class="material-symbols-outlined">${isEdit ? 'check' : 'save'}</span>
-            ${isEdit ? 'Simpan Perubahan' : 'Simpan Pelanggan'}
+            <span class="material-symbols-outlined">${isEdit ? 'check' : 'bolt'}</span>
+            ${isEdit ? 'Simpan Perubahan' : 'Provisioning & Simpan'}
           </button>
         </div>
       </div>
@@ -521,58 +604,110 @@ function tutupModalPelanggan() {
 }
 
 // Alias agar kode lama tetap jalan
-function openModalTambah() { showFormPelanggan(null); }
-function cancelFormPelanggan() { tutupModalPelanggan(); }
+function openModalTambah()      { showFormPelanggan(null); }
+function cancelFormPelanggan()  { tutupModalPelanggan(); }
 
 
 /* ══════════════════════════════════════════════════════════
    8. EDIT PELANGGAN
+   ← PEMBARUAN: auto-fill hp dan data OLT dari semuaPelanggan[]
+     Data hp sudah tersedia karena /api/pelanggan kini menyertakannya.
 ══════════════════════════════════════════════════════════ */
 function openEdit(id) {
   const p = semuaPelanggan.find(x => x.id === id);
   if (!p) return;
+
+  // Pastikan field device_id tersedia untuk prefill dropdown perangkat
+  // Ambil dari select-device jika tidak ada di objek p
+  if (!p.device_id) {
+    const selEl = document.getElementById('select-device');
+    p.device_id = selEl ? selEl.value : '';
+  }
+
+  // hp sudah tersedia dari response API (kolom phone di onu_mapping)
+  // olt_id, slot_port, vlan, sn juga sudah tersedia dari response API
+
   showFormPelanggan(p);
 }
 
 
 /* ══════════════════════════════════════════════════════════
-   9. SIMPAN PELANGGAN (POST / PUT)
+   9. SIMPAN PELANGGAN (POST / PUT) — ONE-CLICK PROVISIONING
+   ← PEMBARUAN UTAMA:
+     Payload dikirim lengkap: MikroTik + OLT + Nomor HP
+     Backend (api.py) menangani 3 langkah provisioning secara berurutan.
 ══════════════════════════════════════════════════════════ */
 async function simpanPelanggan() {
-  const deviceId  = document.getElementById('f-device').value;
-  const username  = document.getElementById('f-username').value.trim();
-  const password  = document.getElementById('f-password').value.trim();
-  const hp        = document.getElementById('f-hp').value.trim();
-  const profil    = document.getElementById('f-profil').value;
-  const slot      = document.getElementById('f-slot').value.trim();
-  const vlan      = document.getElementById('f-vlan').value.trim();
-  const sn        = document.getElementById('f-sn').value.trim();
-  const koordinat = document.getElementById('f-harga').value.trim();
-  const tglPasang = document.getElementById('f-tgl-pasang').value;
-  const tglJatuh  = document.getElementById('f-tgl-jatuh').value;
+  const deviceId    = document.getElementById('f-device').value;
+  const username    = document.getElementById('f-username').value.trim();
+  const password    = document.getElementById('f-password').value.trim();
+  const hp          = document.getElementById('f-hp').value.trim();
+  const profil      = document.getElementById('f-profil').value;
+  const oltId       = document.getElementById('f-olt').value;
+  const slot        = document.getElementById('f-slot').value.trim();
+  const vlan        = document.getElementById('f-vlan').value.trim();
+  const sn          = document.getElementById('f-sn').value.trim();
+  const koordinat   = document.getElementById('f-harga').value.trim();
+  const tglPasang   = document.getElementById('f-tgl-pasang').value;
+  const tglJatuh    = document.getElementById('f-tgl-jatuh').value;
+  const reProvision = document.getElementById('f-reprovision')?.checked || false;
 
-  if (!username)             { toast('Username wajib diisi', 'warning'); return; }
+  // ── Validasi ──────────────────────────────────────────────
+  if (!username)              { toast('Username wajib diisi', 'warning'); return; }
   if (!editingId && !password) { toast('Password wajib diisi untuk pelanggan baru', 'warning'); return; }
-  if (!deviceId)             { toast('Pilih perangkat terlebih dahulu', 'warning'); return; }
+  if (!deviceId)              { toast('Pilih perangkat MikroTik terlebih dahulu', 'warning'); return; }
+
+  // Peringatan jika OLT dipilih tapi SN/slot kosong
+  if (oltId && !sn)   { toast('⚠ SN modem kosong — provisioning OLT akan dilewati', 'warning'); }
+  if (oltId && !slot) { toast('⚠ Slot/Port kosong — provisioning OLT akan dilewati', 'warning'); }
 
   const btn = document.getElementById('btn-save-pelanggan');
-  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="material-symbols-outlined">hourglass_top</span> Menyimpan...'; }
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-symbols-outlined">hourglass_top</span> Menyimpan & Provisioning...';
+  }
 
   try {
     let url, method, body;
 
     if (editingId) {
+      // ── Mode Edit ────────────────────────────────────────
       url    = `${API_BASE}/api/pelanggan/${editingId}`;
       method = 'PUT';
-      body   = { username, password, hp, profil, slot_port: slot, vlan, sn, koordinat,
-                 tgl_pasang: tglPasang, tgl_jatuh: tglJatuh, device_id: Number(deviceId) };
-      if (!password) delete body.password;
+      body   = {
+        device_id:    Number(deviceId),
+        username,
+        hp,
+        profil,
+        olt_id:       oltId ? Number(oltId) : null,
+        slot_port:    slot,
+        vlan,
+        sn,
+        koordinat,
+        tgl_pasang:   tglPasang,
+        tgl_jatuh:    tglJatuh,
+        re_provision: reProvision,  // ← kirim flag re-provisioning
+      };
+      if (password) body.password = password;
+
     } else {
+      // ── Mode Tambah (One-Click Provisioning) ─────────────
       url    = `${API_BASE}/api/pelanggan`;
       method = 'POST';
-      body   = { device_id: Number(deviceId), username, password, hp, profil,
-                 slot_port: slot, vlan, sn, koordinat,
-                 tgl_pasang: tglPasang, tgl_jatuh: tglJatuh };
+      body   = {
+        device_id:  Number(deviceId),
+        username,
+        password,
+        hp,
+        profil,
+        olt_id:     oltId ? Number(oltId) : null,
+        slot_port:  slot,
+        vlan,
+        sn,
+        koordinat,
+        tgl_pasang: tglPasang,
+        tgl_jatuh:  tglJatuh,
+      };
     }
 
     const res  = await fetch(url, {
@@ -582,15 +717,33 @@ async function simpanPelanggan() {
     });
     const data = await res.json();
 
-    if (!res.ok) throw new Error(data.error || data.message || 'Gagal menyimpan');
+    // ── Status 207 = sebagian sukses (ada warnings) ────────
+    if (!res.ok && res.status !== 207) {
+      throw new Error(data.error || data.message || 'Gagal menyimpan');
+    }
 
     tutupModalPelanggan();
-    toast(
-      editingId
-        ? `Data ${username} berhasil diperbarui`
-        : `Pelanggan ${username} berhasil ditambahkan`,
-      'success'
-    );
+
+    // Tampilkan pesan sukses + detail setiap langkah
+    const steps    = data.steps    || {};
+    const warnings = data.warnings || [];
+
+    let toastMsg = editingId
+      ? `✅ ${username} berhasil diperbarui`
+      : `✅ ${username} berhasil ditambahkan`;
+
+    if (steps.mikrotik) toastMsg += ` · MikroTik: OK`;
+    if (steps.olt && steps.olt.includes('berhasil')) toastMsg += ` · OLT: OK`;
+
+    toast(toastMsg, warnings.length > 0 ? 'warning' : 'success');
+
+    // Tampilkan detail warning jika ada (mis. OLT provisioning gagal)
+    if (warnings.length > 0) {
+      setTimeout(() => {
+        warnings.forEach(w => toast(`⚠ ${w}`, 'warning'));
+      }, 800);
+    }
+
     await loadPelanggan();
 
   } catch (err) {
@@ -598,8 +751,8 @@ async function simpanPelanggan() {
   } finally {
     if (btn) {
       btn.disabled = false;
-      btn.innerHTML = `<span class="material-symbols-outlined">${editingId ? 'check' : 'save'}</span> ` +
-        (editingId ? 'Simpan Perubahan' : 'Simpan Pelanggan');
+      btn.innerHTML = `<span class="material-symbols-outlined">${editingId ? 'check' : 'bolt'}</span> ` +
+        (editingId ? 'Simpan Perubahan' : 'Provisioning & Simpan');
     }
   }
 }
@@ -607,13 +760,18 @@ async function simpanPelanggan() {
 
 /* ══════════════════════════════════════════════════════════
    10. MODAL DETAIL / AKSI PERANGKAT
+   ← PEMBARUAN:
+     - Tampilkan No. Telepon (hp) di bagian info pelanggan
+     - Tampilkan Data OLT: nama OLT, Slot/Port, VLAN, SN
+     - generateCliScript() menggunakan data OLT dari objek pelanggan
 ══════════════════════════════════════════════════════════ */
 function openDetail(id) {
   const p = semuaPelanggan.find(x => x.id === id);
   if (!p) return;
   detailTarget = p;
 
-  const rxInfo = parseRxTx(p);  // ← dari global.js
+  const rxInfo  = parseRxTx(p);  // ← dari global.js
+  const namaOlt = _getNamaOlt(p.olt_id);
 
   const html = `
     <div class="modal" style="max-width:520px;width:100%;max-height:90vh;overflow-y:auto;">
@@ -637,7 +795,96 @@ function openDetail(id) {
 
       <div style="padding:16px 20px;">
 
-        <!-- Aksi Cepat -->
+        <!-- ── INFO PELANGGAN ── -->
+        <div class="detail-info-grid" style="
+          display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;
+          padding:14px;background:var(--surface-2);border-radius:10px;
+          margin-bottom:14px;">
+
+          <div>
+            <div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;
+                 letter-spacing:.07em;font-weight:700;">Profil</div>
+            <div style="font-size:13px;color:var(--text);font-weight:600;margin-top:2px;">
+              ${escHtml(p.profil || '—')}
+            </div>
+          </div>
+
+          <div>
+            <div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;
+                 letter-spacing:.07em;font-weight:700;">Status</div>
+            <div style="margin-top:4px;">
+              <span class="badge-status ${p.status === 'Online' ? 'online' : 'nonaktif'}"
+                    style="font-size:11px;">
+                <span class="badge-dot"></span>
+                ${escHtml(p.status || 'Offline')}
+              </span>
+            </div>
+          </div>
+
+          <!-- No. Telepon ← BARU -->
+          <div>
+            <div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;
+                 letter-spacing:.07em;font-weight:700;">No. Telepon</div>
+            <div style="font-size:13px;color:var(--text);font-weight:600;margin-top:2px;">
+              ${p.hp
+                ? `<a href="tel:${escHtml(p.hp)}" style="color:var(--primary);text-decoration:none;">
+                     ${escHtml(p.hp)}
+                   </a>`
+                : '—'}
+            </div>
+          </div>
+
+          <div>
+            <div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;
+                 letter-spacing:.07em;font-weight:700;">TX Power</div>
+            <div style="font-size:13px;color:var(--text);font-weight:600;margin-top:2px;">
+              ${escHtml(rxInfo.txFormatted)}
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ── DATA OLT ← BARU ── -->
+        <div style="padding:14px;background:var(--surface-2);border-radius:10px;margin-bottom:14px;">
+          <div style="font-size:10px;font-weight:700;color:var(--text-dim);
+               text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;">
+            Data OLT &amp; ONU
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;">
+
+            <div>
+              <div style="font-size:10px;color:var(--text-dim);font-weight:600;">OLT</div>
+              <div style="font-size:13px;color:var(--text);font-weight:600;margin-top:2px;">
+                ${escHtml(namaOlt)}
+              </div>
+            </div>
+
+            <div>
+              <div style="font-size:10px;color:var(--text-dim);font-weight:600;">Slot / Port : ONU</div>
+              <div style="font-size:13px;color:var(--text);font-family:monospace;margin-top:2px;">
+                ${escHtml(p.slot_port || '—')}
+              </div>
+            </div>
+
+            <div>
+              <div style="font-size:10px;color:var(--text-dim);font-weight:600;">VLAN</div>
+              <div style="font-size:13px;color:var(--text);font-family:monospace;margin-top:2px;">
+                ${escHtml(p.vlan || '—')}
+              </div>
+            </div>
+
+            <div>
+              <div style="font-size:10px;color:var(--text-dim);font-weight:600;">Serial Number</div>
+              <div style="font-size:12px;color:var(--text);font-family:monospace;margin-top:2px;
+                   word-break:break-all;">
+                ${escHtml(p.sn || '—')}
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ── AKSI CEPAT ── -->
         <div class="detail-action-group">
           <div class="detail-action-label">Aksi Cepat</div>
           <div class="detail-action-btns">
@@ -656,7 +903,7 @@ function openDetail(id) {
           </div>
         </div>
 
-        <!-- Script CLI OLT -->
+        <!-- ── SCRIPT CLI OLT ── -->
         <div class="detail-cli-section">
           <div class="detail-action-label" style="display:flex;justify-content:space-between;">
             Script Provisioning OLT
@@ -677,6 +924,12 @@ function openDetail(id) {
 
 function tutupModalDetail() { closeModalForm(); }
 
+
+/* ══════════════════════════════════════════════════════════
+   GENERATE CLI SCRIPT
+   ← PEMBARUAN: deteksi tipe OLT dari oltCache untuk
+     generate CLI ZTE vs Huawei yang tepat
+══════════════════════════════════════════════════════════ */
 function generateCliScript(p) {
   const slotRaw  = p.slot_port || '1/3/6:1';
   const parts    = slotRaw.split(':');
@@ -686,9 +939,49 @@ function generateCliScript(p) {
   const sn       = p.sn       || 'ZTEG00000000';
   const vlan     = p.vlan     || '200';
   const profil   = (p.profil  || 'PAKET1').toUpperCase();
-  const password = '12345';
+  const password = '••••••';   // Password tidak ditampilkan di script
 
-  return `con t\ninterface gpon-olt_${gponPath}\nno onu ${onuId}\nexit\ninterface gpon-olt_${gponPath}\nonu ${onuId} type ALL-ONT sn ${sn} vport-mode gemport\nexit\ninterface gpon-onu_${gponPath}:${onuId}\nname ${username}\nsn-bind enable sn\ntcont 1 profile ${profil}\ngemport 1 tcont 1\nswitchport mode hybrid vport 1\nservice-port 1 vport 1 user-vlan ${vlan} vlan ${vlan}\nexit\npon-onu-mng gpon-onu_${gponPath}:${onuId}\nservice HSI gemport 1 cos 0-7 vlan ${vlan}\nwan-ip 1 mode pppoe username ${username} password ${password} vlan-profile vlan${vlan} host 1\nwan-ip 1 ping-response enable traceroute-response enable\nsecurity-mgmt 212 state enable mode forward protocol web\nend\nwr`;
+  // Deteksi tipe OLT dari cache
+  const olt  = oltCache.find(o => String(o.id) === String(p.olt_id));
+  const tipe = (olt?.tipe || '').toLowerCase();
+
+  if (tipe.includes('huawei')) {
+    // ── Script Huawei MA5600 / MA5800 ──
+    return [
+      'enable',
+      'config',
+      `interface gpon 0/${gponPath}`,
+      `ont add ${onuId} sn-auth ${sn} omci ont-lineprofile-id 10 ont-srvprofile-id 10 desc ${username}`,
+      'quit',
+      `service-port vlan ${vlan} gpon 0/${gponPath} ont ${onuId} gemport 1 multi-service user-vlan ${vlan} tag-transform translate`,
+      'quit',
+      'save',
+    ].join('\n');
+  }
+
+  // ── Script ZTE C300 / C600 (default) ──
+  return [
+    'con t',
+    `interface gpon-olt_${gponPath}`,
+    `no onu ${onuId}`,
+    `onu ${onuId} type ALL-ONT sn ${sn} vport-mode gemport`,
+    'exit',
+    `interface gpon-onu_${gponPath}:${onuId}`,
+    `name ${username}`,
+    'sn-bind enable sn',
+    `tcont 1 profile ${profil}`,
+    'gemport 1 tcont 1',
+    'switchport mode hybrid vport 1',
+    `service-port 1 vport 1 user-vlan ${vlan} vlan ${vlan}`,
+    'exit',
+    `pon-onu-mng gpon-onu_${gponPath}:${onuId}`,
+    `service HSI gemport 1 cos 0-7 vlan ${vlan}`,
+    `wan-ip 1 mode pppoe username ${username} password ${password} vlan-profile vlan${vlan} host 1`,
+    'wan-ip 1 ping-response enable traceroute-response enable',
+    'security-mgmt 212 state enable mode forward protocol web',
+    'end',
+    'wr',
+  ].join('\n');
 }
 
 function copyCliScript() {
@@ -702,8 +995,11 @@ function copyCliScript() {
 function aksiModem(aksi) {
   if (!detailTarget) return;
   const label = {
-    remote: 'Remote Modem', reboot: 'Reboot Modem',
-    enable: 'Enable Modem', disable: 'Disable Modem', hapus: 'Hapus Modem'
+    remote:  'Remote Modem',
+    reboot:  'Reboot Modem',
+    enable:  'Enable Modem',
+    disable: 'Disable Modem',
+    hapus:   'Hapus Modem'
   }[aksi] || aksi;
   toast(`${label}: ${detailTarget.username}`, 'info');
 }
@@ -811,39 +1107,53 @@ function ubahJumlahTampil() {
 /* ══════════════════════════════════════════════════════════
    HELPERS — Isi dropdown OLT & Profil ke form
 ══════════════════════════════════════════════════════════ */
-async function loadOltOptions() {
-  try {
-    const res  = await fetch(`${API_BASE}/olt`);
-    if (!res.ok) throw new Error('Gagal ambil data OLT');
-    const data = await res.json();
-    const sel  = document.getElementById('f-olt');
-    if (!sel) return;
-    sel.innerHTML = '<option value="">-- Pilih OLT --</option>';
-    data.forEach(olt => {
-      const opt = new Option(olt.name, olt.id);
-      sel.appendChild(opt);
-    });
-  } catch (err) {
-    console.warn('OLT Load Error:', err);
-  }
-}
 
-async function _loadOltIntoForm(selectedVal) {
-  const sel = document.getElementById('f-olt');
-  if (!sel) return;
+/**
+ * Load daftar OLT ke oltCache (dipanggil sekali saat DOMContentLoaded).
+ * Fungsi ini menggantikan loadOltOptions() yang lama agar tidak bergantung
+ * pada elemen DOM yang mungkin belum ada.
+ */
+async function loadOltCache() {
   try {
     const res  = await fetch(`${API_BASE}/olt`);
     if (!res.ok) return;
     const data = await res.json();
-    sel.innerHTML = '<option value="">-- Pilih OLT --</option>';
-    data.forEach(olt => {
-      const opt = new Option(olt.name, olt.id);
-      if (String(olt.id) === String(selectedVal)) opt.selected = true;
-      sel.appendChild(opt);
-    });
-  } catch (_) {}
+    oltCache   = Array.isArray(data) ? data : [];
+  } catch (_) {
+    oltCache = [];
+  }
 }
 
+/**
+ * Isi dropdown #f-olt di dalam form modal menggunakan data dari oltCache.
+ * Jika oltCache kosong, fetch ulang dari server.
+ * @param {string|number} selectedVal - olt_id yang akan dipilih (untuk mode edit)
+ */
+async function _loadOltIntoForm(selectedVal) {
+  const sel = document.getElementById('f-olt');
+  if (!sel) return;
+
+  // Pastikan cache tersedia
+  if (oltCache.length === 0) {
+    await loadOltCache();
+  }
+
+  sel.innerHTML = '<option value="">-- Pilih OLT (opsional) --</option>';
+  oltCache.forEach(olt => {
+    const opt = new Option(
+      `${olt.name}${olt.tipe ? ' · ' + olt.tipe : ''} (${olt.ip})`,
+      olt.id
+    );
+    if (String(olt.id) === String(selectedVal)) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+/**
+ * Isi dropdown #f-profil di dalam form modal.
+ * Profil diambil dari daftar pelanggan yang sudah di-load.
+ * @param {string} selectedVal - profil yang akan dipilih (untuk mode edit)
+ */
 function _loadProfilIntoForm(selectedVal) {
   const sel = document.getElementById('f-profil');
   if (!sel) return;
@@ -854,4 +1164,9 @@ function _loadProfilIntoForm(selectedVal) {
     if (p === selectedVal) opt.selected = true;
     sel.appendChild(opt);
   });
+}
+
+// Alias untuk kompatibilitas kode lama
+async function loadOltOptions() {
+  await loadOltCache();
 }

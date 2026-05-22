@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Profil Admin — TechnoFix</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
+  <link rel="stylesheet" href="/app/frontend/statis/global.css" />
+  <style>
+    /* ── Profile page specific styles ── */
+    .profile-page-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--r-xl);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+    .profile-cover {
+      height: 120px;
+      background: linear-gradient(135deg, #003f88 0%, #004fa8 50%, #0061c8 100%);
+      position: relative;
+    }
+    .profile-cover::after {
+      content: '';
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
+      background-size: 28px 28px;
+    }
+    .profile-avatar-wrap {
+      padding: 0 28px;
+      margin-top: -36px;
+      position: relative; z-index: 1;
+      display: flex; align-items: flex-end;
+      justify-content: space-between; gap: 16px;
+      flex-wrap: wrap;
+    }
+    .profile-avatar-big {
+      width: 80px; height: 80px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), #0061c8);
+      border: 4px solid var(--bg);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px; font-weight: 800; font-family: var(--heading);
+      color: #fff; letter-spacing: -.02em;
+      box-shadow: 0 4px 16px rgba(0,64,161,.35);
+      flex-shrink: 0;
+    }
+    .profile-avatar-actions { padding-bottom: 6px; }
+    .profile-info-body { padding: 16px 28px 24px; }
+    .profile-name {
+      font-size: 20px; font-weight: 800; font-family: var(--heading);
+      color: var(--text); letter-spacing: -.02em; margin-bottom: 2px;
+    }
+    .profile-role {
+      font-size: 13px; color: var(--text-muted); font-weight: 500;
+    }
+    .profile-meta {
+      display: flex; flex-wrap: wrap; gap: 16px; margin-top: 14px;
+    }
+    .profile-meta-item {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; color: var(--text-muted);
+    }
+    .profile-meta-item .material-symbols-outlined { font-size: 16px; color: var(--primary); }
+
+    /* Settings sections */
+    .settings-section {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--r-xl);
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+    .settings-section-head {
+      display: flex; align-items: center; gap: 10px;
+      padding: 16px 20px; border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .settings-section-head .material-symbols-outlined { font-size: 20px; color: var(--primary); }
+    .settings-section-title { font-size: 14px; font-weight: 700; font-family: var(--heading); color: var(--text); }
+    .settings-section-body { padding: 20px; }
+    .settings-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 0; border-bottom: 1px solid var(--border); gap: 16px;
+    }
+    .settings-row:last-child { border-bottom: none; }
+    .settings-row-left { display: flex; flex-direction: column; gap: 2px; }
+    .settings-label { font-size: 13px; font-weight: 600; color: var(--text); }
+    .settings-desc  { font-size: 12px; color: var(--text-muted); }
+    .settings-value { font-size: 13px; color: var(--text-dim); text-align: right; }
+
+    /* Toggle switch */
+    .toggle-wrap { display: flex; align-items: center; gap: 8px; }
+    .toggle {
+      width: 44px; height: 24px; border-radius: 99px;
+      background: var(--border-2); cursor: pointer;
+      position: relative; transition: background .2s;
+      border: none; flex-shrink: 0;
+    }
+    .toggle::after {
+      content: ''; position: absolute;
+      top: 3px; left: 3px;
+      width: 18px; height: 18px; border-radius: 50%;
+      background: #fff; transition: transform .2s;
+      box-shadow: 0 1px 4px rgba(0,0,0,.2);
+    }
+    .toggle.on { background: var(--primary); }
+    .toggle.on::after { transform: translateX(20px); }
+
+    /* Two-column grid for form */
+    .profile-form-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+    }
+    @media (max-width: 600px) {
+      .profile-form-grid { grid-template-columns: 1fr; }
+      .profile-avatar-wrap { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ══ HEADER ══ -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="header-brand">
+        <div class="brand-logo">
+          <span class="material-symbols-outlined">router</span>
+        </div>
+        <div>
+          <div class="brand-name">TechnoFix</div>
+          <div class="brand-sub">Monitoring status jaringan &amp; pelanggan</div>
+        </div>
+      </div>
+      <nav class="topbar-nav">
+        <a href="/app/frontend/dashboard/dashboard.html">
+          <span class="material-symbols-outlined">dashboard</span>Dashboard
+        </a>
+        <a href="/app/frontend/pelanggan/pelanggan.html">
+          <span class="material-symbols-outlined">group</span>Pelanggan
+        </a>
+        <a href="/app/frontend/profile/profile.html" class="active">
+          <span class="material-symbols-outlined">person</span>Profile
+        </a>
+        <a href="#" onclick="openPerangkatSheet(event)">
+          <span class="material-symbols-outlined">router</span>Perangkat
+        </a>
+        <a href="#">
+          <span class="material-symbols-outlined">payments</span>Keuangan
+        </a>
+        <a href="#">
+          <span class="material-symbols-outlined">map</span>Maps
+        </a>
+      </nav>
+      <div class="header-actions">
+        <div class="profile-wrap" id="profile-wrap">
+          <button class="profile-btn" onclick="toggleProfileMenu()" title="Profil">
+            <div class="avatar-circle" id="avatar-initials">AD</div>
+            <span class="profile-username" id="profile-username">Admin</span>
+            <span class="material-symbols-outlined profile-chevron">expand_more</span>
+          </button>
+          <div class="profile-dropdown" id="profile-dropdown">
+            <a href="#" class="profile-menu-item">
+              <span class="material-symbols-outlined">person</span>Profil
+            </a>
+            <a href="#" class="profile-menu-item">
+              <span class="material-symbols-outlined">settings</span>Setting
+            </a>
+            <a href="#" class="profile-menu-item">
+              <span class="material-symbols-outlined">manage_accounts</span>Manajemen User
+            </a>
+            <div class="profile-menu-divider"></div>
+            <a href="#" class="profile-menu-item logout" onclick="logout()">
+              <span class="material-symbols-outlined">logout</span>Logout
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ══ BOTTOM NAVBAR ══ -->
+  <nav class="bottom-nav">
+    <div class="bottom-nav-inner">
+      <div class="bottom-nav-indicator" id="bottom-nav-indicator"></div>
+      <a href="/app/frontend/dashboard/dashboard.html" class="bottom-nav-item">
+        <div class="bottom-nav-icon"><span class="material-symbols-outlined">dashboard</span></div>
+        <span class="bottom-nav-label">Dashboard</span>
+      </a>
+      <a href="/app/frontend/pelanggan/pelanggan.html" class="bottom-nav-item">
+        <div class="bottom-nav-icon"><span class="material-symbols-outlined">group</span></div>
+        <span class="bottom-nav-label">Pelanggan</span>
+      </a>
+      <a href="/app/frontend/profile/profile.html" class="bottom-nav-item active">
+        <div class="bottom-nav-icon"><span class="material-symbols-outlined">person</span></div>
+        <span class="bottom-nav-label">Profile</span>
+      </a>
+      <a href="#" class="bottom-nav-item" onclick="openPerangkatSheet(event)">
+        <div class="bottom-nav-icon"><span class="material-symbols-outlined">router</span></div>
+        <span class="bottom-nav-label">Perangkat</span>
+      </a>
+      <a href="#" class="bottom-nav-item">
+        <div class="bottom-nav-icon"><span class="material-symbols-outlined">payments</span></div>
+        <span class="bottom-nav-label">Keuangan</span>
+      </a>
+      <a href="#" class="bottom-nav-item">
+        <div class="bottom-nav-icon"><span class="material-symbols-outlined">map</span></div>
+        <span class="bottom-nav-label">Maps</span>
+      </a>
+    </div>
+  </nav>
+
+  <!-- ══ PAGE ══ -->
+  <main class="page">
+    <div class="page-top">
+      <div>
+        <h1 class="page-title">Profil &amp; Pengaturan</h1>
+        <p class="page-sub">Kelola informasi akun dan preferensi sistem</p>
+      </div>
+      <span class="date-badge">
+        <span class="material-symbols-outlined">calendar_today</span>
+        <span id="today-date">—</span>
+      </span>
+    </div>
+
+    <!-- PROFILE CARD -->
+    <div class="profile-page-card">
+      <div class="profile-cover"></div>
+      <div class="profile-avatar-wrap">
+        <div class="profile-avatar-big" id="profile-avatar-big">AD</div>
+        <div class="profile-avatar-actions">
+          <button class="btn btn-sm" onclick="gantiFoto()">
+            <span class="material-symbols-outlined">photo_camera</span> Ganti Foto
+          </button>
+        </div>
+      </div>
+      <div class="profile-info-body">
+        <div class="profile-name" id="profile-name-display">Administrator</div>
+        <div class="profile-role">Super Admin — TechnoFix Billing System</div>
+        <div class="profile-meta">
+          <div class="profile-meta-item">
+            <span class="material-symbols-outlined">email</span>
+            <span id="profile-email-display">admin@technofix.id</span>
+          </div>
+          <div class="profile-meta-item">
+            <span class="material-symbols-outlined">phone</span>
+            <span id="profile-hp-display">—</span>
+          </div>
+          <div class="profile-meta-item">
+            <span class="material-symbols-outlined">location_on</span>
+            <span>Banyuwangi, Jawa Timur</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EDIT INFORMASI AKUN -->
+    <div class="settings-section">
+      <div class="settings-section-head">
+        <span class="material-symbols-outlined">manage_accounts</span>
+        <span class="settings-section-title">Informasi Akun</span>
+      </div>
+      <div class="settings-section-body">
+        <div class="profile-form-grid">
+          <div class="form-group">
+            <label class="form-label">Nama Lengkap</label>
+            <input class="form-input" type="text" id="f-nama" placeholder="Nama Admin" value="Administrator">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Username Login</label>
+            <input class="form-input" type="text" id="f-uname" placeholder="username" value="admin">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input class="form-input" type="email" id="f-email" placeholder="email@domain.com" value="admin@technofix.id">
+          </div>
+          <div class="form-group">
+            <label class="form-label">No HP</label>
+            <input class="form-input" type="text" id="f-hp-profile" placeholder="08xxxxxxxxxx">
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn-primary" onclick="simpanProfil()">
+            <span class="material-symbols-outlined">save</span> Simpan Perubahan
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- GANTI PASSWORD -->
+    <div class="settings-section">
+      <div class="settings-section-head">
+        <span class="material-symbols-outlined">lock</span>
+        <span class="settings-section-title">Ganti Password</span>
+      </div>
+      <div class="settings-section-body">
+        <div class="profile-form-grid">
+          <div class="form-group full" style="grid-column:1/-1">
+            <label class="form-label">Password Lama</label>
+            <div class="form-pwd-wrap">
+              <input class="form-input" type="password" id="f-pass-lama" placeholder="••••••••" autocomplete="current-password">
+              <button class="form-pwd-toggle" type="button" onclick="togglePwd('f-pass-lama','eye-lama')">
+                <span class="material-symbols-outlined" id="eye-lama">visibility</span>
+              </button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Password Baru</label>
+            <div class="form-pwd-wrap">
+              <input class="form-input" type="password" id="f-pass-baru" placeholder="Min. 8 karakter" autocomplete="new-password">
+              <button class="form-pwd-toggle" type="button" onclick="togglePwd('f-pass-baru','eye-baru')">
+                <span class="material-symbols-outlined" id="eye-baru">visibility</span>
+              </button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Konfirmasi Password Baru</label>
+            <div class="form-pwd-wrap">
+              <input class="form-input" type="password" id="f-pass-konfirm" placeholder="Ulangi password baru" autocomplete="new-password">
+              <button class="form-pwd-toggle" type="button" onclick="togglePwd('f-pass-konfirm','eye-konfirm')">
+                <span class="material-symbols-outlined" id="eye-konfirm">visibility</span>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn-primary" onclick="gantiPassword()">
+            <span class="material-symbols-outlined">lock_reset</span> Perbarui Password
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PENGATURAN SISTEM -->
+    <div class="settings-section">
+      <div class="settings-section-head">
+        <span class="material-symbols-outlined">tune</span>
+        <span class="settings-section-title">Pengaturan Sistem</span>
+      </div>
+      <div class="settings-section-body">
+        <div class="settings-row">
+          <div class="settings-row-left">
+            <div class="settings-label">Notifikasi Jatuh Tempo</div>
+            <div class="settings-desc">Kirim notifikasi WhatsApp H-3 sebelum jatuh tempo</div>
+          </div>
+          <div class="toggle-wrap">
+            <button class="toggle on" id="toggle-notif" onclick="toggleSetting('notif')"></button>
+          </div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-left">
+            <div class="settings-label">Sinkronisasi Otomatis OLT</div>
+            <div class="settings-desc">Sinkronisasi data ONU setiap 3 menit (background worker)</div>
+          </div>
+          <div class="toggle-wrap">
+            <button class="toggle on" id="toggle-sync" onclick="toggleSetting('sync')"></button>
+          </div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-left">
+            <div class="settings-label">Interval Refresh Dashboard</div>
+            <div class="settings-desc">Perbarui statistik secara otomatis</div>
+          </div>
+          <div class="settings-value">
+            <select class="filter-select" style="width:120px;">
+              <option value="60">1 menit</option>
+              <option value="300" selected>5 menit</option>
+              <option value="600">10 menit</option>
+              <option value="0">Manual</option>
+            </select>
+          </div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-left">
+            <div class="settings-label">Mode Tampilan</div>
+            <div class="settings-desc">Tema aplikasi</div>
+          </div>
+          <div class="settings-value">
+            <select class="filter-select" style="width:120px;">
+              <option value="light" selected>Terang</option>
+              <option value="dark">Gelap</option>
+              <option value="auto">Otomatis</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- INFORMASI SISTEM -->
+    <div class="settings-section">
+      <div class="settings-section-head">
+        <span class="material-symbols-outlined">info</span>
+        <span class="settings-section-title">Informasi Sistem</span>
+      </div>
+      <div class="settings-section-body">
+        <div class="settings-row">
+          <div class="settings-label">Versi Aplikasi</div>
+          <div class="settings-value">TechnoFix v1.0.0</div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-label">Backend</div>
+          <div class="settings-value">Flask + SQLite</div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-label">Server</div>
+          <div class="settings-value" id="info-server">—</div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-label">Status Koneksi Backend</div>
+          <div class="settings-value" id="info-status">
+            <span class="badge pending"><span class="badge-dot"></span>Mengecek...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ZONA BERBAHAYA -->
+    <div class="settings-section" style="border-color:var(--red-border);">
+      <div class="settings-section-head" style="background:var(--red-bg);border-bottom-color:var(--red-border);">
+        <span class="material-symbols-outlined" style="color:var(--red);">warning</span>
+        <span class="settings-section-title" style="color:var(--red);">Zona Berbahaya</span>
+      </div>
+      <div class="settings-section-body">
+        <div class="settings-row">
+          <div class="settings-row-left">
+            <div class="settings-label">Keluar dari Sistem</div>
+            <div class="settings-desc">Akhiri sesi login Anda saat ini</div>
+          </div>
+          <button class="btn btn-red" onclick="logout()">
+            <span class="material-symbols-outlined">logout</span> Logout
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <div id="toast"></div>
+
+  <script src="/app/frontend/statis/global.js"></script>
+  <script>
+    /* ── Cek status backend ── */
+    (async function () {
+      const el = document.getElementById('info-status');
+      const srv = document.getElementById('info-server');
+      if (srv) srv.textContent = API_BASE;
+      try {
+        const res = await fetch(`${API_BASE}/devices`, { signal: AbortSignal.timeout(4000) });
+        if (el) el.innerHTML = res.ok
+          ? '<span class="badge connected"><span class="badge-dot"></span>Terhubung</span>'
+          : '<span class="badge failed"><span class="badge-dot"></span>Error</span>';
+      } catch {
+        if (el) el.innerHTML = '<span class="badge failed"><span class="badge-dot"></span>Tidak terhubung</span>';
+      }
+    })();
+
+    /* ── Toggle settings ── */
+    function toggleSetting(key) {
+      const btn = document.getElementById('toggle-' + key);
+      if (!btn) return;
+      btn.classList.toggle('on');
+      toast(btn.classList.contains('on') ? 'Pengaturan diaktifkan' : 'Pengaturan dinonaktifkan', 'info');
+    }
+
+    /* ── Simpan profil ── */
+    function simpanProfil() {
+      const nama  = document.getElementById('f-nama')?.value.trim();
+      const email = document.getElementById('f-email')?.value.trim();
+      const hp    = document.getElementById('f-hp-profile')?.value.trim();
+      if (!nama) { toast('Nama tidak boleh kosong', 'warning'); return; }
+      // TODO: hubungkan ke endpoint /api/profile jika tersedia
+      document.getElementById('profile-name-display').textContent  = nama;
+      document.getElementById('profile-email-display').textContent = email || '—';
+      document.getElementById('profile-hp-display').textContent    = hp    || '—';
+      const inisial = nama.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase();
+      document.getElementById('profile-avatar-big').textContent    = inisial;
+      const av = document.getElementById('avatar-initials');
+      if (av) av.textContent = inisial;
+      toast('Profil berhasil diperbarui', 'success');
+    }
+
+    /* ── Ganti password ── */
+    function gantiPassword() {
+      const lama    = document.getElementById('f-pass-lama')?.value;
+      const baru    = document.getElementById('f-pass-baru')?.value;
+      const konfirm = document.getElementById('f-pass-konfirm')?.value;
+      if (!lama)              { toast('Masukkan password lama', 'warning'); return; }
+      if (!baru || baru.length < 8) { toast('Password baru minimal 8 karakter', 'warning'); return; }
+      if (baru !== konfirm)   { toast('Konfirmasi password tidak cocok', 'danger'); return; }
+      // TODO: hubungkan ke endpoint /api/change-password jika tersedia
+      toast('Password berhasil diperbarui', 'success');
+      ['f-pass-lama','f-pass-baru','f-pass-konfirm'].forEach(id => {
+        const el = document.getElementById(id); if (el) el.value = '';
+      });
+    }
+
+    /* ── Ganti foto (placeholder) ── */
+    function gantiFoto() {
+      toast('Fitur upload foto akan segera tersedia', 'info');
+    }
+
+    /* ── Logout ── */
+    function logout() {
+      localStorage.clear();
+      toast('Sampai jumpa!', 'success');
+      setTimeout(() => { window.location.href = '/app/frontend/login/login.html'; }, 800);
+    }
+  </script>
+
+  <!-- Perangkat Sheet -->
+  <div class="psheet-overlay" id="psheet-overlay" onclick="closePerangkatSheet()"></div>
+  <div class="psheet" id="psheet" role="dialog" aria-modal="true">
+    <div class="psheet-handle"></div>
+    <div class="psheet-head">
+      <div>
+        <p class="psheet-eyebrow">Manajemen Jaringan</p>
+        <h2 class="psheet-title">Pilih Perangkat</h2>
+      </div>
+      <button class="psheet-close" onclick="closePerangkatSheet()">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <div class="psheet-list">
+      <a href="/app/frontend/input_perangkat/input_mikrotik.html" class="psheet-item psheet-mikrotik">
+        <div class="psheet-item-icon"><span class="material-symbols-outlined">router</span></div>
+        <div class="psheet-item-body">
+          <div class="psheet-item-name">MikroTik</div>
+          <div class="psheet-item-desc">Router, firewall, dan manajemen bandwidth</div>
+        </div>
+        <span class="psheet-item-badge">Router</span>
+        <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
+      </a>
+      <a href="/app/frontend/input_perangkat/input_olt.html" class="psheet-item psheet-olt">
+        <div class="psheet-item-icon"><span class="material-symbols-outlined">settings_input_antenna</span></div>
+        <div class="psheet-item-body">
+          <div class="psheet-item-name">OLT</div>
+          <div class="psheet-item-desc">Optical Line Terminal — kontrol jaringan fiber</div>
+        </div>
+        <span class="psheet-item-badge">Fiber</span>
+        <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
+      </a>
+      <a href="/app/frontend/input_perangkat/input_odp.html" class="psheet-item psheet-odp">
+        <div class="psheet-item-icon"><span class="material-symbols-outlined">hub</span></div>
+        <div class="psheet-item-body">
+          <div class="psheet-item-name">ODP</div>
+          <div class="psheet-item-desc">Optical Distribution Point — titik distribusi kabel</div>
+        </div>
+        <span class="psheet-item-badge">Distribusi</span>
+        <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
+      </a>
+    </div>
+  </div>
+</body>
+</html>

@@ -112,7 +112,7 @@
 }
 .form-input::placeholder { color: var(--text-dim); }
 .form-input.mono {
-  font-family: 'Courier New', Courier, monospace;
+  font-family: var(--sans);
   font-size: 12px;
 }
 
@@ -239,7 +239,7 @@ select.form-input {
 .device-meta-item {
   display: flex; align-items: center; gap: 5px;
   font-size: 12px; color: var(--text-muted);
-  font-family: 'Courier New', Courier, monospace;
+  font-family: var(--sans);
 }
 .device-meta-item i,
 .device-meta-item .material-symbols-outlined { font-size: 13px; color: var(--text-dim); }
@@ -366,4 +366,3 @@ select.form-input {
   .stat-row-4,
   .stats-row-4 { grid-template-columns: 1fr; }
 }
- 

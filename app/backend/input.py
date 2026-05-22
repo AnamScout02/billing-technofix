@@ -6,6 +6,13 @@ dan sediakan endpoint CRUD untuk perangkat MikroTik.
 
 Menggunakan utils.py untuk fungsi helper terpusat:
   - get_db(), device_to_dict(), try_connect_mikrotik()
+
+✅ FASE 1 — CLEANUP:
+   - Hapus seluruh duplikat entry point (baris ~259–526 asli).
+   - Tambahkan tabel profil_harga ke init_db() — sebelumnya hanya
+     ada di duplikat kedua yang harus dihapus.
+   - Tambahkan registrasi auth_bp — sebelumnya hilang sama sekali.
+   - Tambahkan migrasi kolom 'service' di tabel pelanggan.
 """
 
 from flask import Flask, request, jsonify
@@ -16,16 +23,30 @@ import os
 # ── Shared helpers ─────────────────────────────────────────────
 from utils import get_db, device_to_dict, try_connect_mikrotik
 
-# ── Blueprint lain ─────────────────────────────────────────────
-from api import api_bp
-from olt import olt_bp
+# ── Blueprints ─────────────────────────────────────────────────
+from api  import api_bp
+from olt  import olt_bp
+# [DITAMBAHKAN] auth_bp sebelumnya tidak pernah diregistrasi
+from auth import auth_bp
 
 # ── Setup ──────────────────────────────────────────────────────
 app = Flask(__name__)
 CORS(app)
 
-app.register_blueprint(api_bp, url_prefix='/api')
-app.register_blueprint(olt_bp, url_prefix='/olt')
+# [DITAMBAHKAN] Secret key wajib ada agar Flask session berfungsi
+# Gunakan environment variable di produksi; fallback ke nilai statis
+# untuk development agar session tidak reset tiap restart.
+app.secret_key = os.environ.get('SECRET_KEY', 'technofix-dev-secret-ganti-di-produksi')
+
+# [DITAMBAHKAN] Durasi session 7 hari
+from datetime import timedelta
+app.permanent_session_lifetime = timedelta(days=7)
+
+# ── Register Blueprints ────────────────────────────────────────
+app.register_blueprint(api_bp,  url_prefix='/api')
+app.register_blueprint(olt_bp,  url_prefix='/olt')
+# [DITAMBAHKAN] Endpoint auth tersedia di /api/auth/*
+app.register_blueprint(auth_bp, url_prefix='/api/auth')
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 
@@ -41,7 +62,7 @@ def init_db():
     """
     conn = get_db()
 
-    # Tabel perangkat MikroTik
+    # ── Tabel perangkat MikroTik ──────────────────────────────
     conn.execute('''
         CREATE TABLE IF NOT EXISTS devices (
             id       INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -54,7 +75,7 @@ def init_db():
         )
     ''')
 
-    # Tabel pelanggan lokal (mirror dari MikroTik PPP Secret)
+    # ── Tabel pelanggan lokal (mirror dari MikroTik PPP Secret) ──
     conn.execute('''
         CREATE TABLE IF NOT EXISTS pelanggan (
             id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -64,6 +85,7 @@ def init_db():
             sn              TEXT    DEFAULT '',
             hp              TEXT    DEFAULT '',
             profil          TEXT    DEFAULT '',
+            service         TEXT    DEFAULT 'pppoe',
             slot_port_onu   TEXT    DEFAULT '',
             vlan            TEXT    DEFAULT '',
             titik_koordinat TEXT    DEFAULT '',
@@ -73,8 +95,7 @@ def init_db():
         )
     ''')
 
-    # Tabel pemetaan ONU — berisi data OLT side per pelanggan
-    # rx_power & tx_power ditambahkan di sini sebagai cache sinkronisasi
+    # ── Tabel pemetaan ONU — cache data OLT side per pelanggan ──
     conn.execute('''
         CREATE TABLE IF NOT EXISTS onu_mapping (
             id        INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -90,20 +111,41 @@ def init_db():
         )
     ''')
 
-    # Migrasi: tambah kolom rx_power & tx_power jika belum ada
-    # (untuk database yang sudah ada sebelum versi ini)
-    try:
-        conn.execute('ALTER TABLE onu_mapping ADD COLUMN rx_power REAL')
-    except Exception:
-        pass  # Kolom sudah ada
-    try:
-        conn.execute('ALTER TABLE onu_mapping ADD COLUMN tx_power REAL')
-    except Exception:
-        pass
-    try:
-        conn.execute('ALTER TABLE onu_mapping ADD COLUMN synced_at TEXT DEFAULT ""')
-    except Exception:
-        pass
+    # ── Tabel harga PPPoE Profile ─────────────────────────────
+    # [DIPINDAHKAN DARI DUPLIKAT KEDUA — sebelumnya tidak ada di sini]
+    # MikroTik tidak punya kolom harga; disimpan di DB lokal.
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS profil_harga (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            device_id     INTEGER NOT NULL,
+            nama_profile  TEXT    NOT NULL,
+            harga         INTEGER NOT NULL DEFAULT 0,
+            deskripsi     TEXT    DEFAULT '',
+            UNIQUE(device_id, nama_profile),
+            FOREIGN KEY (device_id) REFERENCES devices(id)
+        )
+    ''')
+
+    # ── Migrasi: tambah kolom baru ke tabel yang sudah ada ───
+    # (aman dijalankan berulang — ALTER TABLE gagal diam-diam jika kolom sudah ada)
+
+    migrasi = [
+        # onu_mapping
+        'ALTER TABLE onu_mapping ADD COLUMN rx_power  REAL',
+        'ALTER TABLE onu_mapping ADD COLUMN tx_power  REAL',
+        'ALTER TABLE onu_mapping ADD COLUMN synced_at TEXT DEFAULT ""',
+        # olt
+        'ALTER TABLE olt ADD COLUMN epon_ports INTEGER DEFAULT 4',
+        # [DITAMBAHKAN] kolom service di pelanggan — sebelumnya hilang
+        # sehingga INSERT dari api.py crash dengan OperationalError
+        "ALTER TABLE pelanggan ADD COLUMN service TEXT DEFAULT 'pppoe'",
+    ]
+
+    for sql in migrasi:
+        try:
+            conn.execute(sql)
+        except Exception:
+            pass  # Kolom sudah ada — abaikan
 
     conn.commit()
     conn.close()
@@ -114,7 +156,6 @@ def init_db():
 # ENDPOINTS — MikroTik Devices CRUD
 # ══════════════════════════════════════════════════════════════
 
-# 1. GET /devices — Ambil semua perangkat
 @app.route('/devices', methods=['GET'])
 def get_devices():
     """Mengembalikan daftar semua perangkat dari database."""
@@ -124,7 +165,6 @@ def get_devices():
     return jsonify([device_to_dict(r) for r in rows]), 200
 
 
-# 2. POST /devices — Tambah perangkat baru + langsung tes koneksi
 @app.route('/devices', methods=['POST'])
 def add_device():
     """
@@ -164,7 +204,6 @@ def add_device():
     }), 201
 
 
-# 3. PUT /devices/<id> — Edit perangkat
 @app.route('/devices/<int:device_id>', methods=['PUT'])
 def update_device(device_id):
     """
@@ -204,7 +243,6 @@ def update_device(device_id):
     return jsonify({'status': 'success', 'device': device_to_dict(row)}), 200
 
 
-# 4. DELETE /devices/<id> — Hapus perangkat
 @app.route('/devices/<int:device_id>', methods=['DELETE'])
 def delete_device(device_id):
     """Hapus perangkat dari database berdasarkan ID."""
@@ -219,7 +257,6 @@ def delete_device(device_id):
     return jsonify({'status': 'success', 'message': 'Perangkat berhasil dihapus.'}), 200
 
 
-# 5. POST /devices/<id>/sync — Tes koneksi ulang
 @app.route('/devices/<int:device_id>/sync', methods=['POST'])
 def sync_device(device_id):
     """Coba koneksi ke MikroTik dan update status di database."""

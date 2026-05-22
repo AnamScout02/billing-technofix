@@ -10,8 +10,7 @@
 ══════════════════════════════════════════════════════════ */
 .toolbar {
   display: flex; align-items: center;
-  gap: 10px; flex-wrap: wrap;
-  margin-bottom: 16px;
+  gap: 10px; flex-wrap: wrap; margin-bottom: 16px;
 }
 
 .search-wrap {
@@ -22,8 +21,7 @@
   transition: border-color .15s, box-shadow .15s;
 }
 .search-wrap:focus-within {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--primary-ring);
+  border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring);
 }
 .search-wrap .material-symbols-outlined { font-size: 18px; color: var(--text-dim); flex-shrink: 0; }
 .search-wrap input {
@@ -39,24 +37,20 @@
   font-size: 12px; font-weight: 600; font-family: var(--sans);
   border: 1px solid var(--border); background: var(--bg);
   color: var(--text-muted); cursor: pointer;
-  transition: background .14s, border-color .14s, color .14s;
-  white-space: nowrap;
+  transition: background .14s, border-color .14s, color .14s; white-space: nowrap;
 }
 .filter-chip:hover  { background: var(--surface); border-color: var(--border-2); }
 .filter-chip.active { background: var(--primary-light); border-color: rgba(0,64,161,.2); color: var(--primary); }
 .filter-chip .material-symbols-outlined { font-size: 15px; }
 
-/* filter-select */
 .filter-select {
   height: 38px; padding: 0 10px;
   border: 1.5px solid var(--border); border-radius: var(--r-sm);
   background: var(--bg); color: var(--text);
   font-size: 12px; font-weight: 600; font-family: var(--sans);
-  cursor: pointer; outline: none;
-  appearance: none;
+  cursor: pointer; outline: none; appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238a96a8' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: right 8px center;
-  padding-right: 26px;
+  background-repeat: no-repeat; background-position: right 8px center; padding-right: 26px;
   transition: border-color .15s;
 }
 .filter-select:focus { border-color: var(--primary); }
@@ -67,14 +61,10 @@
    2. TABEL PELANGGAN — freeze kolom No & Username
 ══════════════════════════════════════════════════════════ */
 .table-wrap {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  box-shadow: var(--shadow-sm);
-  position: relative;
-  overflow: hidden;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--r-lg); box-shadow: var(--shadow-sm);
+  position: relative; overflow: hidden;
 }
-
 .table-wrap.has-scroll::after {
   content: '';
   position: absolute; right: 0; top: 0; bottom: 0; width: 32px;
@@ -83,96 +73,94 @@
 }
 
 .table-scroll {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  max-height: calc(100vh - 320px);
-  min-height: 200px;
-  overflow-y: auto;
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+  max-height: calc(100vh - 320px); min-height: 200px; overflow-y: auto;
 }
 .table-scroll::-webkit-scrollbar       { height: 5px; width: 5px; }
 .table-scroll::-webkit-scrollbar-track { background: transparent; }
 .table-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 
-/* Tabel — konsep identik dengan .jatuh-tempo-table-modern */
 .pelanggan-table {
-  width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
-  font-size: 13px; font-family: var(--sans);
-  min-width: 780px;
+  width: 100%; border-collapse: separate; border-spacing: 0;
+  font-size: 13px; font-family: var(--sans); min-width: 780px;
 }
-
 .pelanggan-table thead th {
   position: sticky; top: 0; z-index: 3;
-  background: var(--header-bg);         /* navy — selaras bottom bar */
-  color: rgba(255,255,255,.85);
+  background: var(--header-bg); color: rgba(255,255,255,.85);
   font-size: 11px; font-weight: 700;
   text-transform: uppercase; letter-spacing: .06em;
-  padding: 11px 14px;
-  border-bottom: 1px solid rgba(255,255,255,.12);
-  white-space: nowrap;
-  user-select: none;
+  padding: 11px 14px; border-bottom: 1px solid rgba(255,255,255,.12);
+  white-space: nowrap; user-select: none;
 }
-
 .pelanggan-table thead th.sortable { cursor: pointer; }
 .pelanggan-table thead th.sortable:hover { color: #fff; background: #004a9e; }
-
 .pelanggan-table tbody td {
-  padding: 11px 14px;
-  border-bottom: 1px solid var(--border);
-  color: var(--text); vertical-align: middle;
-  white-space: nowrap;
+  padding: 11px 14px; border-bottom: 1px solid var(--border);
+  color: var(--text); vertical-align: middle; white-space: nowrap;
 }
 .pelanggan-table tbody tr:last-child td { border-bottom: none; }
 .pelanggan-table tbody tr:hover td      { background: #f8faff; }
 
-/* FREEZE kolom No */
+/* Freeze kolom No */
 .pelanggan-table .sticky-col-1,
 .pelanggan-table thead .sticky-col-1 {
-  position: sticky; left: 0; z-index: 4;
-  background: var(--bg);
+  position: sticky; left: 0; z-index: 4; background: var(--bg);
   min-width: 44px; max-width: 44px; width: 44px;
-  font-weight: 600; color: var(--text-dim);
-  font-size: 12px; text-align: center;
+  font-weight: 600; color: var(--text-dim); font-size: 12px; text-align: center;
 }
 .pelanggan-table tbody tr:hover .sticky-col-1 { background: #f8faff; }
 .pelanggan-table thead .sticky-col-1 { background: var(--header-bg); color: rgba(255,255,255,.85); z-index: 6; }
 
-/* FREEZE kolom Username */
+/* Freeze kolom Username */
 .pelanggan-table .sticky-col-2,
 .pelanggan-table thead .sticky-col-2 {
-  position: sticky; left: 44px; z-index: 4;
-  background: var(--bg);
+  position: sticky; left: 44px; z-index: 4; background: var(--bg);
   min-width: 150px; max-width: 200px; width: 180px;
-  font-weight: 700;
-  border-right: 1px solid var(--border);
+  font-weight: 700; border-right: 1px solid var(--border);
   box-shadow: 2px 0 8px rgba(0,0,0,.06);
 }
 .pelanggan-table tbody tr:hover .sticky-col-2 { background: #f8faff; }
 .pelanggan-table thead .sticky-col-2 {
   background: var(--header-bg); color: rgba(255,255,255,.85);
   border-right: 1px solid rgba(255,255,255,.12);
-  box-shadow: 2px 0 8px rgba(0,0,0,.18);
-  z-index: 6;
+  box-shadow: 2px 0 8px rgba(0,0,0,.18); z-index: 6;
 }
-
 .table-scroll:not([data-scrolled="1"]) .sticky-col-2 { box-shadow: none; }
 
-/* Scroll hint */
-.scroll-hint {
-  position: absolute; right: 10px; top: 50%;
-  transform: translateY(-50%);
-  background: var(--primary); color: #fff;
-  border-radius: 50%; width: 28px; height: 28px;
-  display: flex; align-items: center; justify-content: center;
-  pointer-events: none; animation: fadeIn .3s ease;
-  box-shadow: var(--shadow-md); z-index: 10;
-}
-.scroll-hint .material-symbols-outlined { font-size: 16px; }
+.tbl-username { font-size: 13px; font-weight: 700; color: var(--text); }
+.tbl-hp       { font-size: 12px; color: var(--text-muted); }
+.tbl-name     { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.tbl-actions  { display: flex; gap: 5px; align-items: center; }
 
-/* Konten sel — bukan monospace */
-.tbl-name { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
-.tbl-actions { display: flex; gap: 5px; align-items: center; }
+/* Tombol aksi tabel */
+.btn-tbl {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: var(--r-sm);
+  border: 1px solid var(--border); background: var(--bg);
+  cursor: pointer; color: var(--text-muted);
+  transition: background .12s, border-color .12s, color .12s;
+}
+.btn-tbl .material-symbols-outlined { font-size: 15px; }
+.btn-tbl.edit:hover   { background: var(--blue-bg);  border-color: var(--blue-border);  color: var(--blue); }
+.btn-tbl.detail:hover { background: var(--primary-light); border-color: rgba(0,64,161,.2); color: var(--primary); }
+.btn-tbl.hapus:hover  { background: var(--red-bg);   border-color: var(--red-border);   color: var(--red); }
+
+/* ── RX Signal display ── */
+.tbl-rx {
+  font-size: 12px; font-weight: 700;
+  font-family: var(--sans); padding: 2px 8px;
+  border-radius: 20px; display: inline-block; white-space: nowrap;
+}
+/* Sinyal bagus: -10 s/d -25 dBm */
+.tbl-rx.rx-good   { background: var(--green-bg);  color: var(--green);    border: 1px solid var(--green-border); }
+/* Sinyal normal: -25 s/d -30 dBm */
+.tbl-rx.rx-normal { background: var(--blue-bg);   color: var(--blue);     border: 1px solid var(--blue-border); }
+/* Sinyal lemah: -30 s/d -35 dBm */
+.tbl-rx.rx-weak   { background: var(--amber-bg);  color: var(--amber);    border: 1px solid var(--amber-border); }
+/* Sinyal kritis: < -35 dBm */
+.tbl-rx.rx-bad    { background: var(--red-bg);    color: var(--red);      border: 1px solid var(--red-border); }
+/* Tidak ada data */
+.tbl-rx.rx-none   { background: var(--surface);   color: var(--text-dim); border: 1px solid var(--border); }
 
 .table-footer {
   display: flex; align-items: center; justify-content: space-between;
@@ -182,21 +170,116 @@
 
 
 /* ══════════════════════════════════════════════════════════
-   3. FORM SECTION
+   3. STATE BOX (loading / empty / error)
 ══════════════════════════════════════════════════════════ */
-.form-section-title {
-  font-size: 11px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: .07em; color: var(--text-dim);
-  margin: 20px 0 12px; padding-bottom: 8px;
-  border-bottom: 1px solid var(--border);
+.state-box {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 56px 24px; text-align: center; gap: 10px;
+}
+.state-title { font-size: 14px; font-weight: 700; color: var(--text); margin: 0; }
+.state-sub   { font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.6; }
+
+.state-icon {
+  font-size: 44px !important;
+  color: var(--text-dim);
+}
+.error-icon { color: var(--red) !important; }
+
+/* Spinner animasi */
+.spinner {
+  width: 36px; height: 36px;
+  border: 3px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spinAnim .7s linear infinite;
 }
 
-.form-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+/* Tombol retry di state error */
+.btn-retry {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 16px; border-radius: var(--r-sm);
+  border: 1.5px solid var(--border); background: var(--bg);
+  font-size: 13px; font-weight: 600; font-family: var(--sans);
+  color: var(--text-muted); cursor: pointer;
+  transition: background .12s, border-color .12s;
+}
+.btn-retry:hover { background: var(--surface); border-color: var(--primary); color: var(--primary); }
+.btn-retry .material-symbols-outlined { font-size: 16px; }
+
+
+/* ══════════════════════════════════════════════════════════
+   4. BADGE STATUS PELANGGAN
+══════════════════════════════════════════════════════════ */
+.badge-status {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 9px; border-radius: 20px;
+  font-size: 11.5px; font-weight: 700;
+  border: 1px solid transparent; white-space: nowrap;
+}
+.badge-status .badge-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.badge-status.online   { background: var(--green-bg); color: var(--green); border-color: var(--green-border); }
+.badge-status.online .badge-dot { background: var(--green); animation: pulse-green .9s infinite; }
+.badge-status.nonaktif { background: var(--red-bg);   color: var(--red);   border-color: var(--red-border); }
+.badge-status.nonaktif .badge-dot { background: var(--red); }
+
+
+/* ══════════════════════════════════════════════════════════
+   5. FORM SECTION (di dalam modal form pelanggan)
+══════════════════════════════════════════════════════════ */
+.form-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+}
+.form-group      { display: flex; flex-direction: column; gap: 6px; }
+.form-group.full { grid-column: 1 / -1; }
+
+.form-label {
+  font-size: 12px; font-weight: 600;
+  color: var(--text-muted); letter-spacing: .01em;
+}
+.req { color: var(--red); margin-left: 2px; }
+
+.form-input {
+  height: 40px; padding: 0 12px;
+  border: 1.5px solid var(--border); border-radius: var(--r-sm);
+  background: var(--surface); color: var(--text);
+  font-size: 13px; font-family: var(--sans);
+  width: 100%; outline: none;
+  transition: border-color .15s, box-shadow .15s, background .15s;
+}
+.form-input:focus {
+  border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); background: var(--bg);
+}
+.form-input::placeholder { color: var(--text-dim); }
+
+select.form-input {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238a96a8' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center;
+  padding-right: 32px; cursor: pointer;
+}
+textarea.form-input { height: auto; padding: 10px 12px; resize: none; line-height: 1.6; }
+
+.form-pwd-wrap { position: relative; display: flex; align-items: center; }
+.form-pwd-wrap .form-input { padding-right: 40px; }
+.form-pwd-toggle {
+  position: absolute; right: 10px;
+  background: none; border: none; cursor: pointer;
+  color: var(--text-dim); display: flex; align-items: center; transition: color .15s; padding: 0;
+}
+.form-pwd-toggle:hover { color: var(--primary); }
+.form-pwd-toggle .material-symbols-outlined { font-size: 18px; }
+
+.form-hint    { font-size: 11px; color: var(--text-dim); margin-top: 3px; }
+.form-actions {
+  display: flex; justify-content: flex-end; gap: 10px;
+  margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border);
+}
 #f-keterangan { min-height: 72px; }
 
 
 /* ══════════════════════════════════════════════════════════
-   4. PAGINATION
+   6. PAGINATION
 ══════════════════════════════════════════════════════════ */
 .pagination {
   display: flex; align-items: center; gap: 5px;
@@ -210,13 +293,13 @@
   cursor: pointer; display: flex; align-items: center; justify-content: center;
   transition: background .14s, border-color .14s, color .14s;
 }
-.page-btn:hover        { background: var(--surface); border-color: var(--border-2); color: var(--text); }
-.page-btn.active       { background: var(--primary); color: #fff; border-color: var(--primary); }
-.page-btn:disabled     { opacity: .4; cursor: not-allowed; }
+.page-btn:hover    { background: var(--surface); border-color: var(--border-2); color: var(--text); }
+.page-btn.active   { background: var(--primary); color: #fff; border-color: var(--primary); }
+.page-btn:disabled { opacity: .4; cursor: not-allowed; }
 
 
 /* ══════════════════════════════════════════════════════════
-   5. DEVICE BAR & SYNC STATUS
+   7. DEVICE BAR & SYNC STATUS
 ══════════════════════════════════════════════════════════ */
 .device-bar {
   display: flex; align-items: center; gap: 12px;
@@ -224,8 +307,6 @@
   border-radius: var(--r-md); padding: 10px 14px;
   margin-bottom: 14px; box-shadow: var(--shadow-xs);
 }
-
-/* device-bar-info: label + select ditumpuk vertikal (mobile-friendly) */
 .device-bar-info {
   display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0;
 }
@@ -236,29 +317,21 @@
 .device-select {
   border: none; background: none; outline: none; cursor: pointer;
   font-size: 13px; font-weight: 700; font-family: var(--sans);
-  color: var(--text); width: 100%; padding: 0;
-  appearance: none; white-space: nowrap; overflow: hidden;
-  text-overflow: ellipsis;
+  color: var(--text); width: 100%; padding: 0; appearance: none;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .sync-status {
   font-size: 11px; font-weight: 600; color: var(--text-dim);
   display: flex; align-items: center; gap: 4px;
 }
-
+.sync-status.ok  { color: var(--green); }
+.sync-status.err { color: var(--red); }
 .device-bar-icon { color: var(--primary); font-size: 18px; flex-shrink: 0; }
 
 
 /* ══════════════════════════════════════════════════════════
-   6. MODAL DETAIL PERANGKAT (khusus pelanggan)
+   8. MODAL DETAIL PELANGGAN (dinamis via openModalForm)
 ══════════════════════════════════════════════════════════ */
-.modal-detail-sheet {
-  border-radius: var(--r-xl) var(--r-xl) 0 0;
-  padding-bottom: 32px;
-}
-@media (min-width: 769px) {
-  .modal-detail-sheet { border-radius: var(--r-xl); max-width: 500px; }
-}
-
 .detail-action-group { margin-bottom: 20px; }
 .detail-action-label {
   font-size: 11px; font-weight: 700; text-transform: uppercase;
@@ -276,15 +349,15 @@
   transition: background .14s, border-color .14s, color .14s;
 }
 .btn-detail-action .material-symbols-outlined { font-size: 17px; }
-.btn-detail-action:hover { background: var(--surface); border-color: var(--border-2); color: var(--text); }
-.btn-detail-action.green:hover { background: var(--green-bg);  border-color: var(--green-border); color: var(--green); }
-.btn-detail-action.amber:hover { background: var(--amber-bg);  border-color: var(--amber-border); color: var(--amber); }
-.btn-detail-action.red:hover   { background: var(--red-bg);    border-color: var(--red-border);   color: var(--red); }
+.btn-detail-action:hover        { background: var(--surface); border-color: var(--border-2); color: var(--text); }
+.btn-detail-action.green:hover  { background: var(--green-bg);  border-color: var(--green-border); color: var(--green); }
+.btn-detail-action.amber:hover  { background: var(--amber-bg);  border-color: var(--amber-border); color: var(--amber); }
+.btn-detail-action.red:hover    { background: var(--red-bg);    border-color: var(--red-border);   color: var(--red); }
 
 .detail-cli-section { margin-top: 8px; }
 .cli-box {
   background: #0d1117; border-radius: var(--r-md);
-  padding: 14px; font-family: var(--sans); /* bukan monospace */
+  padding: 14px; font-family: var(--sans);
   font-size: 12px; color: #7ee787; line-height: 1.6;
   min-height: 80px; max-height: 220px; overflow-y: auto;
   border: 1px solid rgba(255,255,255,.07); margin-top: 10px;
@@ -301,23 +374,39 @@
 
 
 /* ══════════════════════════════════════════════════════════
-   7. RESPONSIVE PELANGGAN
+   9. MODAL HAPUS (statis di HTML)
+══════════════════════════════════════════════════════════ */
+.modal-sheet.small { max-width: 380px; padding: 24px; }
+.hapus-icon-wrap {
+  width: 56px; height: 56px; border-radius: 50%;
+  background: var(--red-bg); color: var(--red);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 16px;
+}
+.hapus-icon   { font-size: 26px !important; }
+.hapus-title  { font-size: 16px; font-weight: 800; font-family: var(--heading); color: var(--text); text-align: center; margin-bottom: 8px; }
+.hapus-sub    { font-size: 13px; color: var(--text-muted); text-align: center; line-height: 1.7; }
+.modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+.btn-cancel   { background: var(--surface); border-color: var(--border); color: var(--text-muted); }
+.btn-hapus    { background: var(--red-bg); border-color: var(--red-border); color: var(--red); }
+.btn-hapus:hover { background: var(--red); color: #fff; }
+
+
+/* ══════════════════════════════════════════════════════════
+   10. RESPONSIVE
 ══════════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
-  .toolbar        { gap: 8px; }
-  .search-wrap    { max-width: 100%; }
-  .table-scroll   { max-height: calc(100vh - 280px); }
-  .form-grid-3    { grid-template-columns: 1fr 1fr; }
-
-  /* device-bar: tampilkan info vertikal */
-  .device-bar     { flex-wrap: wrap; }
+  .toolbar      { gap: 8px; }
+  .search-wrap  { max-width: 100%; }
+  .table-scroll { max-height: calc(100vh - 280px); }
+  .form-grid    { grid-template-columns: 1fr 1fr; }
+  .device-bar   { flex-wrap: wrap; }
   .device-bar-info { flex-basis: 100%; }
 }
-
 @media (max-width: 480px) {
-  .toolbar        { flex-direction: column; align-items: stretch; }
-  .search-wrap    { max-width: 100%; }
-  .form-grid-3    { grid-template-columns: 1fr; }
-  .table-footer   { flex-direction: column; align-items: flex-start; }
+  .toolbar     { flex-direction: column; align-items: stretch; }
+  .search-wrap { max-width: 100%; }
+  .form-grid   { grid-template-columns: 1fr; }
+  .table-footer { flex-direction: column; align-items: flex-start; }
   .pelanggan-table { font-size: 12px; }
 }

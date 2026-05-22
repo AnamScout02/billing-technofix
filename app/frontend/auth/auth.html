@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login — TechnoFix Billing</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Poppins:wght@400;500;600&display=swap"
+    rel="stylesheet" />
+
+  <!-- Material Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
+    rel="stylesheet" />
+
+  <!-- global.css wajib di-load PERTAMA -->
+  <link rel="stylesheet" href="/app/frontend/statis/global.css" />
+
+  <style>
+    /* ══════════════════════════════════════════════════════════
+       AUTH PAGE — layout khusus, tidak pakai header/navbar
+       Semua style menggunakan token dari global.css
+    ══════════════════════════════════════════════════════════ */
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+    }
+
+    /* ── Kartu Auth Terpusat ── */
+    .auth-wrap {
+      width: 100%;
+      max-width: 440px;
+    }
+
+    /* ── Brand di atas kartu ── */
+    .auth-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      justify-content: center;
+      margin-bottom: 28px;
+    }
+
+    .auth-brand-logo {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      background: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      box-shadow: 0 4px 16px rgba(0, 64, 161, .35);
+    }
+
+    .auth-brand-logo .material-symbols-outlined {
+      font-size: 26px;
+    }
+
+    .auth-brand-text .brand-name {
+      font-size: 20px;
+      font-weight: 800;
+      font-family: var(--heading);
+      color: var(--text);
+      letter-spacing: -.03em;
+    }
+
+    .auth-brand-text .brand-sub {
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    /* ── Kartu utama ── */
+    .auth-card {
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: var(--r-xl);
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
+    }
+
+    /* ── Tab toggle: Login / Daftar ISP ── */
+    .auth-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .auth-tab {
+      flex: 1;
+      padding: 14px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: var(--sans);
+      color: var(--text-dim);
+      background: none;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      transition: color .15s, background .15s;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+    }
+
+    .auth-tab .material-symbols-outlined {
+      font-size: 17px;
+    }
+
+    .auth-tab.active {
+      color: var(--primary);
+      background: var(--bg);
+      border-bottom-color: var(--primary);
+    }
+
+    .auth-tab:hover:not(.active) {
+      color: var(--text-muted);
+      background: var(--surface-2);
+    }
+
+    /* ── Body form ── */
+    .auth-body {
+      padding: 28px 28px 24px;
+    }
+
+    .auth-form-title {
+      font-size: 17px;
+      font-weight: 800;
+      font-family: var(--heading);
+      color: var(--text);
+      letter-spacing: -.03em;
+      margin-bottom: 4px;
+    }
+
+    .auth-form-sub {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      margin-bottom: 22px;
+      line-height: 1.6;
+    }
+
+    /* ── Panel: hanya satu yang tampil ── */
+    .auth-panel {
+      display: none;
+    }
+
+    .auth-panel.active {
+      display: block;
+      animation: fadeIn .2s ease;
+    }
+
+    /* ── Tombol submit full-width ── */
+    .btn-auth {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 12px 20px;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: var(--r-md);
+      font-size: 14px;
+      font-weight: 700;
+      font-family: var(--sans);
+      cursor: pointer;
+      box-shadow: 0 2px 10px rgba(0, 64, 161, .30);
+      transition: background .15s, box-shadow .15s, transform .1s;
+      margin-top: 20px;
+    }
+
+    .btn-auth .material-symbols-outlined {
+      font-size: 18px;
+    }
+
+    .btn-auth:hover {
+      background: var(--primary-dark);
+      box-shadow: 0 4px 16px rgba(0, 64, 161, .40);
+    }
+
+    .btn-auth:active {
+      transform: scale(.98);
+    }
+
+    .btn-auth:disabled {
+      opacity: .6;
+      cursor: not-allowed;
+    }
+
+    /* ── Pesan error/sukses ── */
+    .auth-alert {
+      display: none;
+      padding: 10px 14px;
+      border-radius: var(--r-sm);
+      font-size: 12.5px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      border: 1px solid;
+      gap: 8px;
+      align-items: flex-start;
+    }
+
+    .auth-alert.show {
+      display: flex;
+    }
+
+    .auth-alert .material-symbols-outlined {
+      font-size: 16px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .auth-alert.danger {
+      background: var(--red-bg);
+      color: var(--red);
+      border-color: var(--red-border);
+    }
+
+    .auth-alert.success {
+      background: var(--green-bg);
+      color: var(--green);
+      border-color: var(--green-border);
+    }
+
+    .auth-alert.info {
+      background: var(--blue-bg);
+      color: var(--blue);
+      border-color: var(--blue-border);
+    }
+
+    /* ── Divider ── */
+    .auth-divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 20px 0 0;
+    }
+
+    .auth-divider::before,
+    .auth-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .auth-divider span {
+      font-size: 11px;
+      color: var(--text-dim);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    /* ── Catatan info di bawah kartu ── */
+    .auth-note {
+      text-align: center;
+      margin-top: 18px;
+      font-size: 12px;
+      color: var(--text-dim);
+      line-height: 1.6;
+    }
+
+    .auth-note a {
+      color: var(--primary);
+      font-weight: 600;
+      text-decoration: none;
+    }
+
+    .auth-note a:hover {
+      text-decoration: underline;
+    }
+
+    /* ── Badge role info ── */
+    .role-info-box {
+      background: var(--primary-light);
+      border: 1px solid rgba(0, 64, 161, .15);
+      border-radius: var(--r-md);
+      padding: 12px 14px;
+      margin-bottom: 18px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .role-info-box .material-symbols-outlined {
+      font-size: 18px;
+      color: var(--primary);
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .role-info-box p {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .role-info-box strong {
+      color: var(--text);
+    }
+
+    /* ── Spinner di dalam tombol ── */
+    .btn-spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, .4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      display: none;
+    }
+
+    .btn-auth.loading .btn-spinner {
+      display: block;
+    }
+
+    .btn-auth.loading .btn-label {
+      display: none;
+    }
+
+    /* ── Form group spacing ── */
+    .auth-fields {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* ── Footer versi ── */
+    .auth-ver {
+      text-align: center;
+      margin-top: 28px;
+      font-size: 11px;
+      color: var(--text-dim);
+      opacity: .7;
+    }
+
+    /* Responsive */
+    @media (max-width: 480px) {
+      .auth-body {
+        padding: 22px 20px 20px;
+      }
+
+      .auth-brand {
+        margin-bottom: 22px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ══ TOAST ══ -->
+  <div id="toast"></div>
+
+  <!-- ══ AUTH WRAP ══ -->
+  <div class="auth-wrap">
+
+    <!-- Brand -->
+    <div class="auth-brand">
+      <div class="auth-brand-logo">
+        <span class="material-symbols-outlined">router</span>
+      </div>
+      <div class="auth-brand-text">
+        <div class="brand-name">TechnoFix</div>
+        <div class="brand-sub">Billing & Monitoring ISP</div>
+      </div>
+    </div>
+
+    <!-- Kartu Auth -->
+    <div class="auth-card">
+
+      <!-- Tab -->
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="tab-login" onclick="switchTab('login')">
+          <span class="material-symbols-outlined">login</span>
+          Masuk
+        </button>
+        <button class="auth-tab" id="tab-register" onclick="switchTab('register')">
+          <span class="material-symbols-outlined">add_business</span>
+          Daftarkan ISP
+        </button>
+      </div>
+
+      <!-- Body -->
+      <div class="auth-body">
+
+        <!-- ── PANEL LOGIN ── -->
+        <div class="auth-panel active" id="panel-login">
+          <div class="auth-form-title">Selamat Datang Kembali</div>
+          <div class="auth-form-sub">Login untuk Owner maupun Teknisi yang sudah memiliki akun.</div>
+
+          <!-- Alert -->
+          <div class="auth-alert danger" id="login-alert">
+            <span class="material-symbols-outlined">error</span>
+            <span id="login-alert-msg"></span>
+          </div>
+
+          <div class="auth-fields">
+            <div class="form-group">
+              <label class="form-label" for="login-username">Username <span class="req">*</span></label>
+              <input type="text" class="form-input" id="login-username" placeholder="Masukkan username Anda"
+                autocomplete="username" autocapitalize="none" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="login-password">Password <span class="req">*</span></label>
+              <div class="form-pwd-wrap">
+                <input type="password" class="form-input" id="login-password" placeholder="Masukkan password Anda"
+                  autocomplete="current-password" />
+                <button type="button" class="form-pwd-toggle" onclick="togglePwdField('login-password', this)"
+                  title="Tampilkan/sembunyikan password">
+                  <span class="material-symbols-outlined">visibility</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <button class="btn-auth" id="btn-login" onclick="doLogin()">
+            <span class="btn-spinner"></span>
+            <span class="btn-label" style="display:flex;align-items:center;gap:7px;">
+              <span class="material-symbols-outlined">login</span>Masuk ke Sistem
+            </span>
+          </button>
+
+          <div class="auth-divider"><span>Belum punya akun?</span></div>
+          <div class="auth-note">
+            Jika Anda ISP baru, <a href="#" onclick="switchTab('register');return false;">daftarkan ISP Anda</a>
+            terlebih dahulu.<br />
+            Teknisi dapat meminta akun kepada Owner melalui menu <strong>Manajemen Tim</strong>.
+          </div>
+        </div>
+
+        <!-- ── PANEL DAFTAR ISP ── -->
+        <div class="auth-panel" id="panel-register">
+          <div class="auth-form-title">Daftarkan ISP Anda</div>
+          <div class="auth-form-sub">Buat akun Owner baru untuk jaringan ISP Anda. Setiap ISP mendapat workspace
+            terpisah yang aman.</div>
+
+          <div class="role-info-box">
+            <span class="material-symbols-outlined">info</span>
+            <p><strong>Khusus Owner ISP.</strong> Registrasi ini akan membuat akun <em>Owner</em> dan workspace
+              jaringan baru (<code>network_id</code> unik). Akun Teknisi hanya bisa ditambahkan oleh Owner melalui
+              menu <strong>Manajemen Tim</strong> setelah login.</p>
+          </div>
+
+          <!-- Alert -->
+          <div class="auth-alert danger" id="register-alert">
+            <span class="material-symbols-outlined">error</span>
+            <span id="register-alert-msg"></span>
+          </div>
+          <div class="auth-alert success" id="register-success">
+            <span class="material-symbols-outlined">check_circle</span>
+            <span id="register-success-msg"></span>
+          </div>
+
+          <div class="auth-fields">
+            <div class="form-group">
+              <label class="form-label" for="reg-isp-name">Nama ISP / Jaringan <span class="req">*</span></label>
+              <input type="text" class="form-input" id="reg-isp-name" placeholder="Contoh: ISP Maju Jaya" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="reg-username">Username Owner <span class="req">*</span></label>
+              <input type="text" class="form-input" id="reg-username" placeholder="Huruf kecil, tanpa spasi"
+                autocapitalize="none" autocomplete="new-username" />
+              <div class="form-hint">Dipakai untuk login. Tidak bisa diubah setelah terdaftar.</div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="reg-password">Password <span class="req">*</span></label>
+              <div class="form-pwd-wrap">
+                <input type="password" class="form-input" id="reg-password" placeholder="Min. 8 karakter"
+                  autocomplete="new-password" />
+                <button type="button" class="form-pwd-toggle" onclick="togglePwdField('reg-password', this)"
+                  title="Tampilkan/sembunyikan password">
+                  <span class="material-symbols-outlined">visibility</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="reg-password-confirm">Konfirmasi Password <span
+                  class="req">*</span></label>
+              <div class="form-pwd-wrap">
+                <input type="password" class="form-input" id="reg-password-confirm" placeholder="Ulangi password"
+                  autocomplete="new-password" />
+                <button type="button" class="form-pwd-toggle"
+                  onclick="togglePwdField('reg-password-confirm', this)" title="Tampilkan/sembunyikan password">
+                  <span class="material-symbols-outlined">visibility</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <button class="btn-auth" id="btn-register" onclick="doRegister()">
+            <span class="btn-spinner"></span>
+            <span class="btn-label" style="display:flex;align-items:center;gap:7px;">
+              <span class="material-symbols-outlined">add_business</span>Daftarkan ISP Saya
+            </span>
+          </button>
+
+          <div class="auth-note" style="margin-top:16px;">
+            Sudah punya akun? <a href="#" onclick="switchTab('login');return false;">Masuk di sini</a>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="auth-ver">TechnoFix Billing System &nbsp;·&nbsp; v2.0</div>
+  </div>
+
+  <!-- global.js PERTAMA -->
+  <script src="/app/frontend/statis/global.js"></script>
+  <!-- auth.js -->
+  <script src="/app/frontend/statis/auth.js"></script>
+
+</body>
+
+</html>

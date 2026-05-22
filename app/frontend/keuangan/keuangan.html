@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Keuangan — TechnoFix Billing</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Poppins:wght@400;500;600&display=swap"
+    rel="stylesheet" />
+
+  <!-- Material Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
+    rel="stylesheet" />
+
+  <!-- global.css WAJIB pertama -->
+  <link rel="stylesheet" href="/app/frontend/statis/global.css" />
+
+  <style>
+    /* ══════════════════════════════════════════════════
+       keuangan.css — inline style halaman keuangan
+       Hanya style SPESIFIK halaman ini, selebihnya
+       sepenuhnya mengandalkan global.css
+    ══════════════════════════════════════════════════ */
+
+    /* ── Toolbar keuangan ─────────────────────────── */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .search-wrap {
+      display: flex;
+      align-items: center;
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: var(--r-md);
+      padding: 0 12px;
+      gap: 8px;
+      flex: 1;
+      min-width: 180px;
+      max-width: 320px;
+      transition: border-color .15s, box-shadow .15s;
+    }
+
+    .search-wrap:focus-within {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-ring);
+    }
+
+    .search-wrap .material-symbols-outlined {
+      font-size: 18px;
+      color: var(--text-dim);
+      flex-shrink: 0;
+    }
+
+    .search-wrap input {
+      border: none;
+      background: none;
+      outline: none;
+      height: 38px;
+      width: 100%;
+      font-size: 13px;
+      font-family: var(--sans);
+      color: var(--text);
+    }
+
+    .search-wrap input::placeholder {
+      color: var(--text-dim);
+    }
+
+    .filter-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 12px;
+      border-radius: var(--r-sm);
+      font-size: 12px;
+      font-weight: 600;
+      font-family: var(--sans);
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: background .14s, border-color .14s, color .14s;
+      white-space: nowrap;
+    }
+
+    .filter-chip:hover {
+      background: var(--surface);
+      border-color: var(--border-2);
+    }
+
+    .filter-chip.active {
+      background: var(--primary-light);
+      border-color: rgba(0, 64, 161, .2);
+      color: var(--primary);
+    }
+
+    .filter-chip.green.active {
+      background: var(--green-bg);
+      border-color: var(--green-border);
+      color: var(--green);
+    }
+
+    .filter-chip.red.active {
+      background: var(--red-bg);
+      border-color: var(--red-border);
+      color: var(--red);
+    }
+
+    .filter-chip .material-symbols-outlined {
+      font-size: 15px;
+    }
+
+    .filter-select {
+      height: 38px;
+      padding: 0 10px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--r-sm);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 600;
+      font-family: var(--sans);
+      cursor: pointer;
+      outline: none;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238a96a8' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      padding-right: 26px;
+      transition: border-color .15s;
+    }
+
+    .filter-select:focus {
+      border-color: var(--primary);
+    }
+
+    .filter-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    /* ── Tabel Transaksi ──────────────────────────── */
+    .table-wrap {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      box-shadow: var(--shadow-sm);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .table-scroll {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      max-height: calc(100vh - 380px);
+      min-height: 200px;
+      overflow-y: auto;
+    }
+
+    .table-scroll::-webkit-scrollbar {
+      height: 5px;
+      width: 5px;
+    }
+
+    .table-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .table-scroll::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 4px;
+    }
+
+    .keuangan-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 13px;
+      font-family: var(--sans);
+      min-width: 760px;
+    }
+
+    .keuangan-table thead th {
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      background: var(--header-bg);
+      color: rgba(255, 255, 255, .85);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      padding: 11px 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, .12);
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    .keuangan-table thead th.sortable {
+      cursor: pointer;
+    }
+
+    .keuangan-table thead th.sortable:hover {
+      color: #fff;
+      background: #004a9e;
+    }
+
+    .keuangan-table thead th.th-nominal {
+      text-align: right;
+    }
+
+    .keuangan-table tbody td {
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+
+    .keuangan-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    .keuangan-table tbody tr:hover td {
+      background: #f8faff;
+    }
+
+    /* Kolom nominal rata kanan */
+    .keuangan-table .td-nominal {
+      text-align: right;
+      font-weight: 700;
+    }
+
+    .nominal-pemasukan {
+      color: var(--green);
+    }
+
+    .nominal-pengeluaran {
+      color: var(--red);
+    }
+
+    /* Badge tipe */
+    .badge-tipe {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 99px;
+      border: 1px solid;
+      white-space: nowrap;
+    }
+
+    .badge-tipe.pemasukan {
+      background: var(--green-bg);
+      color: var(--green);
+      border-color: var(--green-border);
+    }
+
+    .badge-tipe.pengeluaran {
+      background: var(--red-bg);
+      color: var(--red);
+      border-color: var(--red-border);
+    }
+
+    .badge-tipe .material-symbols-outlined {
+      font-size: 13px;
+    }
+
+    /* Badge status */
+    .badge-status-trx {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 99px;
+      border: 1px solid;
+      white-space: nowrap;
+    }
+
+    .badge-status-trx.lunas {
+      background: var(--green-bg);
+      color: var(--green);
+      border-color: var(--green-border);
+    }
+
+    .badge-status-trx.pending {
+      background: var(--amber-bg);
+      color: var(--amber);
+      border-color: var(--amber-border);
+    }
+
+    .badge-status-trx.gagal {
+      background: var(--red-bg);
+      color: var(--red);
+      border-color: var(--red-border);
+    }
+
+    .tbl-keterangan {
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .tbl-username {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+
+    .tbl-actions {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+    }
+
+    .table-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text-muted);
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    /* ── Pagination ────────────────────────────────── */
+    .pagination {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      justify-content: center;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+
+    .page-btn {
+      min-width: 34px;
+      height: 34px;
+      padding: 0 10px;
+      border-radius: var(--r-sm);
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 600;
+      font-family: var(--sans);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background .14s, border-color .14s, color .14s;
+    }
+
+    .page-btn:hover {
+      background: var(--surface);
+      border-color: var(--border-2);
+      color: var(--text);
+    }
+
+    .page-btn.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+
+    .page-btn:disabled {
+      opacity: .4;
+      cursor: not-allowed;
+    }
+
+    /* ── Saldo Bersih banner ───────────────────────── */
+    .saldo-banner {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: var(--primary-light);
+      border: 1px solid rgba(0, 64, 161, .18);
+      border-radius: var(--r-lg);
+      padding: 14px 18px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+
+    .saldo-banner-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--r-md);
+      background: var(--primary);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .saldo-banner-icon .material-symbols-outlined {
+      font-size: 22px;
+    }
+
+    .saldo-banner-body {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .saldo-banner-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--primary);
+      opacity: .75;
+    }
+
+    .saldo-banner-nilai {
+      font-size: 22px;
+      font-weight: 800;
+      font-family: var(--heading);
+      color: var(--primary);
+      letter-spacing: -.03em;
+      line-height: 1.2;
+    }
+
+    .saldo-banner-bulan {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* ── Responsive ────────────────────────────────── */
+    @media (max-width: 768px) {
+      .toolbar {
+        gap: 8px;
+      }
+
+      .search-wrap {
+        max-width: 100%;
+      }
+
+      .table-scroll {
+        max-height: calc(100vh - 320px);
+      }
+
+      .saldo-banner {
+        flex-wrap: wrap;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .toolbar {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .table-footer {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .keuangan-table {
+        font-size: 12px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ══ HEADER ══ -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="header-brand">
+        <div class="brand-logo">
+          <span class="material-symbols-outlined">router</span>
+        </div>
+        <div>
+          <div class="brand-name">TechnoFix</div>
+          <div class="brand-sub">Monitoring status jaringan &amp; pelanggan</div>
+        </div>
+      </div>
+
+      <nav class="topbar-nav">
+        <a href="/app/frontend/dashboard/dashboard.html">
+          <span class="material-symbols-outlined">dashboard</span>Dashboard
+        </a>
+        <a href="/app/frontend/pelanggan/pelanggan.html">
+          <span class="material-symbols-outlined">group</span>Pelanggan
+        </a>
+        <a href="#">
+          <span class="material-symbols-outlined">person</span>Profile
+        </a>
+        <a href="#" onclick="openPerangkatSheet(event)">
+          <span class="material-symbols-outlined">router</span>Perangkat
+        </a>
+        <a href="/app/frontend/keuangan/keuangan.html" class="active">
+          <span class="material-symbols-outlined">payments</span>Keuangan
+        </a>
+        <a href="/app/frontend/maps/maps.html">
+          <span class="material-symbols-outlined">map</span>Maps
+        </a>
+      </nav>
+
+      <div class="header-actions">
+        <button class="icon-btn" onclick="loadKeuangan()" title="Refresh data keuangan">
+          <span class="material-symbols-outlined" id="refresh-icon">refresh</span>
+        </button>
+        <div class="profile-wrap" id="profile-wrap">
+          <button class="profile-btn" onclick="toggleProfileMenu()" title="Profil">
+            <div class="avatar-circle" id="avatar-initials">AD</div>
+            <span class="profile-username" id="profile-username">Admin</span>
+            <span class="material-symbols-outlined profile-chevron">expand_more</span>
+          </button>
+          <div class="profile-dropdown" id="profile-dropdown">
+
+            <!-- Header sesi: nama + badge role -->
+            <div class="profile-menu-header">
+              <div class="profile-menu-avatar" id="dd-avatar">AD</div>
+              <div class="profile-menu-identity">
+                <span class="profile-menu-name" id="dd-username">Admin</span>
+                <span class="profile-menu-role" id="dd-role-badge">Owner</span>
+              </div>
+            </div>
+            <div class="profile-menu-divider"></div>
+
+            <!-- Navigasi akun -->
+            <a href="/app/frontend/profil/profil.html" class="profile-menu-item">
+              <span class="material-symbols-outlined">person</span>Profil saya
+            </a>
+            <a href="#" class="profile-menu-item" onclick="showModalGantiPassword(); return false;">
+              <span class="material-symbols-outlined">lock_reset</span>Ganti password
+            </a>
+            <a href="#" class="profile-menu-item" onclick="showPanelSetting(); return false;">
+              <span class="material-symbols-outlined">settings</span>Setting
+            </a>
+            <div class="profile-menu-divider"></div>
+
+            <!-- Owner only -->
+            <a href="/app/frontend/manajemen_user/manajemen_user.html" class="profile-menu-item btn-owner-only">
+              <span class="material-symbols-outlined">manage_accounts</span>Manajemen user
+            </a>
+            <a href="/app/frontend/manajemen_tim/manajemen_tim.html" class="profile-menu-item btn-owner-only">
+              <span class="material-symbols-outlined">groups</span>Manajemen tim
+            </a>
+            <div class="profile-menu-divider btn-owner-only"></div>
+
+            <!-- Logout -->
+            <a href="#" class="profile-menu-item logout" onclick="showModalLogout(); return false;">
+              <span class="material-symbols-outlined">logout</span>Keluar
+            </a>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+
+  <!-- ══ BOTTOM NAVBAR — MOBILE ONLY ══ -->
+  <nav class="bottom-nav">
+    <div class="bottom-nav-inner">
+      <div class="bottom-nav-indicator" id="bottom-nav-indicator"></div>
+      <a href="/app/frontend/dashboard/dashboard.html" class="bottom-nav-item">
+        <div class="bottom-nav-icon"><span class="material-symbols-outlined">dashboard</span></div>
+        <span class="bottom-nav-label">Dashboard</span>
+      </a>
+      <a href="/app/frontend/pelanggan/pelanggan.html" class="bottom-nav-item">
+        <div class="bottom-nav-icon"><span class="material-symbols-outlined">group</span></div>
+        <span class="bottom-nav-label">Pelanggan</span>
+      </a>
+      <a href="#" class="bottom-nav-item">
+        <div class="bottom-nav-icon"><span class="material-symbols-outlined">person</span></div>
+        <span class="bottom-nav-label">Profile</span>
+      </a>
+      <a href="#" class="bottom-nav-item" onclick="openPerangkatSheet(event)">
+        <div class="bottom-nav-icon"><span class="material-symbols-outlined">router</span></div>
+        <span class="bottom-nav-label">Perangkat</span>
+      </a>
+      <a href="/app/frontend/keuangan/keuangan.html" class="bottom-nav-item active">
+        <div class="bottom-nav-icon"><span class="material-symbols-outlined">payments</span></div>
+        <span class="bottom-nav-label">Keuangan</span>
+      </a>
+      <a href="/app/frontend/maps/maps.html" class="bottom-nav-item">
+        <div class="bottom-nav-icon"><span class="material-symbols-outlined">map</span></div>
+        <span class="bottom-nav-label">Maps</span>
+      </a>
+    </div>
+  </nav>
+
+
+  <!-- ══ PAGE ══ -->
+  <main class="page">
+
+    <!-- PAGE TITLE -->
+    <div class="page-top">
+      <div>
+        <h1 class="page-title">Keuangan</h1>
+        <p class="page-sub" id="page-sub-label">Pemasukan, pengeluaran, dan piutang bulan ini</p>
+      </div>
+      <div class="page-top-actions">
+        <span class="date-badge">
+          <span class="material-symbols-outlined">calendar_today</span>
+          <span id="today-date">—</span>
+        </span>
+        <button class="btn-primary" onclick="showFormTransaksi()">
+          <span class="material-symbols-outlined">add_circle</span>
+          Catat Transaksi
+        </button>
+      </div>
+    </div>
+
+
+    <!-- STAT CARDS — 3 sejajar di desktop -->
+    <div class="stat-row">
+
+      <!-- Card 1: Total Pemasukan -->
+      <div class="stat-card">
+        <div class="stat-icon blue">
+          <span class="material-symbols-outlined">trending_up</span>
+        </div>
+        <div class="stat-body">
+          <div class="stat-num" id="stat-pemasukan">—</div>
+          <div class="stat-label">Total Pemasukan (Lunas)</div>
+          <div class="stat-trend up" id="trend-pemasukan" style="display:none">
+            <span class="material-symbols-outlined">arrow_upward</span>
+            <span id="trend-pemasukan-text"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 2: Total Piutang -->
+      <div class="stat-card">
+        <div class="stat-icon amber">
+          <span class="material-symbols-outlined">hourglass_empty</span>
+        </div>
+        <div class="stat-body">
+          <div class="stat-num" id="stat-piutang">—</div>
+          <div class="stat-label">Total Piutang (Pending)</div>
+        </div>
+      </div>
+
+      <!-- Card 3: Total Pengeluaran -->
+      <div class="stat-card">
+        <div class="stat-icon red">
+          <span class="material-symbols-outlined">trending_down</span>
+        </div>
+        <div class="stat-body">
+          <div class="stat-num" id="stat-pengeluaran">—</div>
+          <div class="stat-label">Total Pengeluaran</div>
+        </div>
+      </div>
+
+    </div><!-- /.stat-row -->
+
+
+    <!-- SALDO BERSIH BANNER -->
+    <div class="saldo-banner">
+      <div class="saldo-banner-icon">
+        <span class="material-symbols-outlined">account_balance_wallet</span>
+      </div>
+      <div class="saldo-banner-body">
+        <div class="saldo-banner-label">Saldo Bersih Bulan Ini</div>
+        <div class="saldo-banner-nilai" id="stat-saldo">—</div>
+        <div class="saldo-banner-bulan" id="saldo-bulan-label">Memuat...</div>
+      </div>
+      <!-- Filter bulan -->
+      <div style="display:flex;align-items:center;gap:8px;margin-left:auto">
+        <span style="font-size:11px;font-weight:600;color:var(--text-dim)">Bulan</span>
+        <input type="month" id="input-bulan" class="filter-select" style="padding:0 10px;width:150px"
+          onchange="loadKeuangan()" />
+      </div>
+    </div>
+
+
+    <!-- TOOLBAR -->
+    <div class="toolbar">
+      <div class="search-wrap">
+        <span class="material-symbols-outlined">search</span>
+        <input type="text" id="input-search" placeholder="Cari keterangan, username, catatan..."
+          oninput="filterTabel()" />
+      </div>
+
+      <div class="filter-group">
+        <!-- Filter tipe -->
+        <button class="filter-chip active" id="chip-semua" onclick="setFilterTipe('')">
+          <span class="material-symbols-outlined">list</span>Semua
+        </button>
+        <button class="filter-chip green" id="chip-pemasukan" onclick="setFilterTipe('pemasukan')">
+          <span class="material-symbols-outlined">arrow_downward</span>Pemasukan
+        </button>
+        <button class="filter-chip red" id="chip-pengeluaran" onclick="setFilterTipe('pengeluaran')">
+          <span class="material-symbols-outlined">arrow_upward</span>Pengeluaran
+        </button>
+      </div>
+
+      <!-- Filter status -->
+      <select class="filter-select" id="filter-status" onchange="loadKeuangan()">
+        <option value="">Semua Status</option>
+        <option value="Lunas">Lunas</option>
+        <option value="Pending">Pending</option>
+        <option value="Gagal">Gagal</option>
+      </select>
+
+    </div><!-- /.toolbar -->
+
+
+    <!-- TABLE WRAPPER -->
+    <div class="table-wrap" id="table-wrap">
+
+      <!-- State: Loading -->
+      <div id="state-loading" class="state-box" style="display:none">
+        <div class="spinner"></div>
+        <p class="state-title">Mengambil data keuangan...</p>
+      </div>
+
+      <!-- State: Empty -->
+      <div id="state-empty" class="state-box" style="display:none">
+        <span class="material-symbols-outlined state-icon">receipt_long</span>
+        <p class="state-title">Belum ada transaksi</p>
+        <p class="state-sub">Mulai catat pemasukan atau pengeluaran pertama Anda</p>
+        <button class="btn-primary" style="margin-top:12px" onclick="showFormTransaksi()">
+          <span class="material-symbols-outlined">add_circle</span> Catat Transaksi
+        </button>
+      </div>
+
+      <!-- State: Error -->
+      <div id="state-error" class="state-box" style="display:none">
+        <span class="material-symbols-outlined state-icon error-icon">cloud_off</span>
+        <p class="state-title">Gagal memuat data</p>
+        <p class="state-sub" id="error-msg">Periksa koneksi ke server backend</p>
+        <button class="btn btn-retry" onclick="loadKeuangan()">
+          <span class="material-symbols-outlined">refresh</span> Coba Lagi
+        </button>
+      </div>
+
+      <!-- Tabel -->
+      <div class="table-scroll" id="table-scroll">
+        <table class="keuangan-table" id="table-keuangan">
+          <thead>
+            <tr>
+              <th style="width:44px;text-align:center">#</th>
+              <th class="sortable" onclick="sortTable('tanggal')">
+                Tanggal <span class="material-symbols-outlined"
+                  style="font-size:13px;vertical-align:middle">unfold_more</span>
+              </th>
+              <th>Keterangan</th>
+              <th>Tipe</th>
+              <th class="th-nominal sortable" onclick="sortTable('nominal')">
+                Nominal <span class="material-symbols-outlined"
+                  style="font-size:13px;vertical-align:middle">unfold_more</span>
+              </th>
+              <th>Metode</th>
+              <th>Status</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-keuangan">
+            <!-- diisi oleh keuangan.js -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Footer -->
+      <div class="table-footer">
+        <span id="tabel-count">—</span>
+        <span id="tabel-total-nominal" style="font-weight:700;color:var(--text)">—</span>
+      </div>
+
+    </div><!-- /.table-wrap -->
+
+    <!-- Pagination -->
+    <div class="pagination" id="pagination"></div>
+
+  </main>
+
+
+  <!-- ══ MODAL HAPUS ══ -->
+  <div class="modal-overlay" id="modal-hapus" onclick="closeModalHapus(event)">
+    <div class="modal small" onclick="event.stopPropagation()">
+      <div class="hapus-icon-wrap">
+        <span class="material-symbols-outlined hapus-icon">delete</span>
+      </div>
+      <div class="hapus-title">Hapus Transaksi?</div>
+      <div class="hapus-sub">
+        Transaksi <strong id="hapus-keterangan"></strong> akan dihapus secara permanen.
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-cancel" onclick="tutupModalHapus()">Batal</button>
+        <button class="btn btn-hapus" id="btn-konfirmasi-hapus">
+          <span class="material-symbols-outlined">delete</span>Ya, Hapus
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div id="toast"></div>
+
+
+  <!-- ══ PERANGKAT SHEET ══ -->
+  <div class="psheet-overlay" id="psheet-overlay" onclick="closePerangkatSheet()"></div>
+  <div class="psheet" id="psheet" role="dialog" aria-modal="true" aria-label="Pilih Perangkat">
+    <div class="psheet-handle"></div>
+    <div class="psheet-head">
+      <div>
+        <p class="psheet-eyebrow">Manajemen Jaringan</p>
+        <h2 class="psheet-title">Pilih Perangkat</h2>
+      </div>
+      <button class="psheet-close" onclick="closePerangkatSheet()" aria-label="Tutup">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <div class="psheet-list">
+      <a href="/app/frontend/input_perangkat/input_mikrotik.html" class="psheet-item psheet-mikrotik">
+        <div class="psheet-item-icon"><span class="material-symbols-outlined">router</span></div>
+        <div class="psheet-item-body">
+          <div class="psheet-item-name">MikroTik</div>
+          <div class="psheet-item-desc">Router, firewall, dan manajemen bandwidth</div>
+        </div>
+        <span class="psheet-item-badge">Router</span>
+        <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
+      </a>
+      <a href="/app/frontend/input_perangkat/input_olt.html" class="psheet-item psheet-olt">
+        <div class="psheet-item-icon"><span class="material-symbols-outlined">settings_input_antenna</span></div>
+        <div class="psheet-item-body">
+          <div class="psheet-item-name">OLT</div>
+          <div class="psheet-item-desc">Optical Line Terminal — kontrol jaringan fiber</div>
+        </div>
+        <span class="psheet-item-badge">Fiber</span>
+        <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
+      </a>
+      <a href="/app/frontend/input_perangkat/input_odp.html" class="psheet-item psheet-odp">
+        <div class="psheet-item-icon"><span class="material-symbols-outlined">hub</span></div>
+        <div class="psheet-item-body">
+          <div class="psheet-item-name">ODP</div>
+          <div class="psheet-item-desc">Optical Distribution Point — titik distribusi kabel</div>
+        </div>
+        <span class="psheet-item-badge">Distribusi</span>
+        <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- global.js WAJIB sebelum keuangan.js -->
+  <script src="/app/frontend/statis/global.js"></script>
+  <script src="/app/frontend/keuangan/keuangan.js"></script>
+
+</body>
+
+</html>

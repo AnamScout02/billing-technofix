@@ -411,14 +411,16 @@ function parseRxTx(p) {
   const txFormatted = txVal !== null ? `${txVal.toFixed(1)} dBm` : '—';
 
   /* ── 4. Tentukan class warna RX berdasarkan threshold OLT standar ──
-     > -27 dBm   : sinyal bagus  → rx-ok  (hijau)
-     -27 ~ -30   : peringatan   → rx-warn (kuning)
-     < -30 dBm   : sinyal lemah → rx-bad  (merah)
+     null          : tidak ada data → rx-none (abu)
+     > -27 dBm     : sinyal bagus  → rx-ok   (hijau)
+     -27 ~ -30 dBm : peringatan    → rx-warn  (kuning)
+     < -30 dBm     : sinyal lemah  → rx-bad   (merah)
   ── */
-  let rxClass = 'rx-ok';
+  let rxClass = 'rx-none';
   if (rxVal !== null) {
-    if (rxVal < -30)      rxClass = 'rx-bad';
+    if      (rxVal < -30) rxClass = 'rx-bad';
     else if (rxVal < -27) rxClass = 'rx-warn';
+    else                  rxClass = 'rx-ok';
   }
 
   return { rx: rxVal, tx: txVal, rxFormatted, txFormatted, rxClass };
@@ -480,4 +482,351 @@ document.addEventListener('DOMContentLoaded', function () {
   initBottomNav();
   initHeaderCanvas();
   initDateBadge();
+});
+
+/* ══════════════════════════════════════════════════════════
+   18. getSession — ambil data user dari localStorage
+   Return: { token, user_id, username, role, network_id, isp_name }
+══════════════════════════════════════════════════════════ */
+function getSession() {
+  return {
+    token:      localStorage.getItem('tf_token')      || '',
+    user_id:    localStorage.getItem('tf_user_id')    || '',
+    username:   localStorage.getItem('tf_username')   || '',
+    role:       localStorage.getItem('tf_role')        || '',
+    network_id: localStorage.getItem('tf_network_id') || '',
+    isp_name:   localStorage.getItem('tf_isp_name')   || '',
+  };
+}
+ 
+ 
+/* ══════════════════════════════════════════════════════════
+   19. getAuthHeaders — header untuk fetch() ke API
+   Sertakan Authorization: Bearer <token> dan network_id
+   agar backend dapat memvalidasi hak akses multi-tenant.
+══════════════════════════════════════════════════════════ */
+function getAuthHeaders(extra = {}) {
+  const { token, network_id } = getSession();
+  return {
+    'Content-Type':  'application/json',
+    'Authorization': token ? ('Bearer ' + token) : '',
+    'X-Network-Id':  network_id || '',
+    ...extra,
+  };
+}
+ 
+ 
+/* ══════════════════════════════════════════════════════════
+   20. applyRbacUi — sembunyikan/tampilkan elemen UI
+       berdasarkan role user yang sedang login.
+ 
+   Elemen yang dikontrol:
+   ─ [data-role-owner]   → hanya tampil jika role = 'owner'
+   ─ [data-role-teknisi] → hanya tampil jika role = 'teknisi'
+   ─ .nav-keuangan       → menu Keuangan (owner only)
+   ─ .nav-pengaturan     → menu Pengaturan / Infrastruktur (owner only)
+   ─ .nav-manajemen-tim  → menu Manajemen Tim (owner only)
+   ─ .btn-owner-only     → tombol/aksi owner-only (hapus, edit keuangan, dsb.)
+ 
+   Cara pakai di HTML:
+     <a class="nav-keuangan" href="...">Keuangan</a>
+     <button class="btn-owner-only" ...>Hapus Data</button>
+     <span data-role-owner>Hanya Owner</span>
+══════════════════════════════════════════════════════════ */
+function applyRbacUi() {
+  const { role } = getSession();
+  const isOwner  = role === 'owner';
+ 
+  /* Kelas CSS yang hanya boleh dilihat Owner */
+  const ownerOnlySelectors = [
+    '.nav-keuangan',
+    '.nav-pengaturan',
+    '.nav-infrastruktur',
+    '.nav-manajemen-tim',
+    '.nav-olt',        // OLT management — opsional batasi ke owner
+    '.btn-owner-only',
+    '[data-role-owner]',
+    '.menu-keuangan',  // alias alternatif
+  ];
+ 
+  ownerOnlySelectors.forEach(function (sel) {
+    document.querySelectorAll(sel).forEach(function (el) {
+      el.style.display = isOwner ? '' : 'none';
+    });
+  });
+ 
+  /* Elemen khusus Teknisi */
+  document.querySelectorAll('[data-role-teknisi]').forEach(function (el) {
+    el.style.display = isOwner ? 'none' : '';
+  });
+ 
+  /* Badge role di header (jika ada) */
+  const roleBadge = document.getElementById('role-badge');
+  if (roleBadge) {
+    roleBadge.textContent = isOwner ? 'Owner' : 'Teknisi';
+    roleBadge.className   = isOwner
+      ? 'badge-profil'
+      : 'badge-profil';
+    roleBadge.style.background    = isOwner ? 'var(--primary-light)' : 'var(--amber-bg)';
+    roleBadge.style.color         = isOwner ? 'var(--primary)'       : 'var(--amber)';
+    roleBadge.style.borderColor   = isOwner ? 'rgba(0,64,161,.2)'    : 'var(--amber-border)';
+  }
+}
+ 
+ 
+/* ══════════════════════════════════════════════════════════
+   21. initProfileHeader — isi nama & inisial di header
+   Panggil di setiap halaman setelah DOM siap.
+   Bergantung pada elemen:
+     #profile-username → teks nama user
+     #avatar-initials  → 2 huruf inisial di avatar
+══════════════════════════════════════════════════════════ */
+function initProfileHeader() {
+  const { username, isp_name } = getSession();
+  if (!username) return;
+ 
+  /* Teks username di header */
+  const nameEl = document.getElementById('profile-username');
+  if (nameEl) nameEl.textContent = username;
+ 
+  /* Inisial avatar */
+  const avatarEl = document.getElementById('avatar-initials');
+  if (avatarEl) {
+    const initials = username.slice(0, 2).toUpperCase();
+    avatarEl.textContent = initials;
+  }
+ 
+  /* Nama ISP di subtitle brand (opsional, jika elemen ada) */
+  const brandSubEl = document.querySelector('.brand-sub');
+  if (brandSubEl && isp_name) {
+    brandSubEl.textContent = isp_name;
+  }
+}
+ 
+ 
+/* ══════════════════════════════════════════════════════════
+   22. logout — hapus sesi & kembali ke auth.html
+══════════════════════════════════════════════════════════ */
+function logout() {
+  const keys = [
+    'tf_token', 'tf_user_id', 'tf_username',
+    'tf_role', 'tf_network_id', 'tf_isp_name',
+  ];
+  keys.forEach(function (k) { localStorage.removeItem(k); });
+  window.location.href = '/app/frontend/auth/auth.html';
+}
+ 
+ 
+/* ══════════════════════════════════════════════════════════
+   23. requireLogin — redirect ke auth jika belum login
+   Panggil di awal setiap halaman yang butuh autentikasi:
+     requireLogin();
+   Opsional hanya izinkan owner:
+     requireLogin({ ownerOnly: true });
+══════════════════════════════════════════════════════════ */
+function requireLogin(options) {
+  const opts  = options || {};
+  const { token, role } = getSession();
+ 
+  if (!token) {
+    window.location.href = '/app/frontend/auth/auth.html';
+    return false;
+  }
+ 
+  if (opts.ownerOnly && role !== 'owner') {
+    /* Tampilkan pesan error dan redirect ke dashboard */
+    toast('Akses ditolak: hanya Owner yang dapat mengakses halaman ini.', 'danger');
+    setTimeout(function () {
+      window.location.href = '/app/frontend/dashboard/dashboard.html';
+    }, 2000);
+    return false;
+  }
+ 
+  return true;
+}
+ 
+ 
+/* ══════════════════════════════════════════════════════════
+   PATCH AUTO-INIT — tambahkan RBAC & profile ke initisasi
+   global yang sudah ada di bagian bawah global.js.
+ 
+   CATATAN: Gantikan atau tambahkan baris berikut di dalam
+   blok DOMContentLoaded yang sudah ada:
+     initProfileHeader();
+     applyRbacUi();
+ 
+   Atau jika ingin otomatis di setiap halaman, biarkan
+   kode ini berjalan sendiri:
+══════════════════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', function () {
+  /* Hanya jalankan RBAC jika ada sesi aktif (bukan di auth.html) */
+  const isAuthPage = window.location.pathname.includes('auth');
+  if (!isAuthPage && localStorage.getItem('tf_token')) {
+    initProfileHeader();
+    applyRbacUi();
+  }
+});
+
+/* ══════════════════════════════════════════════════════════
+   24. initDropdownHeader — isi avatar + nama + badge role
+   di header dropdown profil. Panggil setelah initProfileHeader().
+══════════════════════════════════════════════════════════ */
+function initDropdownHeader() {
+  const { username, role } = getSession();
+  if (!username) return;
+
+  const ddAvatar = document.getElementById('dd-avatar');
+  const ddName   = document.getElementById('dd-username');
+  const ddBadge  = document.getElementById('dd-role-badge');
+
+  if (ddAvatar) ddAvatar.textContent = username.slice(0, 2).toUpperCase();
+  if (ddName)   ddName.textContent   = username;
+  if (ddBadge) {
+    const isOwner = role === 'owner';
+    ddBadge.textContent = isOwner ? 'Owner' : 'Teknisi';
+    ddBadge.classList.toggle('teknisi', !isOwner);
+  }
+}
+
+
+/* ══════════════════════════════════════════════════════════
+   25. Modal Logout
+══════════════════════════════════════════════════════════ */
+function showModalLogout() {
+  const dd = document.getElementById('profile-dropdown');
+  if (dd) dd.classList.remove('open');
+  const m = document.getElementById('modal-logout');
+  if (m) m.classList.add('open');
+}
+function closeModalLogout(e) {
+  if (e && e.target !== e.currentTarget) return;
+  const m = document.getElementById('modal-logout');
+  if (m) m.classList.remove('open');
+}
+
+
+/* ══════════════════════════════════════════════════════════
+   26. Modal Ganti Password
+══════════════════════════════════════════════════════════ */
+function showModalGantiPassword() {
+  const dd = document.getElementById('profile-dropdown');
+  if (dd) dd.classList.remove('open');
+  ['pwd-lama','pwd-baru','pwd-konfirm'].forEach(function(id) {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  const hint = document.getElementById('pwd-hint');
+  if (hint) hint.style.display = 'none';
+  const m = document.getElementById('modal-ganti-password');
+  if (m) m.classList.add('open');
+}
+function closeModalGantiPassword(e) {
+  if (e && e.target !== e.currentTarget) return;
+  const m = document.getElementById('modal-ganti-password');
+  if (m) m.classList.remove('open');
+}
+async function submitGantiPassword() {
+  const lama    = document.getElementById('pwd-lama')   ?.value.trim() || '';
+  const baru    = document.getElementById('pwd-baru')   ?.value.trim() || '';
+  const konfirm = document.getElementById('pwd-konfirm')?.value.trim() || '';
+  const hint    = document.getElementById('pwd-hint');
+
+  function showHint(msg) {
+    if (!hint) return;
+    hint.textContent  = msg;
+    hint.style.display = 'block';
+  }
+
+  if (!lama)             return showHint('Password lama wajib diisi.');
+  if (baru.length < 8)   return showHint('Password baru minimal 8 karakter.');
+  if (baru !== konfirm)  return showHint('Konfirmasi password tidak cocok.');
+  if (hint) hint.style.display = 'none';
+
+  try {
+    const res = await fetch(API_BASE + '/api/auth/ganti-password', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ password_lama: lama, password_baru: baru }),
+    });
+    const data = await res.json();
+    if (!res.ok) return showHint(data.message || 'Gagal mengganti password.');
+    closeModalGantiPassword();
+    toast('Password berhasil diperbarui.', 'success');
+  } catch (_) {
+    showHint('Gagal terhubung ke server.');
+  }
+}
+
+
+/* ══════════════════════════════════════════════════════════
+   27. Slide-over Panel Setting
+══════════════════════════════════════════════════════════ */
+function showPanelSetting() { showModalSetting(); }
+function closePanelSetting() { closeModalSetting(); }
+
+function showModalSetting() {
+  const dd = document.getElementById('profile-dropdown');
+  if (dd) dd.classList.remove('open');
+  loadSetting();
+  const m = document.getElementById('modal-setting');
+  if (m) m.classList.add('open');
+}
+function closeModalSetting(e) {
+  if (e && e.target !== e.currentTarget) return;
+  const m = document.getElementById('modal-setting');
+  if (m) m.classList.remove('open');
+}
+
+function loadSetting() {
+  const keys = ['tema','bahasa','refresh','perpage'];
+  const defaults = { tema:'auto', bahasa:'id', refresh:'0', perpage:'50' };
+  keys.forEach(function(k) {
+    const el = document.getElementById('setting-' + k);
+    if (el) el.value = localStorage.getItem('tf_setting_' + k) || defaults[k];
+  });
+  /* Toggle notifikasi */
+  ['offline','rx'].forEach(function(key) {
+    const checked = localStorage.getItem('tf_notif_' + key) === '1';
+    const input = document.getElementById('notif-' + key);
+    if (input) {
+      input.checked = checked;
+      applyToggleStyle('notif-' + key, checked);
+    }
+  });
+}
+
+function simpanSetting() {
+  ['tema','bahasa','refresh','perpage'].forEach(function(k) {
+    const el = document.getElementById('setting-' + k);
+    if (el) localStorage.setItem('tf_setting_' + k, el.value);
+  });
+  ['offline','rx'].forEach(function(key) {
+    const el = document.getElementById('notif-' + key);
+    if (el) localStorage.setItem('tf_notif_' + key, el.checked ? '1' : '0');
+  });
+  closePanelSetting();
+  toast('Setting berhasil disimpan.', 'success');
+}
+
+function toggleNotif(input, id) {
+  applyToggleStyle(id, input.checked);
+  localStorage.setItem('tf_notif_' + id.replace('notif-',''), input.checked ? '1' : '0');
+}
+
+function applyToggleStyle(id, on) {
+  const track = document.getElementById('track-' + id.replace('notif-',''));
+  const thumb = document.getElementById('thumb-' + id.replace('notif-',''));
+  if (track) track.style.background = on ? 'var(--primary)' : 'var(--border)';
+  if (thumb) thumb.style.transform  = on ? 'translateX(18px)' : 'translateX(0)';
+}
+
+
+/* ══════════════════════════════════════════════════════════
+   PATCH AUTO-INIT — tambahkan initDropdownHeader
+══════════════════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', function () {
+  const isAuthPage = window.location.pathname.includes('auth');
+  if (!isAuthPage && localStorage.getItem('tf_token')) {
+    initDropdownHeader();
+  }
 });

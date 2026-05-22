@@ -1,15 +1,13 @@
 /* ============================================================
    input_olt.js — Manajemen Perangkat OLT TechnoFix
    Requires: global.js  ← wajib di-load lebih dulu di HTML
-             (API_BASE, escHtml, val, statusInfo,
-              animNum, toast, closeModal, togglePwd)
+             (API_BASE, escHtml, val, statusInfo, animNum,
+              toast, togglePwd, openModalForm, closeModalForm)
 
-   ✅ Fungsi di bawah ini TIDAK didefinisikan di sini karena
-      sudah ada di global.js:
-      - escHtml, val, statusInfo, animNum
-      - toast, closeModal, togglePwd
-      - toggleProfileMenu, initBottomNav
-      - const API_BASE
+   Perubahan dari versi lama:
+   - showForm()      → form muncul sebagai MODAL POPUP di tengah halaman
+   - cancelForm()    → menutup modal (closeModalForm)
+   - confirmDelete() → modal konfirmasi via openModalForm
 
    Endpoint:
    GET    /olt              → daftar semua OLT
@@ -19,19 +17,20 @@
    POST   /olt/<id>/sync    → tes koneksi ulang
    ============================================================ */
 
+'use strict';
+
 // ── STATE ──────────────────────────────────────────────────────
 let devices    = [];
 let editingId  = null;
 let syncingIds = new Set();
 
 
-// ── HELPERS LOKAL ──────────────────────────────────────────────
+// ── HELPERS ────────────────────────────────────────────────────
 
-/** Tampilkan loading spinner di device list. */
 function showListLoading() {
   document.getElementById('device-list').innerHTML = `
     <div class="empty-state">
-      <i class="ti ti-loader spin" style="font-size:32px;"></i>
+      <span class="material-symbols-outlined spin" style="font-size:32px;">refresh</span>
       <p>Memuat perangkat OLT...</p>
     </div>`;
 }
@@ -39,39 +38,37 @@ function showListLoading() {
 
 // ── STATS ──────────────────────────────────────────────────────
 
-/** Perbarui kartu statistik OLT (total, connected, failed, pending). */
 function updateStats() {
   animNum('stat-total',     devices.length);
   animNum('stat-connected', devices.filter(d => d.status === 'connected').length);
   animNum('stat-failed',    devices.filter(d => d.status === 'failed').length);
   animNum('stat-pending',   devices.filter(d => d.status === 'pending').length);
 
-  const countEl = document.getElementById('device-count');
-  if (countEl) countEl.textContent = `${devices.length} perangkat`;
+  const el = document.getElementById('device-count');
+  if (el) el.textContent = `${devices.length} perangkat`;
 }
 
 
 // ── API CALLS ──────────────────────────────────────────────────
 
-/** Ambil semua OLT dari database via GET /olt. */
 async function loadDevices() {
   showListLoading();
   try {
     const res  = await fetch(`${API_BASE}/olt`);
     const data = await res.json();
-    devices = Array.isArray(data) ? data : (data.devices || []);
+    devices    = Array.isArray(data) ? data : (data.devices || []);
     renderDevices();
   } catch (e) {
     document.getElementById('device-list').innerHTML = `
       <div class="empty-state">
-        <i class="ti ti-plug-off"></i>
-        <p>Tidak bisa terhubung ke server.<br>Pastikan backend Flask sudah berjalan.</p>
+        <span class="material-symbols-outlined" style="font-size:40px;color:var(--red);">wifi_off</span>
+        <p style="font-weight:600;color:var(--text);">Tidak bisa terhubung ke server</p>
+        <p style="font-size:12px;color:var(--text-muted);">Pastikan backend Flask sudah berjalan.</p>
       </div>`;
     updateStats();
   }
 }
 
-/** Tambah OLT baru via POST /olt. */
 async function addDevice() {
   const name       = val('f-name');
   const tipe       = val('f-tipe');
@@ -88,15 +85,17 @@ async function addDevice() {
     return;
   }
 
-  const btn = document.querySelector('.form-actions .btn-primary');
-  btn.disabled = true;
-  btn.innerHTML = '<i class="ti ti-loader spin"></i> Menyimpan...';
+  const btn = document.getElementById('btn-submit-form');
+  if (btn) {
+    btn.disabled  = true;
+    btn.innerHTML = '<span class="material-symbols-outlined spin">refresh</span> Menyimpan...';
+  }
 
   try {
     const res  = await fetch(`${API_BASE}/olt`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ name, tipe, ip, port, username: user, password: pass, snmp, lokasi, keterangan })
+      body:    JSON.stringify({ name, tipe, ip, port, username: user, password: pass, snmp, lokasi, keterangan }),
     });
     const data = await res.json();
 
@@ -104,20 +103,20 @@ async function addDevice() {
       devices.push(data.device || data);
       cancelForm();
       renderDevices();
-      toast(data.message || `${name} berhasil ditambahkan`, data.device?.status === 'connected' ? 'success' : 'danger');
+      toast(
+        data.message || `${name} berhasil ditambahkan`,
+        data.device?.status === 'connected' ? 'success' : 'danger'
+      );
     } else {
       toast(data.message || 'Gagal menyimpan perangkat.', 'danger');
-      btn.disabled = false;
-      btn.innerHTML = '<i class="ti ti-plus"></i> Tambah OLT';
+      if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-outlined">add</span> Tambah OLT'; }
     }
   } catch (e) {
     toast('Tidak bisa menghubungi server.', 'danger');
-    btn.disabled = false;
-    btn.innerHTML = '<i class="ti ti-plus"></i> Tambah OLT';
+    if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-outlined">add</span> Tambah OLT'; }
   }
 }
 
-/** Edit OLT via PUT /olt/<id>. */
 async function saveEdit() {
   const name       = val('f-name');
   const tipe       = val('f-tipe');
@@ -134,15 +133,17 @@ async function saveEdit() {
     return;
   }
 
-  const btn = document.querySelector('.form-actions .btn-primary');
-  btn.disabled = true;
-  btn.innerHTML = '<i class="ti ti-loader spin"></i> Menyimpan...';
+  const btn = document.getElementById('btn-submit-form');
+  if (btn) {
+    btn.disabled  = true;
+    btn.innerHTML = '<span class="material-symbols-outlined spin">refresh</span> Menyimpan...';
+  }
 
   try {
     const res  = await fetch(`${API_BASE}/olt/${editingId}`, {
       method:  'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ name, tipe, ip, port, username: user, password: pass, snmp, lokasi, keterangan })
+      body:    JSON.stringify({ name, tipe, ip, port, username: user, password: pass, snmp, lokasi, keterangan }),
     });
     const data = await res.json();
 
@@ -151,25 +152,19 @@ async function saveEdit() {
       if (idx !== -1) devices[idx] = data.device || data;
       cancelForm();
       renderDevices();
-      toast('Data perangkat berhasil diperbarui.', 'success');
+      toast('Data perangkat OLT berhasil diperbarui.', 'success');
     } else {
       toast(data.message || 'Gagal memperbarui perangkat.', 'danger');
-      btn.disabled = false;
-      btn.innerHTML = '<i class="ti ti-check"></i> Simpan Perubahan';
+      if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-outlined">check</span> Simpan Perubahan'; }
     }
   } catch (e) {
     toast('Tidak bisa menghubungi server.', 'danger');
-    btn.disabled = false;
-    btn.innerHTML = '<i class="ti ti-check"></i> Simpan Perubahan';
+    if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-outlined">check</span> Simpan Perubahan'; }
   }
 }
 
-/**
- * Hapus OLT via DELETE /olt/<id>.
- * @param {number} id
- */
 async function doDelete(id) {
-  closeModal();
+  closeModalForm();
   try {
     const res = await fetch(`${API_BASE}/olt/${id}`, { method: 'DELETE' });
     if (res.ok) {
@@ -184,10 +179,6 @@ async function doDelete(id) {
   }
 }
 
-/**
- * Sinkronisasi satu OLT via POST /olt/<id>/sync.
- * @param {number} id
- */
 async function syncDevice(id) {
   if (syncingIds.has(id)) return;
 
@@ -197,8 +188,7 @@ async function syncDevice(id) {
   try {
     const res  = await fetch(`${API_BASE}/olt/${id}/sync`, { method: 'POST' });
     const data = await res.json();
-
-    const d = devices.find(x => x.id === id);
+    const d    = devices.find(x => x.id === id);
     if (d) {
       d.status = data.connected ? 'connected' : 'failed';
       toast(
@@ -216,17 +206,13 @@ async function syncDevice(id) {
   renderDevices();
 }
 
-/** Sinkronisasi semua OLT sekaligus. */
 async function syncAll() {
   const icon    = document.getElementById('sync-all-icon');
   const pending = devices.filter(d => !syncingIds.has(d.id));
 
-  if (!pending.length) {
-    toast('Semua perangkat sedang disinkron.', 'info');
-    return;
-  }
+  if (!pending.length) { toast('Semua perangkat sedang disinkron.', 'info'); return; }
 
-  icon.classList.add('spin');
+  if (icon) icon.classList.add('spin');
   pending.forEach(d => syncingIds.add(d.id));
   renderDevices();
 
@@ -234,30 +220,28 @@ async function syncAll() {
     try {
       const res  = await fetch(`${API_BASE}/olt/${d.id}/sync`, { method: 'POST' });
       const data = await res.json();
-      d.status = data.connected ? 'connected' : 'failed';
-    } catch (e) {
-      d.status = 'failed';
-    }
+      d.status   = data.connected ? 'connected' : 'failed';
+    } catch (e) { d.status = 'failed'; }
     syncingIds.delete(d.id);
   }));
 
-  icon.classList.remove('spin');
+  if (icon) icon.classList.remove('spin');
   renderDevices();
-  toast('Sinkronisasi semua perangkat selesai.', 'success');
+  toast('Sinkronisasi semua perangkat OLT selesai.', 'success');
 }
 
 
 // ── RENDER ─────────────────────────────────────────────────────
 
-/** Render ulang seluruh daftar OLT ke DOM. */
 function renderDevices() {
   const container = document.getElementById('device-list');
 
   if (!devices.length) {
     container.innerHTML = `
       <div class="empty-state">
-        <i class="ti ti-device-desktop-off"></i>
-        <p>Belum ada perangkat OLT terdaftar.<br>Klik <strong>Tambah OLT</strong> untuk memulai.</p>
+        <span class="material-symbols-outlined" style="font-size:40px;color:var(--text-dim);">settings_input_antenna</span>
+        <p style="font-weight:600;color:var(--text);">Belum ada perangkat OLT terdaftar</p>
+        <p style="font-size:12px;color:var(--text-muted);">Klik <strong>Tambah OLT</strong> untuk memulai.</p>
       </div>`;
     updateStats();
     return;
@@ -276,50 +260,44 @@ function renderDevices() {
       <div class="device-card ${statusCls}" id="card-${d.id}" style="animation-delay:${idx * 40}ms">
 
         <div class="device-icon">
-          <i class="ti ti-antenna-bars-5"></i>
+          <span class="material-symbols-outlined">settings_input_antenna</span>
         </div>
 
         <div class="device-info">
           <div class="device-top">
             <span class="device-name">${escHtml(d.name)}</span>
             ${d.tipe ? `<span class="device-tipe-badge">${escHtml(d.tipe)}</span>` : ''}
-            <span class="badge ${badgeCls}" id="badge-${d.id}">
+            <span class="badge ${escHtml(badgeCls)}" id="badge-${d.id}">
               <span class="badge-dot ${isSyncing ? 'spin' : ''}"></span>
-              ${badgeLabel}
+              ${escHtml(badgeLabel)}
             </span>
           </div>
           <div class="device-meta">
             <span class="device-meta-item">
-              <i class="ti ti-network"></i>${escHtml(d.ip)}:${escHtml(String(d.port || 23))}
+              <span class="material-symbols-outlined">lan</span>
+              ${escHtml(d.ip)}:${escHtml(String(d.port || 23))}
             </span>
             <span class="device-meta-item">
-              <i class="ti ti-user"></i>${escHtml(d.username)}
+              <span class="material-symbols-outlined">person</span>
+              ${escHtml(d.username)}
             </span>
-            ${d.snmp ? `
-            <span class="device-meta-item">
-              <i class="ti ti-key"></i>${escHtml(d.snmp)}
-            </span>` : ''}
-            ${d.lokasi ? `
-            <span class="device-meta-item">
-              <i class="ti ti-map-pin"></i>${escHtml(d.lokasi)}
-            </span>` : ''}
+            ${d.snmp ? `<span class="device-meta-item"><span class="material-symbols-outlined">vpn_key</span>${escHtml(d.snmp)}</span>` : ''}
+            ${d.lokasi ? `<span class="device-meta-item"><span class="material-symbols-outlined">location_on</span>${escHtml(d.lokasi)}</span>` : ''}
           </div>
           ${d.keterangan ? `<p class="device-keterangan">${escHtml(d.keterangan)}</p>` : ''}
         </div>
 
         <div class="device-actions">
-          <button class="btn btn-blue btn-sm"
-                  id="sync-btn-${d.id}"
-                  onclick="syncDevice(${d.id})"
-                  ${isSyncing ? 'disabled' : ''}>
-            <i class="ti ti-refresh ${isSyncing ? 'spin' : ''}" id="sync-icon-${d.id}"></i>
+          <button class="btn btn-blue btn-sm" id="sync-btn-${d.id}"
+                  onclick="syncDevice(${d.id})" ${isSyncing ? 'disabled' : ''}>
+            <span class="material-symbols-outlined ${isSyncing ? 'spin' : ''}">refresh</span>
             Sinkron
           </button>
           <button class="btn btn-amber btn-sm" onclick="editDevice(${d.id})">
-            <i class="ti ti-edit"></i> Edit
+            <span class="material-symbols-outlined">edit</span> Edit
           </button>
-          <button class="btn btn-red btn-sm" onclick="confirmDelete(${d.id})">
-            <i class="ti ti-trash"></i>
+          <button class="btn btn-red btn-sm" onclick="confirmDelete(${d.id})" title="Hapus">
+            <span class="material-symbols-outlined">delete</span>
           </button>
         </div>
 
@@ -330,53 +308,54 @@ function renderDevices() {
 }
 
 
-// ── FORM ───────────────────────────────────────────────────────
+// ── FORM MODAL ─────────────────────────────────────────────────
 
-/**
- * Tampilkan form tambah atau edit OLT.
- * @param {object|null} prefill — null = tambah baru
- */
 function showForm(prefill = null) {
-  editingId = prefill ? prefill.id : null;
+  editingId    = prefill ? prefill.id : null;
   const isEdit = !!prefill;
+  const v      = k => prefill ? escHtml(prefill[k] || '') : '';
 
-  document.getElementById('add-btn').style.display = 'none';
-
-  document.getElementById('form-container').innerHTML = `
-    <div class="form-card">
-
-      <div class="form-card-title">
-        <i class="ti ti-${isEdit ? 'edit' : 'plus-circle'}"></i>
-        ${isEdit ? 'Edit Perangkat OLT' : 'Tambah Perangkat OLT'}
+  const html = `
+    <div class="form-modal" style="width:560px;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+        <div style="width:40px;height:40px;border-radius:var(--r-md);flex-shrink:0;
+             background:var(--primary-light);color:var(--primary);
+             display:flex;align-items:center;justify-content:center;">
+          <span class="material-symbols-outlined" style="font-size:20px;">${isEdit ? 'edit' : 'add_circle'}</span>
+        </div>
+        <div style="flex:1;">
+          <div style="font-family:var(--heading);font-size:16px;font-weight:800;color:var(--text);">
+            ${isEdit ? 'Edit Perangkat OLT' : 'Tambah Perangkat OLT'}
+          </div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:1px;">
+            ${isEdit ? 'Perbarui data OLT yang terdaftar' : 'Daftarkan Optical Line Terminal baru'}
+          </div>
+        </div>
+        <button class="psheet-close" onclick="cancelForm()" title="Tutup">
+          <span class="material-symbols-outlined">close</span>
+        </button>
       </div>
 
       <div class="form-grid">
 
         <div class="form-group">
-          <label class="form-label" for="f-name">
-            Nama OLT <span class="req">*</span>
-          </label>
+          <label class="form-label">Nama OLT <span class="req">*</span></label>
           <input class="form-input" type="text" id="f-name"
-                 placeholder="cth: OLT-Pusat-01"
-                 value="${prefill ? escHtml(prefill.name) : ''}">
+                 placeholder="cth: OLT-Pusat-01" value="${v('name')}">
         </div>
 
         <div class="form-group">
-          <label class="form-label" for="f-tipe">Tipe / Merek</label>
+          <label class="form-label">Tipe / Merek</label>
           <input class="form-input" type="text" id="f-tipe"
-                 placeholder="cth: Huawei MA5800, ZTE C600"
-                 value="${prefill ? escHtml(prefill.tipe || '') : ''}">
+                 placeholder="cth: Huawei MA5800 / ZTE C600" value="${v('tipe')}">
         </div>
 
         <div class="form-group full">
-          <label class="form-label" for="f-ip">
-            IP Address &amp; Port <span class="req">*</span>
-          </label>
+          <label class="form-label">IP Address &amp; Port <span class="req">*</span></label>
           <div class="ip-port-row">
-            <input class="form-input mono" type="text" id="f-ip"
-                   placeholder="192.168.1.100"
-                   value="${prefill ? escHtml(prefill.ip) : ''}">
-            <input class="form-input mono port" type="number" id="f-port"
+            <input class="form-input" type="text" id="f-ip"
+                   placeholder="192.168.1.100" value="${v('ip')}">
+            <input class="form-input port" type="number" id="f-port"
                    placeholder="23" min="1" max="65535"
                    value="${prefill ? escHtml(String(prefill.port || 23)) : '23'}">
           </div>
@@ -384,18 +363,13 @@ function showForm(prefill = null) {
         </div>
 
         <div class="form-group">
-          <label class="form-label" for="f-user">
-            Username <span class="req">*</span>
-          </label>
+          <label class="form-label">Username <span class="req">*</span></label>
           <input class="form-input" type="text" id="f-user"
-                 placeholder="admin"
-                 value="${prefill ? escHtml(prefill.username) : ''}">
+                 placeholder="admin" value="${v('username')}">
         </div>
 
         <div class="form-group">
-          <label class="form-label" for="f-pass">
-            Password ${isEdit ? '' : '<span class="req">*</span>'}
-          </label>
+          <label class="form-label">Password ${isEdit ? '' : '<span class="req">*</span>'}</label>
           <div class="form-pwd-wrap">
             <input class="form-input" type="password" id="f-pass"
                    placeholder="${isEdit ? 'Kosongkan jika tidak diubah' : '••••••••'}"
@@ -407,21 +381,19 @@ function showForm(prefill = null) {
         </div>
 
         <div class="form-group">
-          <label class="form-label" for="f-snmp">SNMP Community String</label>
+          <label class="form-label">SNMP Community String</label>
           <input class="form-input" type="text" id="f-snmp"
-                 placeholder="cth: public"
-                 value="${prefill ? escHtml(prefill.snmp || '') : ''}">
+                 placeholder="cth: public" value="${v('snmp')}">
         </div>
 
         <div class="form-group">
-          <label class="form-label" for="f-lokasi">Lokasi</label>
+          <label class="form-label">Lokasi</label>
           <input class="form-input" type="text" id="f-lokasi"
-                 placeholder="cth: Gedung Pusat Lt.2"
-                 value="${prefill ? escHtml(prefill.lokasi || '') : ''}">
+                 placeholder="cth: Gedung Pusat Lt.2" value="${v('lokasi')}">
         </div>
 
         <div class="form-group full">
-          <label class="form-label" for="f-keterangan">Keterangan</label>
+          <label class="form-label">Keterangan</label>
           <textarea class="form-input" id="f-keterangan" rows="2"
                     placeholder="Catatan tambahan tentang perangkat ini...">${prefill ? escHtml(prefill.keterangan || '') : ''}</textarea>
         </div>
@@ -430,72 +402,61 @@ function showForm(prefill = null) {
 
       <div class="form-actions">
         <button class="btn" onclick="cancelForm()">
-          <i class="ti ti-x"></i> Batal
+          <span class="material-symbols-outlined">close</span> Batal
         </button>
-        <button class="btn btn-primary" onclick="${isEdit ? 'saveEdit()' : 'addDevice()'}">
-          <i class="ti ti-${isEdit ? 'check' : 'plus'}"></i>
+        <button class="btn-primary" id="btn-submit-form"
+                onclick="${isEdit ? 'saveEdit()' : 'addDevice()'}">
+          <span class="material-symbols-outlined">${isEdit ? 'check' : 'add'}</span>
           ${isEdit ? 'Simpan Perubahan' : 'Tambah OLT'}
         </button>
       </div>
-
     </div>`;
 
-  document.getElementById('f-name').focus();
+  openModalForm(html);
+
+  requestAnimationFrame(() => {
+    const el = document.getElementById('f-name');
+    if (el) el.focus();
+  });
 }
 
-/** Tutup form dan tampilkan kembali tombol Tambah. */
 function cancelForm() {
   editingId = null;
-  document.getElementById('form-container').innerHTML = '';
-  document.getElementById('add-btn').style.display = '';
+  closeModalForm();
 }
 
-/**
- * Tampilkan form edit dengan data OLT yang dipilih.
- * @param {number} id
- */
 function editDevice(id) {
   const d = devices.find(x => x.id === id);
   if (d) showForm(d);
 }
 
 
-// ── DELETE ─────────────────────────────────────────────────────
+// ── DELETE MODAL ───────────────────────────────────────────────
 
-/**
- * Tampilkan modal konfirmasi hapus OLT.
- * @param {number} id
- */
 function confirmDelete(id) {
   const d = devices.find(x => x.id === id);
   if (!d) return;
 
-  document.getElementById('modal-container').innerHTML = `
-    <div class="modal-overlay open" onclick="closeModal()">
-      <div class="modal" onclick="event.stopPropagation()">
-
-        <div class="modal-title">
-          <i class="ti ti-alert-triangle" style="color: var(--red);"></i>
-          Hapus Perangkat OLT
-        </div>
-
-        <div class="modal-body">
-          Yakin ingin menghapus <strong style="color: var(--text);">${escHtml(d.name)}</strong>?<br>
-          Semua konfigurasi perangkat ini akan dihapus secara permanen.
-        </div>
-
-        <div class="modal-actions">
-          <button class="btn" onclick="closeModal()">Batal</button>
-          <button class="btn btn-red" onclick="doDelete(${id})">
-            <i class="ti ti-trash"></i> Hapus
-          </button>
-        </div>
-
+  const html = `
+    <div class="modal">
+      <div class="hapus-icon-wrap">
+        <span class="material-symbols-outlined hapus-icon">delete</span>
+      </div>
+      <div class="hapus-title">Hapus Perangkat OLT?</div>
+      <div class="hapus-sub">
+        Yakin ingin menghapus <strong>${escHtml(d.name)}</strong>?<br>
+        Semua konfigurasi dan data ONU yang terpetakan akan dihapus permanen.
+      </div>
+      <div class="modal-actions" style="margin-top:20px;">
+        <button class="btn" onclick="closeModalForm()">Batal</button>
+        <button class="btn btn-red" onclick="doDelete(${id})">
+          <span class="material-symbols-outlined">delete</span> Ya, Hapus
+        </button>
       </div>
     </div>`;
+
+  openModalForm(html);
 }
-
-
 
 
 // ── INIT ───────────────────────────────────────────────────────

@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Manajemen MikroTik</title>
+    <style>
+        /* --- STYLE DASAR & TEMA GELAP --- */
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: #1e1e2e; color: #cdd6f4; padding: 30px; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        h1 { margin-bottom: 25px; color: #f5c2e7; font-size: 28px; }
+
+        /* --- KOTAK STATISTIK (WIDGET) --- */
+        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px; }
+        .stat-card { background: #252538; padding: 20px; border-radius: 8px; border-left: 5px solid #fff; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
+        .stat-card.connected { border-left-color: #a6e3a1; }
+        .stat-card.disconnected { border-left-color: #f38ba8; }
+        .stat-card.unsynced { border-left-color: #f9e2af; }
+        .stat-card h3 { font-size: 14px; text-transform: uppercase; color: #a6adc8; margin-bottom: 5px; }
+        .stat-card p { font-size: 32px; font-weight: bold; }
+
+        /* --- TOMBOL UTAMA --- */
+        .btn-tambah { background-color: #89b4fa; color: #11111b; padding: 12px 20px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 15px; margin-bottom: 20px; display: inline-flex; align-items: center; gap: 8px; }
+        .btn-tambah:hover { background-color: #b4befe; }
+
+        /* --- POPUP MODAL (FORM INPUT) --- */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 100; }
+        .modal-content { background: #252538; padding: 25px; border-radius: 10px; width: 100%; max-width: 450px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); border: 1px solid #45475a; }
+        .modal-content h2 { margin-bottom: 20px; color: #89b4fa; font-size: 20px; }
+        
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 6px; font-size: 14px; color: #bac2de; }
+        .form-group input { width: 100%; padding: 10px; background: #11111b; border: 1px solid #45475a; color: #fff; border-radius: 6px; font-size: 14px; }
+        .form-group input:focus { border-color: #89b4fa; outline: none; }
+        
+        .modal-buttons { display: flex; gap: 10px; margin-top: 25px; }
+        .btn-action { flex: 1; padding: 10px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px; }
+        .btn-simpan { background-color: #a6e3a1; color: #11111b; }
+        .btn-batal { background-color: #f38ba8; color: #11111b; }
+
+        /* --- TABEL DAFTAR PERANGKAT --- */
+        .table-container { background: #252538; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
+        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 15px; }
+        th { background-color: #313244; padding: 15px; color: #cdd6f4; font-weight: 600; }
+        td { padding: 15px; border-bottom: 1px solid #45475a; color: #cdd6f4; }
+        tr:last-child td { border-bottom: none; }
+        
+        /* --- BADGE STATUS --- */
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+        .badge.terhubung { background-color: rgba(166, 227, 161, 0.2); color: #a6e3a1; }
+        .badge.terputus { background-color: rgba(243, 139, 168, 0.2); color: #f38ba8; }
+        .badge.belum-singkron { background-color: rgba(249, 226, 175, 0.2); color: #f9e2af; }
+
+        /* --- TOMBOL AKSI DI TABEL --- */
+        .btn-edit { background: #f9e2af; color: #11111b; padding: 6px 12px; border: none; border-radius: 4px; font-size: 13px; font-weight: bold; cursor: pointer; margin-right: 5px; }
+        .btn-hapus { background: #f38ba8; color: #11111b; padding: 6px 12px; border: none; border-radius: 4px; font-size: 13px; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Dashboard Manajemen MikroTik</h1>
+
+    <div class="stats-grid">
+        <div class="stat-card connected">
+            <h3>Terhubung</h3>
+            <p id="count-terhubung">1</p>
+        </div>
+        <div class="stat-card disconnected">
+            <h3>Terputus</h3>
+            <p id="count-terputus">0</p>
+        </div>
+        <div class="stat-card unsynced">
+            <h3>Belum Tersinkron</h3>
+            <p id="count-belum-singkron">0</p>
+        </div>
+    </div>
+
+    <button class="btn-tambah" onclick="bukaModal()">➕ Tambah Perangkat</button>
+
+    <div class="modal" id="modalPerangkat">
+        <div class="modal-content">
+            <h2 id="modalTitle">Tambah Perangkat MikroTik</h2>
+            <input type="hidden" id="editRowIndex"> <div class="form-group">
+                <label>Nama / Komen Penanda</label>
+                <input type="text" id="inputNama" placeholder="Contoh: Router-Distribusi-Cantuk">
+            </div>
+            <div class="form-group">
+                <label>IP Address & Port API</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="inputIP" placeholder="192.168.88.1" style="flex: 2;">
+                    <input type="text" id="inputPort" placeholder="8728" value="8728" style="flex: 1;">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Username</label>
+                <input type="text" id="inputUser" placeholder="admin">
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="inputPass" placeholder="••••••••">
+            </div>
+            <div class="form-group">
+                <label>Status Awal</label>
+                <select id="inputStatus" style="width: 100%; padding: 10px; background: #11111b; border: 1px solid #45475a; color: #fff; border-radius: 6px;">
+                    <option value="Terhubung">Terhubung</option>
+                    <option value="Terputus">Terputus</option>
+                    <option value="Belum Tersinkron">Belum Tersinkron</option>
+                </select>
+            </div>
+
+            <div class="modal-buttons">
+                <button class="btn-action btn-batal" onclick="tutupModal()">Batal</button>
+                <button class="btn-action btn-simpan" onclick="simpanPerangkat()">Tambah</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table id="tabelMikrotik">
+            <thead>
+                <tr>
+                    <th>Nama Penanda</th>
+                    <th>IP Address:Port</th>
+                    <th>Username</th>
+                    <th>Status</th>
+                    <th>Aksi</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Router-Distribusi-Cantuk</td>
+                    <td>192.168.111.1:8728</td>
+                    <td>admin</td>
+                    <td><span class="badge terhubung">Terhubung</span></td>
+                    <td>
+                        <button class="btn-edit" onclick="editBaris(this)">Edit</button>
+                        <button class="btn-hapus" onclick="hapusBaris(this)">Hapus</button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    // Fungsi buka modal
+    function bukaModal() {
+        document.getElementById('modalTitle').innerText = "Tambah Perangkat MikroTik";
+        document.querySelector('.btn-simpan').innerText = "Tambah";
+        document.getElementById('editRowIndex').value = "";
+        document.getElementById('modalPerangkat').style.display = 'flex';
+    }
+
+    // Fungsi tutup modal & reset form
+    function tutupModal() {
+        document.getElementById('modalPerangkat').style.display = 'none';
+        document.getElementById('inputNama').value = '';
+        document.getElementById('inputIP').value = '';
+        document.getElementById('inputPort').value = '8728';
+        document.getElementById('inputUser').value = '';
+        document.getElementById('inputPass').value = '';
+        document.getElementById('inputStatus').value = 'Terhubung';
+    }
+
+    // Fungsi Tambah / Update data di tabel HTML
+    function simpanPerangkat() {
+        const nama = document.getElementById('inputNama').value || 'Tanpa Nama';
+        const ip = document.getElementById('inputIP').value || '0.0.0.0';
+        const port = document.getElementById('inputPort').value || '8728';
+        const user = document.getElementById('inputUser').value || 'admin';
+        const status = document.getElementById('inputStatus').value;
+        const editIndex = document.getElementById('editRowIndex').value;
+
+        // Tentukan class badge berdasarkan pilihan status
+        let badgeClass = 'belum-singkron';
+        if (status === 'Terhubung') badgeClass = 'terhubung';
+        if (status === 'Terputus') badgeClass = 'terputus';
+
+        if (editIndex === "") {
+            // MODE TAMBAH BARIS BARU
+            const tbody = document.getElementById('tabelMikrotik').getElementsByTagName('tbody')[0];
+            const row baru = tbody.insertRow();
+            rowbaru.innerHTML = `
+                <td>${nama}</td>
+                <td>${ip}:${port}</td>
+                <td>${user}</td>
+                <td><span class="badge ${badgeClass}">${status}</span></td>
+                <td>
+                    <button class="btn-edit" onclick="editBaris(this)">Edit</button>
+                    <button class="btn-hapus" onclick="hapusBaris(this)">Hapus</button>
+                </td>
+            `;
+        } else {
+            // MODE UPDATE BARIS YANG DI-EDIT
+            const row = document.getElementById('tabelMikrotik').rows[parseInt(editIndex)];
+            row.cells[0].innerText = nama;
+            row.cells[1].innerText = `${ip}:${port}`;
+            row.cells[2].innerText = user;
+            row.cells[3].innerHTML = `<span class="badge ${badgeClass}">${status}</span>`;
+        }
+
+        tutupModal();
+        hitungUlangStatistik();
+    }
+
+    // Fungsi Hapus baris tabel
+    function hapusBaris(btn) {
+        if (confirm("Apakah kamu yakin ingin menghapus perangkat ini?")) {
+            const row = btn.parentNode.parentNode;
+            row.parentNode.removeChild(row);
+            hitungUlangStatistik();
+        }
+    }
+
+    // Fungsi Edit (Mengambil data lama di tabel lalu memasukannya ke form modal)
+    function editBaris(btn) {
+        const row = btn.parentNode.parentNode;
+        const index = row.rowIndex;
+        
+        const nama = row.cells[0].innerText;
+        const ipport = row.cells[1].innerText.split(':');
+        const user = row.cells[2].innerText;
+        const status = row.cells[3].innerText.trim();
+
+        document.getElementById('inputNama').value = nama;
+        document.getElementById('inputIP').value = ipport[0];
+        document.getElementById('inputPort').value = ipport[1] || '8728';
+        document.getElementById('inputUser').value = user;
+        document.getElementById('inputStatus').value = status;
+        
+        document.getElementById('editRowIndex').value = index;
+        document.getElementById('modalTitle').innerText = "Edit Perangkat MikroTik";
+        document.querySelector('.btn-simpan').innerText = "Simpan Perubahan";
+        
+        document.getElementById('modalPerangkat').style.display = 'flex';
+    }
+
+    // Fungsi Kalkulator Statistik Otomatis
+    function hitungUlangStatistik() {
+        const rows = document.getElementById('tabelMikrotik').getElementsByTagName('tbody')[0].rows;
+        let terhubung = 0, terputus = 0, belumSingkron = 0;
+
+        for (let i = 0; i < rows.length; i++) {
+            const statusText = rows[i].cells[3].innerText.trim();
+            if (statusText === "Terhubung") terhubung++;
+            else if (statusText === "Terputus") terputus++;
+            else if (statusText === "Belum Tersinkron") belumSingkron++;
+        }
+
+        document.getElementById('count-terhubung').innerText = terhubung;
+        document.getElementById('count-terputus').innerText = terputus;
+        document.getElementById('count-belum-singkron').innerText = belumSingkron;
+    }
+</script>
+
+</body>
+</html>

@@ -13,12 +13,10 @@
     rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
     rel="stylesheet" />
-  <!-- global.css WAJIB pertama — semua base ada di sini -->
+  <!-- global.css WAJIB pertama -->
   <link rel="stylesheet" href="/app/frontend/statis/global.css" />
   <link rel="stylesheet" href="/app/frontend/dashboard/dashboard.css" />
 </head>
-
-
 
 <body>
 
@@ -35,13 +33,13 @@
         </div>
       </div>
       <nav class="topbar-nav">
-        <a href="dashboard.html" class="active">
+        <a href="/app/frontend/dashboard/dashboard.html" class="active">
           <span class="material-symbols-outlined">dashboard</span>Dashboard
         </a>
         <a href="/app/frontend/pelanggan/pelanggan.html">
           <span class="material-symbols-outlined">group</span>Pelanggan
         </a>
-        <a href="/app/frontend/profie/profile.html">
+        <a href="/app/frontend/profile_pppoe/profile_pppoe.html">
           <span class="material-symbols-outlined">person</span>Profile
         </a>
         <a href="#" onclick="openPerangkatSheet(event)">
@@ -60,28 +58,34 @@
         </button>
         <div class="profile-wrap" id="profile-wrap">
           <button class="profile-btn" onclick="toggleProfileMenu()" title="Profil">
-            <div class="avatar-circle">AD</div>
-            <span class="profile-username">Admin</span>
+            <div class="avatar-circle" id="avatar-initials">AD</div>
+            <span class="profile-username" id="profile-username">Admin</span>
             <span class="material-symbols-outlined profile-chevron">expand_more</span>
           </button>
           <div class="profile-dropdown" id="profile-dropdown">
-            <a href="#" class="profile-menu-item"><span class="material-symbols-outlined">person</span>Profil</a>
-            <a href="#" class="profile-menu-item"><span class="material-symbols-outlined">settings</span>Setting</a>
-            <a href="#" class="profile-menu-item"><span
-                class="material-symbols-outlined">manage_accounts</span>Manajemen User</a>
+            <a href="#" class="profile-menu-item">
+              <span class="material-symbols-outlined">person</span>Profil
+            </a>
+            <a href="#" class="profile-menu-item">
+              <span class="material-symbols-outlined">settings</span>Setting
+            </a>
+            <a href="#" class="profile-menu-item">
+              <span class="material-symbols-outlined">manage_accounts</span>Manajemen User
+            </a>
             <div class="profile-menu-divider"></div>
-            <a href="#" class="profile-menu-item logout"><span class="material-symbols-outlined">logout</span>Logout</a>
+            <a href="#" class="profile-menu-item logout">
+              <span class="material-symbols-outlined">logout</span>Logout
+            </a>
           </div>
         </div>
       </div>
     </div>
   </header>
 
-  <!-- ══ BOTTOM NAVBAR — MOBILE ONLY (myBCA style) ══ -->
+
+  <!-- ══ BOTTOM NAVBAR — MOBILE ONLY ══ -->
   <nav class="bottom-nav">
     <div class="bottom-nav-inner">
-
-      <!-- Garis sliding indicator — diposisikan via JS -->
       <div class="bottom-nav-indicator" id="bottom-nav-indicator"></div>
 
       <a href="/app/frontend/dashboard/dashboard.html" class="bottom-nav-item active">
@@ -120,9 +124,9 @@
         </div>
         <span class="bottom-nav-label">Maps</span>
       </a>
-
     </div>
   </nav>
+
 
   <!-- ══ MAIN PAGE ══ -->
   <main class="page">
@@ -141,7 +145,7 @@
       </div>
     </div>
 
-    <!-- ══ STAT CARDS ══ -->
+    <!-- ══ STAT CARDS (4 total; CSS menyembunyikan card ke-4 di desktop) ══ -->
     <div class="stat-row stat-row-4">
       <div class="stat-card">
         <div class="stat-icon green">
@@ -170,6 +174,7 @@
           <div class="stat-label">Tempo Minggu Ini</div>
         </div>
       </div>
+      <!-- Card ke-4: tampil di mobile, disembunyikan di desktop oleh global.css -->
       <div class="stat-card">
         <div class="stat-icon blue">
           <span class="material-symbols-outlined">account_balance_wallet</span>
@@ -181,6 +186,8 @@
       </div>
     </div>
 
+
+    <!-- ══ TABEL JATUH TEMPO ══ -->
     <div class="card jatuh-card">
       <div class="card-head">
         <div class="card-title-wrap">
@@ -189,6 +196,7 @@
         </div>
       </div>
 
+      <!-- Wrapper ganda: v-scroll untuk tinggi maksimal + responsive-freeze untuk overflow-x -->
       <div class="table-v-scroll">
         <div class="table-responsive-freeze">
           <table class="jatuh-tempo-table-modern">
@@ -204,13 +212,15 @@
               </tr>
             </thead>
             <tbody id="jatuh-tempo-list">
+              <!-- diisi oleh dashboard.js -->
             </tbody>
           </table>
         </div>
       </div>
     </div>
 
-    <!-- ══ MIDDLE SECTION ══ -->
+
+    <!-- ══ MIDDLE SECTION: Grafik + Status Jaringan ══ -->
     <div class="mid-grid">
 
       <!-- GRAFIK KIRI -->
@@ -224,13 +234,15 @@
               <div class="card-sub">Pelanggan aktif per bulan</div>
             </div>
             <div class="chart-legend">
-              <span class="legend-dot blue-dot"></span><span>Pelanggan</span>
+              <span class="legend-dot blue-dot"></span>
+              <span>Pelanggan</span>
             </div>
           </div>
           <div class="chart-wrap">
             <canvas id="chartPelanggan" role="img"
-              aria-label="Grafik pertumbuhan pelanggan per bulan dari Januari hingga Juni">Data pertumbuhan
-              pelanggan.</canvas>
+              aria-label="Grafik pertumbuhan pelanggan per bulan dari Januari hingga Juni">
+              Data pertumbuhan pelanggan.
+            </canvas>
           </div>
         </div>
 
@@ -242,16 +254,20 @@
               <div class="card-sub">Total tagihan terkumpul (juta Rp)</div>
             </div>
             <div class="chart-legend">
-              <span class="legend-dot green-dot"></span><span>Pendapatan</span>
+              <span class="legend-dot green-dot"></span>
+              <span>Pendapatan</span>
             </div>
           </div>
           <div class="chart-wrap">
             <canvas id="chartPendapatan" role="img"
-              aria-label="Grafik bar pendapatan per bulan dari Januari hingga Juni">Data pendapatan bulanan.</canvas>
+              aria-label="Grafik bar pendapatan per bulan dari Januari hingga Juni">
+              Data pendapatan bulanan.
+            </canvas>
           </div>
         </div>
 
-      </div>
+      </div><!-- /.mid-left -->
+
 
       <!-- STATUS JARINGAN KANAN -->
       <div class="mid-right">
@@ -268,7 +284,8 @@
 
           <!-- MikroTik Devices -->
           <div class="net-section-label">
-            <span class="material-symbols-outlined">router</span>Perangkat MikroTik
+            <span class="material-symbols-outlined">router</span>
+            Perangkat MikroTik
           </div>
           <div class="device-list" id="list-mikrotik">
             <div class="device-item">
@@ -281,7 +298,9 @@
               </div>
               <div class="device-right">
                 <div class="device-badge online-badge">Online</div>
-                <div class="device-user-count"><span class="material-symbols-outlined">people</span>87</div>
+                <div class="device-user-count">
+                  <span class="material-symbols-outlined">people</span>87
+                </div>
               </div>
             </div>
             <div class="device-item">
@@ -294,7 +313,9 @@
               </div>
               <div class="device-right">
                 <div class="device-badge online-badge">Online</div>
-                <div class="device-user-count"><span class="material-symbols-outlined">people</span>64</div>
+                <div class="device-user-count">
+                  <span class="material-symbols-outlined">people</span>64
+                </div>
               </div>
             </div>
             <div class="device-item">
@@ -307,7 +328,8 @@
               </div>
               <div class="device-right">
                 <div class="device-badge offline-badge">Offline</div>
-                <div class="device-user-count offline-count"><span class="material-symbols-outlined">people_off</span>—
+                <div class="device-user-count offline-count">
+                  <span class="material-symbols-outlined">people_off</span>—
                 </div>
               </div>
             </div>
@@ -321,14 +343,17 @@
               </div>
               <div class="device-right">
                 <div class="device-badge online-badge">Online</div>
-                <div class="device-user-count"><span class="material-symbols-outlined">people</span>96</div>
+                <div class="device-user-count">
+                  <span class="material-symbols-outlined">people</span>96
+                </div>
               </div>
             </div>
-          </div>
+          </div><!-- /#list-mikrotik -->
 
           <!-- OLT Devices -->
           <div class="net-section-label net-section-label--mt">
-            <span class="material-symbols-outlined">device_hub</span>Status OLT
+            <span class="material-symbols-outlined">device_hub</span>
+            Status OLT
           </div>
           <div class="device-list" id="list-olt">
             <div class="device-item">
@@ -336,7 +361,7 @@
                 <div class="device-status-dot online"></div>
                 <div>
                   <div class="device-name">OLT-Huawei-01</div>
-                  <div class="device-ip">10.10.1.1 — Port: 16 aktif</div>
+                  <div class="device-ip">10.10.1.1 — 16 port aktif</div>
                 </div>
               </div>
               <div class="device-right">
@@ -348,7 +373,7 @@
                 <div class="device-status-dot online"></div>
                 <div>
                   <div class="device-name">OLT-ZTE-02</div>
-                  <div class="device-ip">10.10.1.2 — Port: 8 aktif</div>
+                  <div class="device-ip">10.10.1.2 — 8 port aktif</div>
                 </div>
               </div>
               <div class="device-right">
@@ -367,44 +392,47 @@
                 <div class="device-badge offline-badge">Offline</div>
               </div>
             </div>
-          </div>
+          </div><!-- /#list-olt -->
 
-          <!-- Summary bar -->
-          <div class="card network-card">
-            <div class="card-head">
+          <!-- ✅ FIX: Summary infrastruktur — BUKAN card bersarang,
+               hanya section pemisah biasa di dalam network-card -->
+          <div class="net-infra-summary">
+            <div class="card-head" style="margin-top:16px;padding-top:14px;
+                 border-top:1px solid var(--border);margin-bottom:8px;">
               <div class="card-title-wrap">
                 <span class="material-symbols-outlined text-primary">lan</span>
                 <span class="card-title">Status Infrastruktur</span>
               </div>
             </div>
-
             <div class="net-summary">
               <div class="net-item">
                 <div class="stat-label">Router MikroTik</div>
                 <div class="stat-num net-count net-count--primary" id="net-mt-count">
-                  0/0 Online</div>
+                  0/0 Online
+                </div>
               </div>
-
               <div class="net-sum-divider"></div>
-
               <div class="net-item">
                 <div class="stat-label">Perangkat OLT</div>
                 <div class="stat-num net-count net-count--green" id="net-olt-count">
-                  0/0 Online</div>
+                  0/0 Online
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
-    </div>
+          </div><!-- /.net-infra-summary -->
 
-    
-    <!-- AKTIVITAS TERBARU -->
+        </div><!-- /.card.network-card -->
+      </div><!-- /.mid-right -->
+
+    </div><!-- /.mid-grid -->
+
+
+    <!-- ══ AKTIVITAS TERBARU ══ -->
     <div class="card activity-card">
       <div class="card-head">
         <div>
           <div class="card-title">Aktivitas Terbaru</div>
-          <div class="card-sub">Log perubahan sistem & jaringan</div>
+          <div class="card-sub">Log perubahan sistem &amp; jaringan</div>
         </div>
         <button class="icon-btn-sm" title="Filter log">
           <span class="material-symbols-outlined">filter_list</span>
@@ -491,11 +519,11 @@
             <div class="act-time">6 jam lalu</div>
           </div>
         </div>
-      </div>
-    </div>
+      </div><!-- /#activity-list -->
+    </div><!-- /.card.activity-card -->
 
-    </div>
   </main>
+
 
   <!-- TOAST -->
   <div id="toast"></div>
@@ -505,8 +533,7 @@
   <!-- global.js WAJIB sebelum dashboard.js -->
   <script src="/app/frontend/statis/global.js"></script>
   <script src="/app/frontend/dashboard/dashboard.js"></script>
-  <!-- initBottomNav, toggleProfileMenu, openPerangkatSheet, closePerangkatSheet,
-       initDateBadge, initHeaderCanvas → sudah di global.js -->
+
 
   <!-- ══ PERANGKAT SHEET ══ -->
   <div class="psheet-overlay" id="psheet-overlay" onclick="closePerangkatSheet()"></div>
@@ -523,7 +550,9 @@
     </div>
     <div class="psheet-list">
       <a href="/app/frontend/input_perangkat/input_mikrotik.html" class="psheet-item psheet-mikrotik">
-        <div class="psheet-item-icon"><span class="material-symbols-outlined">router</span></div>
+        <div class="psheet-item-icon">
+          <span class="material-symbols-outlined">router</span>
+        </div>
         <div class="psheet-item-body">
           <div class="psheet-item-name">MikroTik</div>
           <div class="psheet-item-desc">Router, firewall, dan manajemen bandwidth</div>
@@ -532,7 +561,9 @@
         <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
       </a>
       <a href="/app/frontend/input_perangkat/input_olt.html" class="psheet-item psheet-olt">
-        <div class="psheet-item-icon"><span class="material-symbols-outlined">settings_input_antenna</span></div>
+        <div class="psheet-item-icon">
+          <span class="material-symbols-outlined">settings_input_antenna</span>
+        </div>
         <div class="psheet-item-body">
           <div class="psheet-item-name">OLT</div>
           <div class="psheet-item-desc">Optical Line Terminal — kontrol jaringan fiber</div>
@@ -541,7 +572,9 @@
         <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
       </a>
       <a href="/app/frontend/input_perangkat/input_odp.html" class="psheet-item psheet-odp">
-        <div class="psheet-item-icon"><span class="material-symbols-outlined">hub</span></div>
+        <div class="psheet-item-icon">
+          <span class="material-symbols-outlined">hub</span>
+        </div>
         <div class="psheet-item-body">
           <div class="psheet-item-name">ODP</div>
           <div class="psheet-item-desc">Optical Distribution Point — titik distribusi kabel</div>
@@ -553,5 +586,4 @@
   </div>
 
 </body>
-
 </html>

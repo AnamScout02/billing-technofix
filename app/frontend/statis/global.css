@@ -177,7 +177,8 @@ body {
   background: var(--header-bg);
   border-bottom: 1px solid var(--header-border);
   box-shadow: 0 2px 20px rgba(0,0,0,.25);
-  overflow: hidden;
+  /* overflow: hidden dihapus agar dropdown profil & perangkat tidak terpotong */
+  overflow: visible;
 
   /* Radial-gradient pulse overlay bertema networking */
   background-image:
@@ -210,6 +211,8 @@ body {
   animation: headerRadialPulse 3s ease-in-out infinite alternate;
   pointer-events: none;
   z-index: 0;
+  /* Batasi agar tidak keluar header */
+  clip-path: inset(0);
 }
 
 /* Canvas animasi partikel jaringan — diisi JS */
@@ -308,7 +311,7 @@ body {
   border-radius: var(--r-md);
   box-shadow: var(--shadow-lg);
   min-width: 220px;
-  z-index: 200;
+  z-index: 1000;
   overflow: hidden;
   animation: fadeDown .18s ease;
 }
@@ -400,7 +403,7 @@ body {
   position: absolute; top: calc(100% + 8px); right: 0;
   background: var(--bg); border: 1px solid var(--border);
   border-radius: var(--r-md); box-shadow: var(--shadow-lg);
-  min-width: 210px; z-index: 200;
+  min-width: 210px; z-index: 1000;
   display: none; overflow: hidden;
   animation: fadeDown .18s ease;
 }
@@ -1196,9 +1199,10 @@ select.field-input {
   padding: 2px 8px; border-radius: var(--r-sm);
   display: inline-block; white-space: nowrap;
 }
-.tbl-rx.rx-ok   { color: var(--green); background: var(--green-bg); }
-.tbl-rx.rx-warn { color: var(--amber); background: var(--amber-bg); }
-.tbl-rx.rx-bad  { color: var(--red);   background: var(--red-bg); }
+.tbl-rx.rx-ok   { color: var(--green);    background: var(--green-bg);  border: 1px solid var(--green-border); }
+.tbl-rx.rx-warn { color: var(--amber);    background: var(--amber-bg);  border: 1px solid var(--amber-border); }
+.tbl-rx.rx-bad  { color: var(--red);      background: var(--red-bg);    border: 1px solid var(--red-border); }
+.tbl-rx.rx-none { color: var(--text-dim); background: var(--surface);   border: 1px solid var(--border); font-weight: 400; }
 
 .tbl-empty-msg {
   text-align: center; color: var(--text-dim);
@@ -1465,4 +1469,35 @@ select.field-input {
   .device-card      { padding: 12px 14px; }
   .device-icon      { width: 36px; height: 36px; font-size: 18px; }
   .modal            { width: calc(100vw - 32px); }
+}
+
+/* ══════════════════════════════════════════════════════════
+   24. PROFILE DROPDOWN — Header sesi & item tambahan
+══════════════════════════════════════════════════════════ */
+.profile-menu-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px 10px;
+}
+.profile-menu-avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--primary-light); color: var(--primary);
+  font-size: 13px; font-weight: 700; font-family: var(--heading);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; letter-spacing: .04em;
+}
+.profile-menu-identity {
+  display: flex; flex-direction: column; gap: 2px; min-width: 0;
+}
+.profile-menu-name {
+  font-size: 13px; font-weight: 700; font-family: var(--heading);
+  color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.profile-menu-role {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .06em; padding: 1px 7px; border-radius: 20px;
+  background: var(--primary-light); color: var(--primary);
+  border: 1px solid rgba(0,64,161,.15); width: fit-content;
+}
+.profile-menu-role.teknisi {
+  background: var(--amber-bg); color: var(--amber); border-color: var(--amber-border);
 }
