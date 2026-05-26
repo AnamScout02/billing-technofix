@@ -88,7 +88,7 @@ function switchTab(tab) {
  * @param {SubmitEvent} event
  */
 async function submitLogin(event) {
-  event.preventDefault();
+  if (event && event.preventDefault) event.preventDefault();
   hideAlert('login');
 
   const username = document.getElementById('login-username').value.trim();
@@ -139,13 +139,13 @@ async function submitLogin(event) {
  * @param {SubmitEvent} event
  */
 async function submitRegister(event) {
-  event.preventDefault();
+  if (event && event.preventDefault) event.preventDefault();
   hideAlert('register');
 
-  const isp_name  = document.getElementById('reg-isp').value.trim();
+  const isp_name  = document.getElementById('reg-isp-name').value.trim();
   const username  = document.getElementById('reg-username').value.trim();
   const password  = document.getElementById('reg-password').value;
-  const password2 = document.getElementById('reg-password2').value;
+  const password2 = document.getElementById('reg-password-confirm').value;
 
   if (!isp_name) {
     showAlert('register', 'error', 'Nama ISP wajib diisi');
@@ -234,6 +234,21 @@ window.doLogout = doLogout;
 /** Simpan data user setelah login berhasil. */
 function saveStoredUser(user) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+
+  // Key individual yang dibaca oleh getSession() di global.js
+  localStorage.setItem('tf_token',      user.id       || user.username || 'active');
+  localStorage.setItem('tf_user_id',    String(user.id        || ''));
+  localStorage.setItem('tf_username',   user.username  || '');
+  localStorage.setItem('tf_role',       user.role      || '');
+  localStorage.setItem('tf_network_id', user.network_id || '');
+  localStorage.setItem('tf_isp_name',   user.isp_name  || '');
+
+  // permissions — dipakai applyUIPermissions()
+  if (user && Array.isArray(user.permissions)) {
+    localStorage.setItem('tf_permissions', JSON.stringify(user.permissions));
+  } else {
+    localStorage.setItem('tf_permissions', '[]');
+  }
 }
 
 /** Ambil data user dari localStorage. */
@@ -249,6 +264,13 @@ function getStoredUser() {
 /** Hapus data user dari localStorage (saat logout / session expired). */
 function clearStoredUser() {
   localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem('tf_token');
+  localStorage.removeItem('tf_user_id');
+  localStorage.removeItem('tf_username');
+  localStorage.removeItem('tf_role');
+  localStorage.removeItem('tf_network_id');
+  localStorage.removeItem('tf_isp_name');
+  localStorage.removeItem('tf_permissions');
 }
 
 // Expose agar bisa dipakai di halaman lain
@@ -268,18 +290,17 @@ window.saveStoredUser  = saveStoredUser;
  * @param {string} message
  */
 function showAlert(form, type, message) {
-  const el   = document.getElementById(`alert-${form}`);
-  const icon = document.getElementById(`alert-${form}-icon`);
-  const msg  = document.getElementById(`alert-${form}-msg`);
+  // Support dua format ID: alert-{form} dan {form}-alert
+  const el  = document.getElementById(`alert-${form}`) || document.getElementById(`${form}-alert`);
+  const msg = document.getElementById(`alert-${form}-msg`) || document.getElementById(`${form}-alert-msg`);
   if (!el) return;
 
-  el.className           = `auth-alert show ${type}`;
-  icon.textContent       = type === 'error' ? 'error' : 'check_circle';
-  msg.innerHTML          = message; // sudah di-escape via escHtml() sebelumnya
+  el.className     = `auth-alert show ${type}`;
+  if (msg) msg.innerHTML = message;
 }
 
 function hideAlert(form) {
-  const el = document.getElementById(`alert-${form}`);
+  const el = document.getElementById(`alert-${form}`) || document.getElementById(`${form}-alert`);
   if (el) el.className = 'auth-alert';
 }
 

@@ -47,8 +47,41 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(me
 
 
 # ══════════════════════════════════════════════════════════════
-# HELPERS INTERNAL
+# MIGRASI DB — jalankan otomatis saat modul di-import
+# Tambahkan kolom baru ke tabel pelanggan jika belum ada.
+# Aman dipanggil berulang kali (cek PRAGMA table_info dulu).
 # ══════════════════════════════════════════════════════════════
+
+def migrate_pelanggan_table():
+    """Tambahkan kolom tgl_pasang, tgl_jatuh, titik_koordinat
+    ke tabel pelanggan jika belum ada."""
+    conn  = get_db()
+    cols  = {r[1] for r in conn.execute('PRAGMA table_info(pelanggan)').fetchall()}
+    added = []
+
+    if 'tgl_pasang' not in cols:
+        conn.execute("ALTER TABLE pelanggan ADD COLUMN tgl_pasang TEXT DEFAULT ''")
+        added.append('tgl_pasang')
+    if 'tgl_jatuh' not in cols:
+        conn.execute("ALTER TABLE pelanggan ADD COLUMN tgl_jatuh TEXT DEFAULT ''")
+        added.append('tgl_jatuh')
+    if 'titik_koordinat' not in cols:
+        conn.execute("ALTER TABLE pelanggan ADD COLUMN titik_koordinat TEXT DEFAULT ''")
+        added.append('titik_koordinat')
+
+    if added:
+        conn.commit()
+        logging.info(f'[migrate] Kolom ditambahkan ke tabel pelanggan: {added}')
+    conn.close()
+
+# Jalankan migrasi saat modul di-import
+try:
+    migrate_pelanggan_table()
+except Exception as _me:
+    logging.warning(f'[migrate] Gagal migrasi tabel pelanggan: {_me}')
+
+
+
 
 def cari_device(device_id: int) -> dict | None:
     """Cari device di tabel 'devices' berdasarkan ID."""
@@ -115,9 +148,10 @@ def get_pelanggan(device_id):
             username = str(s.get('name', '') or '')
             onu      = get_onu_data(username)
 
-            # Ambil hp & tgl dari tabel pelanggan lokal
+            # Ambil hp & kolom opsional dari tabel pelanggan lokal
+            # (tgl_pasang, tgl_jatuh, titik_koordinat mungkin belum ada — pakai SELECT *)
             row_lokal = conn.execute(
-                'SELECT hp, tgl_pasang, tgl_jatuh, titik_koordinat FROM pelanggan WHERE username = ?',
+                'SELECT * FROM pelanggan WHERE username = ?',
                 (username,)
             ).fetchone()
 
@@ -132,9 +166,9 @@ def get_pelanggan(device_id):
                 'status':      'Online' if username in active_names else 'Offline',
                 # Data dari tabel lokal
                 'hp':          row_lokal['hp']            if row_lokal else '',
-                'tgl_pasang':  row_lokal['tgl_pasang']    if row_lokal else '',
-                'tgl_jatuh':   row_lokal['tgl_jatuh']     if row_lokal else '',
-                'koordinat':   row_lokal['titik_koordinat'] if row_lokal else '',
+                'tgl_pasang':  row_lokal['tgl_pasang']    if row_lokal and 'tgl_pasang'    in row_lokal.keys() else '',
+                'tgl_jatuh':   row_lokal['tgl_jatuh']     if row_lokal and 'tgl_jatuh'     in row_lokal.keys() else '',
+                'koordinat':   row_lokal['titik_koordinat'] if row_lokal and 'titik_koordinat' in row_lokal.keys() else '',
                 # Data ONU dari onu_mapping
                 'slot_port':   onu['slot_port'],
                 'vlan':        onu['vlan'],
@@ -150,6 +184,7 @@ def get_pelanggan(device_id):
     except MikroTikError as e:
         return jsonify({'error': str(e)}), 500
     except Exception as e:
+        import traceback; traceback.print_exc()
         return jsonify({'error': f'Terjadi kesalahan internal: {str(e)}'}), 500
 
 

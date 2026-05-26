@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manajemen User — TechnoFix</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Poppins:wght@400;500;600&display=swap"
+    rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
+    rel="stylesheet" />
+
+  <link rel="stylesheet" href="/app/frontend/statis/global.css" />
+
+  <style>
+    /* ══════════════════════════════════════════════════════════
+       MANAJEMEN USER — Compact table & permission checklist
+    ══════════════════════════════════════════════════════════ */
+
+    /* ── Toolbar ── */
+    .mu-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+
+    .mu-search-wrap {
+      position: relative;
+      flex: 1;
+      min-width: 180px;
+      max-width: 320px;
+    }
+
+    .mu-search-wrap .material-symbols-outlined {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 17px;
+      color: var(--text-dim);
+      pointer-events: none;
+    }
+
+    .mu-search {
+      width: 100%;
+      height: 36px;
+      padding: 0 12px 0 34px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--r-sm);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+      font-family: var(--sans);
+      outline: none;
+      transition: border-color .15s, box-shadow .15s;
+    }
+
+    .mu-search:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-ring);
+    }
+
+    /* ── Tabel wrapper ── */
+    .mu-table-wrap {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+    }
+
+    .mu-table-scroll {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .mu-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      min-width: 560px;
+    }
+
+    .mu-table thead th {
+      background: var(--surface);
+      color: var(--text-dim);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      padding: 9px 12px;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+      text-align: left;
+    }
+
+    .mu-table thead th:last-child { text-align: center; }
+
+    .mu-table tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background .12s;
+    }
+
+    .mu-table tbody tr:last-child { border-bottom: none; }
+    .mu-table tbody tr:hover { background: var(--surface); }
+
+    .mu-table td {
+      padding: 9px 12px;
+      color: var(--text-muted);
+      vertical-align: middle;
+    }
+
+    /* ── Kolom Nama ── */
+    .mu-user-cell {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+    }
+
+    .mu-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--primary-light);
+      color: var(--primary);
+      font-size: 11px;
+      font-weight: 700;
+      font-family: var(--heading);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      border: 1.5px solid rgba(0,64,161,.15);
+    }
+
+    .mu-avatar.admin  { background: var(--amber-bg);  color: var(--amber);  border-color: var(--amber-border); }
+    .mu-avatar.owner  { background: var(--blue-bg);   color: var(--blue);   border-color: var(--blue-border); }
+
+    .mu-user-name  { font-weight: 700; color: var(--text); font-size: 13px; line-height: 1.3; }
+    .mu-user-uname { font-size: 11px; color: var(--text-dim); }
+
+    /* ── Badge role ── */
+    .role-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 2px 9px;
+      border-radius: 99px;
+      border: 1px solid;
+      white-space: nowrap;
+      letter-spacing: .02em;
+    }
+
+    .role-badge.owner    { background: var(--blue-bg);        color: var(--blue);    border-color: var(--blue-border); }
+    .role-badge.admin    { background: var(--amber-bg);       color: var(--amber);   border-color: var(--amber-border); }
+    .role-badge.teknisi  { background: var(--primary-light);  color: var(--primary); border-color: rgba(0,64,161,.2); }
+
+    /* ── Status badge ── */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10.5px;
+      font-weight: 600;
+      padding: 2px 9px;
+      border-radius: 99px;
+      border: 1px solid;
+      white-space: nowrap;
+    }
+
+    .status-badge .badge-dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .status-badge.aktif    { background: var(--green-bg);   color: var(--green);    border-color: var(--green-border); }
+    .status-badge.aktif .badge-dot { background: var(--green); animation: pulseGreen .9s infinite; }
+    .status-badge.nonaktif { background: var(--red-bg);     color: var(--red);      border-color: var(--red-border); }
+    .status-badge.nonaktif .badge-dot { background: var(--red); }
+
+    /* ── Permissions pills ── */
+    .perm-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .perm-pill {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 1px 7px;
+      border-radius: 99px;
+      background: var(--surface-2);
+      color: var(--text-dim);
+      border: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    .perm-pill.all {
+      background: var(--primary-light);
+      color: var(--primary);
+      border-color: rgba(0,64,161,.2);
+    }
+
+    /* ── Action buttons kolom ── */
+    .mu-actions {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+    }
+
+    /* ════════════════════════════════════════════════════════
+       MODAL FORM — compact, tidak merusak header
+    ════════════════════════════════════════════════════════ */
+
+    .mu-modal {
+      background: var(--bg);
+      border: 1.5px solid var(--primary);
+      border-radius: var(--r-xl);
+      padding: 20px 22px 22px;
+      width: 480px;
+      max-width: calc(100vw - 24px);
+      max-height: 88dvh;
+      overflow-y: auto;
+      box-shadow: 0 0 0 4px var(--primary-ring), var(--shadow-lg);
+      animation: popIn .22s cubic-bezier(.22,1,.36,1);
+    }
+
+    .mu-modal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .mu-modal-title {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      font-size: 14px;
+      font-weight: 700;
+      font-family: var(--heading);
+      color: var(--text);
+    }
+
+    .mu-modal-title .material-symbols-outlined {
+      font-size: 19px;
+      color: var(--primary);
+    }
+
+    /* ── Divider dalam form ── */
+    .mu-section-label {
+      font-size: 10.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      color: var(--text-dim);
+      margin: 14px 0 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .mu-section-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* ── Form grid 2 kolom ── */
+    .mu-form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .mu-form-grid .full { grid-column: 1 / -1; }
+
+    /* ── Checklist Hak Akses — berderet rapi ── */
+    .perm-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 7px;
+    }
+
+    .perm-check-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 9px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--r-sm);
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+      user-select: none;
+    }
+
+    .perm-check-item:hover {
+      background: var(--primary-light);
+      border-color: rgba(0,64,161,.25);
+    }
+
+    .perm-check-item input[type="checkbox"] {
+      display: none;
+    }
+
+    .perm-check-box {
+      width: 16px;
+      height: 16px;
+      border-radius: 4px;
+      border: 1.5px solid var(--border-2);
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background .15s, border-color .15s;
+    }
+
+    .perm-check-box .material-symbols-outlined {
+      font-size: 11px;
+      color: #fff;
+      display: none;
+    }
+
+    .perm-check-item.checked {
+      background: var(--primary-light);
+      border-color: var(--primary);
+    }
+
+    .perm-check-item.checked .perm-check-box {
+      background: var(--primary);
+      border-color: var(--primary);
+    }
+
+    .perm-check-item.checked .perm-check-box .material-symbols-outlined {
+      display: block;
+    }
+
+    .perm-check-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      line-height: 1.2;
+    }
+
+    .perm-check-label small {
+      display: block;
+      font-size: 10px;
+      color: var(--text-dim);
+      font-weight: 400;
+    }
+
+    /* ── Modal hapus ── */
+    .mu-hapus-modal {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--r-xl);
+      padding: 24px 22px 20px;
+      width: 360px;
+      max-width: calc(100vw - 24px);
+      box-shadow: var(--shadow-lg);
+      animation: popIn .22s cubic-bezier(.22,1,.36,1);
+      text-align: center;
+    }
+
+    /* ── Hint error di form ── */
+    .mu-form-hint {
+      font-size: 11.5px;
+      color: var(--red);
+      margin-top: 6px;
+      display: none;
+      padding: 7px 11px;
+      background: var(--red-bg);
+      border: 1px solid var(--red-border);
+      border-radius: var(--r-sm);
+    }
+
+    /* ── Empty & loading state ── */
+    .mu-empty {
+      text-align: center;
+      padding: 40px 16px;
+      color: var(--text-dim);
+    }
+
+    .mu-empty .material-symbols-outlined {
+      font-size: 36px;
+      display: block;
+      margin-bottom: 8px;
+      color: var(--border-2);
+    }
+
+    /* ── Stat cards ringkas ── */
+    .mu-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .mu-stat-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: var(--shadow-xs);
+    }
+
+    .mu-stat-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: var(--r-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .mu-stat-icon .material-symbols-outlined { font-size: 20px; }
+    .mu-stat-icon.blue   { background: var(--blue-bg);        color: var(--blue); }
+    .mu-stat-icon.amber  { background: var(--amber-bg);       color: var(--amber); }
+    .mu-stat-icon.green  { background: var(--green-bg);       color: var(--green); }
+
+    .mu-stat-num   { font-size: 22px; font-weight: 800; font-family: var(--heading); color: var(--text); line-height: 1; letter-spacing: -.03em; }
+    .mu-stat-label { font-size: 11.5px; color: var(--text-muted); margin-top: 2px; }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      .mu-stats { grid-template-columns: repeat(2, 1fr); }
+      .perm-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 480px) {
+      .mu-stats { grid-template-columns: 1fr 1fr; }
+      .mu-form-grid { grid-template-columns: 1fr; }
+      .mu-form-grid .full { grid-column: 1; }
+      .perm-grid { grid-template-columns: repeat(2, 1fr); }
+      .mu-modal { padding: 16px 14px 18px; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ══ HEADER ══ -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="header-brand">
+        <div class="brand-logo">
+          <span class="material-symbols-outlined">router</span>
+        </div>
+        <div>
+          <div class="brand-name">TechnoFix</div>
+          <div class="brand-sub">Manajemen User &amp; Hak Akses</div>
+        </div>
+      </div>
+
+      <nav class="topbar-nav">
+        <a href="/app/frontend/dashboard/dashboard.html">
+          <span class="material-symbols-outlined">dashboard</span>Dashboard
+        </a>
+        <a href="/app/frontend/pelanggan/pelanggan.html">
+          <span class="material-symbols-outlined">group</span>Pelanggan
+        </a>
+        <a href="/app/frontend/profile_pppoe/profile_pppoe.html">
+          <span class="material-symbols-outlined">person</span>Profile
+        </a>
+        <a href="#" onclick="openPerangkatSheet(event)">
+          <span class="material-symbols-outlined">router</span>Perangkat
+        </a>
+        <a href="#" class="nav-keuangan">
+          <span class="material-symbols-outlined">payments</span>Keuangan
+        </a>
+        <a href="#" class="nav-maps">
+          <span class="material-symbols-outlined">map</span>Maps
+        </a>
+      </nav>
+
+      <div class="header-actions">
+        <button class="icon-btn" onclick="loadUsers()" title="Refresh">
+          <span class="material-symbols-outlined" id="refresh-icon">refresh</span>
+        </button>
+        <div class="profile-wrap" id="profile-wrap">
+          <button class="profile-btn" onclick="toggleProfileMenu()" title="Profil">
+            <div class="avatar-circle" id="avatar-initials">AD</div>
+            <span class="profile-username" id="profile-username">Admin</span>
+            <span class="material-symbols-outlined profile-chevron">expand_more</span>
+          </button>
+          <div class="profile-dropdown" id="profile-dropdown">
+            <div class="profile-menu-header">
+              <div class="profile-menu-avatar" id="dd-avatar">AD</div>
+              <div class="profile-menu-identity">
+                <span class="profile-menu-name" id="dd-username">Admin</span>
+                <span class="profile-menu-role" id="dd-role-badge">Owner</span>
+              </div>
+            </div>
+            <div class="profile-menu-divider"></div>
+            <a href="#" class="profile-menu-item" onclick="showModalGantiPassword(); return false;">
+              <span class="material-symbols-outlined">lock_reset</span>Ganti password
+            </a>
+            <a href="#" class="profile-menu-item" onclick="showModalSetting(); return false;">
+              <span class="material-symbols-outlined">settings</span>Setting
+            </a>
+            <div class="profile-menu-divider"></div>
+            <a href="/app/frontend/manajemen_user/manajemen_user.html" class="profile-menu-item active">
+              <span class="material-symbols-outlined">manage_accounts</span>Manajemen user
+            </a>
+            <div class="profile-menu-divider"></div>
+            <a href="#" class="profile-menu-item logout" onclick="showModalLogout(); return false;">
+              <span class="material-symbols-outlined">logout</span>Keluar
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+
+  <!-- ══ BOTTOM NAVBAR (MOBILE) ══ -->
+  <nav class="bottom-nav">
+    <div class="bottom-nav-inner">
+      <div class="bottom-nav-indicator" id="bottom-nav-indicator"></div>
+      <a href="/app/frontend/dashboard/dashboard.html" class="bottom-nav-item">
+        <div class="bottom-nav-icon"><span class="material-symbols-outlined">dashboard</span></div>
+        <span class="bottom-nav-label">Dashboard</span>
+      </a>
+      <a href="/app/frontend/pelanggan/pelanggan.html" class="bottom-nav-item">
+        <div class="bottom-nav-icon"><span class="material-symbols-outlined">group</span></div>
+        <span class="bottom-nav-label">Pelanggan</span>
+      </a>
+      <a href="#" class="bottom-nav-item" onclick="openPerangkatSheet(event)">
+        <div class="bottom-nav-icon"><span class="material-symbols-outlined">router</span></div>
+        <span class="bottom-nav-label">Perangkat</span>
+      </a>
+      <a href="/app/frontend/manajemen_user/manajemen_user.html" class="bottom-nav-item active">
+        <div class="bottom-nav-icon"><span class="material-symbols-outlined">manage_accounts</span></div>
+        <span class="bottom-nav-label">User</span>
+      </a>
+    </div>
+  </nav>
+
+
+  <!-- ══ PAGE ══ -->
+  <main class="page">
+
+    <!-- Page top -->
+    <div class="page-top">
+      <div>
+        <h1 class="page-title">Manajemen User &amp; Hak Akses</h1>
+        <p class="page-sub">Kelola staf, role, dan izin menu yang dapat diakses.</p>
+      </div>
+      <div class="page-top-actions">
+        <button class="btn-primary" onclick="openFormTambah()">
+          <span class="material-symbols-outlined">person_add</span>Tambah User
+        </button>
+      </div>
+    </div>
+
+    <!-- Stat cards -->
+    <div class="mu-stats">
+      <div class="mu-stat-card">
+        <div class="mu-stat-icon blue">
+          <span class="material-symbols-outlined">people</span>
+        </div>
+        <div>
+          <div class="mu-stat-num" id="stat-total">-</div>
+          <div class="mu-stat-label">Total User</div>
+        </div>
+      </div>
+      <div class="mu-stat-card">
+        <div class="mu-stat-icon green">
+          <span class="material-symbols-outlined">check_circle</span>
+        </div>
+        <div>
+          <div class="mu-stat-num" id="stat-aktif">-</div>
+          <div class="mu-stat-label">User Aktif</div>
+        </div>
+      </div>
+      <div class="mu-stat-card">
+        <div class="mu-stat-icon amber">
+          <span class="material-symbols-outlined">engineering</span>
+        </div>
+        <div>
+          <div class="mu-stat-num" id="stat-teknisi">-</div>
+          <div class="mu-stat-label">Teknisi</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="mu-toolbar">
+      <div class="mu-search-wrap">
+        <span class="material-symbols-outlined">search</span>
+        <input type="text" class="mu-search" id="mu-search" placeholder="Cari nama atau username…"
+          oninput="filterUsers()" />
+      </div>
+      <select class="form-input" id="filter-role" style="height:36px;font-size:12px;width:auto;min-width:120px;"
+        onchange="filterUsers()">
+        <option value="">Semua Role</option>
+        <option value="owner">Owner</option>
+        <option value="admin">Admin</option>
+        <option value="teknisi">Teknisi</option>
+      </select>
+      <select class="form-input" id="filter-status"
+        style="height:36px;font-size:12px;width:auto;min-width:120px;" onchange="filterUsers()">
+        <option value="">Semua Status</option>
+        <option value="aktif">Aktif</option>
+        <option value="nonaktif">Nonaktif</option>
+      </select>
+    </div>
+
+    <!-- Tabel user -->
+    <div class="mu-table-wrap">
+      <div class="mu-table-scroll">
+        <table class="mu-table">
+          <thead>
+            <tr>
+              <th style="width:38%">Pengguna</th>
+              <th style="width:12%">Role</th>
+              <th style="width:30%">Hak Akses</th>
+              <th style="width:10%">Status</th>
+              <th style="width:10%">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-users">
+            <tr>
+              <td colspan="5" class="mu-empty">
+                <span class="material-symbols-outlined">hourglass_empty</span>
+                Memuat data…
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main><!-- /page -->
+
+
+  <!-- ══ MODAL OVERLAY (dipakai untuk form & hapus) ══ -->
+  <div id="modal-form-overlay" class="modal-overlay" onclick="handleOverlayClick(event)"></div>
+
+
+  <!-- ══ MODAL HAPUS ══ -->
+  <div id="modal-hapus-overlay" class="modal-overlay" onclick="closeModalHapus(event)">
+    <div class="mu-hapus-modal" onclick="event.stopPropagation()">
+      <div class="hapus-icon-wrap">
+        <span class="material-symbols-outlined hapus-icon">person_remove</span>
+      </div>
+      <div class="hapus-title">Nonaktifkan User?</div>
+      <p class="hapus-sub" id="hapus-sub-text">User ini akan dinonaktifkan dan tidak dapat login.</p>
+      <div class="modal-footer" style="justify-content:center; gap:10px;">
+        <button class="btn btn-cancel btn-sm" onclick="closeModalHapus()">Batal</button>
+        <button class="btn btn-red btn-sm" id="btn-konfirm-hapus"
+          onclick="eksekusiHapus()">
+          <span class="material-symbols-outlined">person_remove</span>Nonaktifkan
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══ MODAL LOGOUT ══ -->
+  <div id="modal-logout" class="modal-overlay" onclick="closeModalLogout(event)">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="hapus-icon-wrap">
+        <span class="material-symbols-outlined hapus-icon">logout</span>
+      </div>
+      <div class="hapus-title">Keluar dari Sistem?</div>
+      <p class="hapus-sub">Sesi Anda akan diakhiri dan Anda perlu login kembali.</p>
+      <div class="modal-footer" style="justify-content:center;">
+        <button class="btn btn-cancel btn-sm" onclick="closeModalLogout()">Batal</button>
+        <button class="btn btn-red btn-sm" onclick="logout()">
+          <span class="material-symbols-outlined">logout</span>Keluar
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══ MODAL GANTI PASSWORD ══ -->
+  <div id="modal-ganti-password" class="modal-overlay" onclick="closeModalGantiPassword(event)">
+    <div class="modal" onclick="event.stopPropagation()" style="width:360px;">
+      <div class="modal-head">
+        <div class="modal-head-left">
+          <div class="modal-head-icon"><span class="material-symbols-outlined">lock_reset</span></div>
+          <div>
+            <div class="modal-title">Ganti Password</div>
+            <div class="modal-sub">Masukkan password lama dan baru</div>
+          </div>
+        </div>
+        <button class="modal-close" onclick="closeModalGantiPassword()">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <div class="modal-fields">
+        <div class="form-group">
+          <label class="form-label">Password Lama <span class="req">*</span></label>
+          <input type="password" class="form-input" id="pwd-lama" placeholder="Password saat ini" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password Baru <span class="req">*</span></label>
+          <input type="password" class="form-input" id="pwd-baru" placeholder="Min. 8 karakter" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Konfirmasi Password Baru <span class="req">*</span></label>
+          <input type="password" class="form-input" id="pwd-konfirm" placeholder="Ulangi password baru" />
+        </div>
+        <div class="form-hint" id="pwd-hint" style="display:none;color:var(--red);"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-cancel btn-sm" onclick="closeModalGantiPassword()">Batal</button>
+        <button class="btn btn-save btn-sm" onclick="submitGantiPassword()">
+          <span class="material-symbols-outlined">save</span>Simpan
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══ MODAL SETTING ══ -->
+  <div id="modal-setting" class="modal-overlay" onclick="closeModalSetting(event)">
+    <div class="modal" onclick="event.stopPropagation()" style="width:360px;">
+      <div class="modal-head">
+        <div class="modal-head-left">
+          <div class="modal-head-icon"><span class="material-symbols-outlined">settings</span></div>
+          <div><div class="modal-title">Pengaturan</div></div>
+        </div>
+        <button class="modal-close" onclick="closeModalSetting()">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <div class="modal-fields">
+        <div class="form-group">
+          <label class="form-label">Item per halaman</label>
+          <select class="form-input" id="setting-perpage">
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-cancel btn-sm" onclick="closeModalSetting()">Batal</button>
+        <button class="btn btn-save btn-sm" onclick="simpanSetting()">
+          <span class="material-symbols-outlined">save</span>Simpan
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══ TOAST ══ -->
+  <div id="toast"></div>
+
+
+  <!-- ══ PERANGKAT SHEET ══ -->
+  <div class="psheet-overlay" id="psheet-overlay" onclick="closePerangkatSheet()"></div>
+  <div class="psheet" id="psheet" role="dialog" aria-modal="true" aria-label="Pilih Perangkat">
+    <div class="psheet-handle"></div>
+    <div class="psheet-head">
+      <div>
+        <p class="psheet-eyebrow">Manajemen Jaringan</p>
+        <h2 class="psheet-title">Pilih Perangkat</h2>
+      </div>
+      <button class="psheet-close" onclick="closePerangkatSheet()" aria-label="Tutup">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <div class="psheet-list">
+      <a href="/app/frontend/input_perangkat/input_mikrotik.html" class="psheet-item psheet-mikrotik">
+        <div class="psheet-item-icon"><span class="material-symbols-outlined">router</span></div>
+        <div class="psheet-item-body">
+          <div class="psheet-item-name">MikroTik</div>
+          <div class="psheet-item-desc">Router, firewall, dan manajemen bandwidth</div>
+        </div>
+        <div class="psheet-item-badge">Router</div>
+        <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
+      </a>
+      <a href="/app/frontend/input_perangkat/input_olt.html" class="psheet-item psheet-olt">
+        <div class="psheet-item-icon"><span class="material-symbols-outlined">settings_input_antenna</span></div>
+        <div class="psheet-item-body">
+          <div class="psheet-item-name">OLT</div>
+          <div class="psheet-item-desc">Optical Line Terminal — kontrol jaringan fiber</div>
+        </div>
+        <div class="psheet-item-badge">Fiber</div>
+        <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
+      </a>
+      <a href="/app/frontend/input_perangkat/input_odc.html" class="psheet-item psheet-odc">
+        <div class="psheet-item-icon"><span class="material-symbols-outlined">storage</span></div>
+        <div class="psheet-item-body">
+          <div class="psheet-item-name">ODC</div>
+          <div class="psheet-item-desc">Optical Distribution Cabinet</div>
+        </div>
+        <div class="psheet-item-badge">Cabinet</div>
+        <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
+      </a>
+      <a href="/app/frontend/input_perangkat/input_odp.html" class="psheet-item psheet-odp">
+        <div class="psheet-item-icon"><span class="material-symbols-outlined">hub</span></div>
+        <div class="psheet-item-body">
+          <div class="psheet-item-name">ODP</div>
+          <div class="psheet-item-desc">Optical Distribution Point</div>
+        </div>
+        <div class="psheet-item-badge">Distribusi</div>
+        <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
+      </a>
+    </div>
+  </div>
+
+
+  <!-- Scripts -->
+  <script src="/app/frontend/statis/global.js"></script>
+  <script src="/app/frontend/manajemen_user/manajemen_user.js"></script>
+
+</body>
+</html>

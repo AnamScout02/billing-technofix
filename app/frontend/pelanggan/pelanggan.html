@@ -47,13 +47,13 @@
         <a href="/app/frontend/profile_pppoe/profile_pppoe.html">
           <span class="material-symbols-outlined">person</span>Profile
         </a>
-        <a href="#" onclick="openPerangkatSheet(event)">
+        <a href="#" onclick="openPerangkatSheet(event)" data-perm="perangkat">
           <span class="material-symbols-outlined">router</span>Perangkat
         </a>
-        <a href="#">
+        <a href="#" data-perm="keuangan">
           <span class="material-symbols-outlined">payments</span>Keuangan
         </a>
-        <a href="#">
+        <a href="#" data-perm="maps">
           <span class="material-symbols-outlined">map</span>Maps
         </a>
       </nav>
@@ -92,12 +92,12 @@
             <a href="#" class="profile-menu-item" onclick="showModalGantiPassword(); return false;">
               <span class="material-symbols-outlined">lock_reset</span>Ganti password
             </a>
-            <a href="#" class="profile-menu-item" onclick="showPanelSetting(); return false;">
+            <a href="#" class="profile-menu-item" onclick="showModalSetting(); return false;">
               <span class="material-symbols-outlined">settings</span>Setting
             </a>
             <div class="profile-menu-divider"></div>
 
-            <!-- Admin / Owner only -->
+            <!-- Owner only -->
             <a href="/app/frontend/manajemen_user/manajemen_user.html" class="profile-menu-item btn-owner-only">
               <span class="material-symbols-outlined">manage_accounts</span>Manajemen user
             </a>
@@ -141,19 +141,19 @@
         </div>
         <span class="bottom-nav-label">Profile</span>
       </a>
-      <a href="#" class="bottom-nav-item" onclick="openPerangkatSheet(event)">
+      <a href="#" class="bottom-nav-item" onclick="openPerangkatSheet(event)" data-perm="perangkat">
         <div class="bottom-nav-icon">
           <span class="material-symbols-outlined">router</span>
         </div>
         <span class="bottom-nav-label">Perangkat</span>
       </a>
-      <a href="#" class="bottom-nav-item">
+      <a href="#" class="bottom-nav-item" data-perm="keuangan">
         <div class="bottom-nav-icon">
           <span class="material-symbols-outlined">payments</span>
         </div>
         <span class="bottom-nav-label">Keuangan</span>
       </a>
-      <a href="#" class="bottom-nav-item">
+      <a href="#" class="bottom-nav-item" data-perm="maps">
         <div class="bottom-nav-icon">
           <span class="material-symbols-outlined">map</span>
         </div>
@@ -219,8 +219,7 @@
     <div class="toolbar">
       <div class="search-wrap">
         <span class="material-symbols-outlined">search</span>
-        <input type="text" id="input-search"
-          placeholder="Cari username, no HP, SN, profil, slot, VLAN..."
+        <input type="text" id="input-search" placeholder="Cari username, no HP, SN, profil, slot, VLAN..."
           oninput="filterPelanggan()" />
       </div>
       <div class="filter-group">
@@ -373,7 +372,7 @@
         <div class="form-group" style="margin-bottom:14px">
           <label class="form-label">Password saat ini <span class="req">*</span></label>
           <div class="form-pwd-wrap">
-            <input type="password" class="form-input" id="pwd-lama" placeholder="Masukkan password lama"/>
+            <input type="password" class="form-input" id="pwd-lama" placeholder="Masukkan password lama" />
             <button class="form-pwd-toggle" onclick="togglePwd('pwd-lama','eye-lama')" tabindex="-1">
               <span class="material-symbols-outlined" id="eye-lama">visibility</span>
             </button>
@@ -382,7 +381,7 @@
         <div class="form-group" style="margin-bottom:14px">
           <label class="form-label">Password baru <span class="req">*</span></label>
           <div class="form-pwd-wrap">
-            <input type="password" class="form-input" id="pwd-baru" placeholder="Minimal 8 karakter"/>
+            <input type="password" class="form-input" id="pwd-baru" placeholder="Minimal 8 karakter" />
             <button class="form-pwd-toggle" onclick="togglePwd('pwd-baru','eye-baru')" tabindex="-1">
               <span class="material-symbols-outlined" id="eye-baru">visibility</span>
             </button>
@@ -391,7 +390,7 @@
         <div class="form-group" style="margin-bottom:4px">
           <label class="form-label">Konfirmasi password baru <span class="req">*</span></label>
           <div class="form-pwd-wrap">
-            <input type="password" class="form-input" id="pwd-konfirm" placeholder="Ulangi password baru"/>
+            <input type="password" class="form-input" id="pwd-konfirm" placeholder="Ulangi password baru" />
             <button class="form-pwd-toggle" onclick="togglePwd('pwd-konfirm','eye-konfirm')" tabindex="-1">
               <span class="material-symbols-outlined" id="eye-konfirm">visibility</span>
             </button>
@@ -427,7 +426,9 @@
 
         <!-- Tampilan -->
         <div>
-          <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-dim);margin-bottom:10px">Tampilan</p>
+          <p
+            style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-dim);margin-bottom:10px">
+            Tampilan</p>
           <div style="display:flex;flex-direction:column;gap:10px">
             <div style="display:flex;align-items:center;justify-content:space-between">
               <label style="font-size:13px;font-weight:600;color:var(--text)">Tema</label>
@@ -449,7 +450,9 @@
 
         <!-- Data & Refresh -->
         <div>
-          <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-dim);margin-bottom:10px">Data & Refresh</p>
+          <p
+            style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-dim);margin-bottom:10px">
+            Data & Refresh</p>
           <div style="display:flex;flex-direction:column;gap:10px">
             <div style="display:flex;align-items:center;justify-content:space-between">
               <label style="font-size:13px;font-weight:600;color:var(--text)">Auto-refresh</label>
@@ -473,7 +476,9 @@
 
         <!-- Notifikasi -->
         <div>
-          <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-dim);margin-bottom:10px">Notifikasi</p>
+          <p
+            style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-dim);margin-bottom:10px">
+            Notifikasi</p>
           <div style="display:flex;flex-direction:column;gap:10px">
             <div style="display:flex;align-items:center;justify-content:space-between">
               <div>
@@ -481,9 +486,12 @@
                 <p style="font-size:11px;color:var(--text-dim);margin:0">Notif saat ada pelanggan putus</p>
               </div>
               <label style="position:relative;display:inline-block;width:40px;height:22px;cursor:pointer">
-                <input type="checkbox" id="notif-offline" style="opacity:0;width:0;height:0" onchange="toggleNotif(this,'notif-offline')">
-                <span id="track-offline" style="position:absolute;inset:0;background:var(--border);border-radius:11px;transition:background .2s"></span>
-                <span id="thumb-offline" style="position:absolute;top:3px;left:3px;width:16px;height:16px;background:#fff;border-radius:50%;transition:transform .2s"></span>
+                <input type="checkbox" id="notif-offline" style="opacity:0;width:0;height:0"
+                  onchange="toggleNotif(this,'notif-offline')">
+                <span id="track-offline"
+                  style="position:absolute;inset:0;background:var(--border);border-radius:11px;transition:background .2s"></span>
+                <span id="thumb-offline"
+                  style="position:absolute;top:3px;left:3px;width:16px;height:16px;background:#fff;border-radius:50%;transition:transform .2s"></span>
               </label>
             </div>
             <div style="display:flex;align-items:center;justify-content:space-between">
@@ -492,9 +500,12 @@
                 <p style="font-size:11px;color:var(--text-dim);margin:0">Alert saat sinyal di bawah -30 dBm</p>
               </div>
               <label style="position:relative;display:inline-block;width:40px;height:22px;cursor:pointer">
-                <input type="checkbox" id="notif-rx" style="opacity:0;width:0;height:0" onchange="toggleNotif(this,'notif-rx')">
-                <span id="track-rx" style="position:absolute;inset:0;background:var(--border);border-radius:11px;transition:background .2s"></span>
-                <span id="thumb-rx" style="position:absolute;top:3px;left:3px;width:16px;height:16px;background:#fff;border-radius:50%;transition:transform .2s"></span>
+                <input type="checkbox" id="notif-rx" style="opacity:0;width:0;height:0"
+                  onchange="toggleNotif(this,'notif-rx')">
+                <span id="track-rx"
+                  style="position:absolute;inset:0;background:var(--border);border-radius:11px;transition:background .2s"></span>
+                <span id="thumb-rx"
+                  style="position:absolute;top:3px;left:3px;width:16px;height:16px;background:#fff;border-radius:50%;transition:transform .2s"></span>
               </label>
             </div>
           </div>
@@ -521,7 +532,7 @@
   <script>
     /* ── Deteksi scroll tabel → shadow freeze ── */
     (function () {
-      const wrap   = document.getElementById('table-wrap');
+      const wrap = document.getElementById('table-wrap');
       const scroll = document.getElementById('table-scroll');
       if (!scroll || !wrap) return;
 
@@ -556,36 +567,70 @@
         <span class="material-symbols-outlined">close</span>
       </button>
     </div>
+    <!-- 
+  ══════════════════════════════════════════════════════════
+  PASTE INI ke semua file HTML — ganti isi <div class="psheet-list">
+  yang lama dengan blok ini (sudah include ODC baru)
+  ══════════════════════════════════════════════════════════
+-->
+    <!-- 
+  ══════════════════════════════════════════════════════════
+  PASTE INI ke semua file HTML — ganti isi <div class="psheet-list">
+  yang lama dengan blok ini (sudah include ODC baru)
+  ══════════════════════════════════════════════════════════
+-->
     <div class="psheet-list">
+
       <a href="/app/frontend/input_perangkat/input_mikrotik.html" class="psheet-item psheet-mikrotik">
-        <div class="psheet-item-icon"><span class="material-symbols-outlined">router</span></div>
+        <div class="psheet-item-icon">
+          <span class="material-symbols-outlined">router</span>
+        </div>
         <div class="psheet-item-body">
           <div class="psheet-item-name">MikroTik</div>
           <div class="psheet-item-desc">Router, firewall, dan manajemen bandwidth</div>
         </div>
-        <span class="psheet-item-badge">Router</span>
+        <div class="psheet-item-badge">Router</div>
         <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
       </a>
+
       <a href="/app/frontend/input_perangkat/input_olt.html" class="psheet-item psheet-olt">
-        <div class="psheet-item-icon"><span class="material-symbols-outlined">settings_input_antenna</span></div>
+        <div class="psheet-item-icon">
+          <span class="material-symbols-outlined">settings_input_antenna</span>
+        </div>
         <div class="psheet-item-body">
           <div class="psheet-item-name">OLT</div>
           <div class="psheet-item-desc">Optical Line Terminal — kontrol jaringan fiber</div>
         </div>
-        <span class="psheet-item-badge">Fiber</span>
+        <div class="psheet-item-badge">Fiber</div>
         <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
       </a>
+
+      <a href="/app/frontend/input_perangkat/input_odc.html" class="psheet-item psheet-odc">
+        <div class="psheet-item-icon">
+          <span class="material-symbols-outlined">storage</span>
+        </div>
+        <div class="psheet-item-body">
+          <div class="psheet-item-name">ODC</div>
+          <div class="psheet-item-desc">Optical Distribution Cabinet — kabinet distribusi utama</div>
+        </div>
+        <div class="psheet-item-badge">Cabinet</div>
+        <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
+      </a>
+
       <a href="/app/frontend/input_perangkat/input_odp.html" class="psheet-item psheet-odp">
-        <div class="psheet-item-icon"><span class="material-symbols-outlined">hub</span></div>
+        <div class="psheet-item-icon">
+          <span class="material-symbols-outlined">hub</span>
+        </div>
         <div class="psheet-item-body">
           <div class="psheet-item-name">ODP</div>
           <div class="psheet-item-desc">Optical Distribution Point — titik distribusi kabel</div>
         </div>
-        <span class="psheet-item-badge">Distribusi</span>
+        <div class="psheet-item-badge">Distribusi</div>
         <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
       </a>
+
     </div>
-  </div>
 
 </body>
+
 </html>

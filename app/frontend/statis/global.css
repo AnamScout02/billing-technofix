@@ -76,6 +76,10 @@
   --blue-bg:        #eff6ff;
   --blue-border:    #bfdbfe;
 
+  --navy:        #0f172a; /* Biru gelap pekat (slate navy) */
+  --navy-bg:     #f8fafc; /* Abu-abu kebiruan yang sangat terang (nyaris putih) */
+  --navy-border: #e2e8f0;
+
   /* ── Warna Neutral ── */
   --bg:             #ffffff;
   --surface:        #f4f6fb;
@@ -1356,6 +1360,11 @@ select.field-input {
 .psheet-olt .psheet-item-icon    { background: var(--green-bg); color: var(--green); }
 .psheet-olt .psheet-item-badge   { background: var(--green-bg); color: var(--green); }
 .psheet-olt:hover .psheet-item-arrow { color: var(--green); }
+
+.psheet-odc:hover                { background: var(--navy-bg); border-color: var(--green-border); }
+.psheet-odc .psheet-item-icon    { background: var(--navy-bg); color: var(--green); }
+.psheet-odc .psheet-item-badge   { background: var(--navy-bg); color: var(--green); }
+.psheet-odc:hover .psheet-item-arrow { color: var(--navy); }
 
 .psheet-odp:hover                { background: var(--amber-bg); border-color: var(--amber-border); }
 .psheet-odp .psheet-item-icon    { background: var(--amber-bg); color: var(--amber); }

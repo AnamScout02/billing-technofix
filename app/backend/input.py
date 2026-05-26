@@ -31,8 +31,7 @@ from auth import auth_bp
 
 # ── Setup ──────────────────────────────────────────────────────
 app = Flask(__name__)
-CORS(app)
-
+CORS(app, supports_credentials=True, origins="*")
 # [DITAMBAHKAN] Secret key wajib ada agar Flask session berfungsi
 # Gunakan environment variable di produksi; fallback ke nilai statis
 # untuk development agar session tidak reset tiap restart.

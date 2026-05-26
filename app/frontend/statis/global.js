@@ -28,7 +28,7 @@
 /* ══════════════════════════════════════════════════════════
    1. API BASE
 ══════════════════════════════════════════════════════════ */
-const API_BASE = 'http://103.194.175.54:5000';
+const API_BASE = 'http://127.0.0.1:5000';
 
 
 /* ══════════════════════════════════════════════════════════
@@ -664,6 +664,7 @@ document.addEventListener('DOMContentLoaded', function () {
   if (!isAuthPage && localStorage.getItem('tf_token')) {
     initProfileHeader();
     applyRbacUi();
+    applyUIPermissions();
   }
 });
 
@@ -830,3 +831,77 @@ document.addEventListener('DOMContentLoaded', function () {
     initDropdownHeader();
   }
 });
+
+/* ══════════════════════════════════════════════════════════
+   applyUIPermissions() — kontrol visibilitas menu per user
+   ══════════════════════════════════════════════════════════
+   Cara kerja:
+   - Baca permissions dari localStorage (tf_permissions)
+   - Owner (role=owner) → semua elemen ditampilkan
+   - Role lain → elemen dengan data-perm yang tidak ada
+     dalam list permissions user → disembunyikan (display:none)
+
+   Cara tandai elemen di HTML:
+     <a href="..." data-perm="keuangan">Keuangan</a>
+     <a href="..." data-perm="maps">Maps</a>
+     <a href="..." data-perm="olt">OLT</a>
+     <a href="..." data-perm="mikrotik">MikroTik</a>
+     <a href="..." data-perm="pelanggan">Pelanggan</a>
+     <a href="..." data-perm="perangkat">Perangkat</a>
+══════════════════════════════════════════════════════════ */
+function applyUIPermissions() {
+  var session     = (typeof getSession === 'function') ? getSession() : {};
+  var role        = session.role || localStorage.getItem('tf_role') || '';
+  var permsRaw    = localStorage.getItem('tf_permissions') || '[]';
+  var permissions = [];
+
+  try {
+    var parsed = JSON.parse(permsRaw);
+    permissions = Array.isArray(parsed) ? parsed : [];
+  } catch (_) {
+    permissions = [];
+  }
+
+  var isOwner = (role === 'owner');
+
+  /* Sembunyikan/tampilkan elemen [data-perm] */
+  document.querySelectorAll('[data-perm]').forEach(function (el) {
+    var perm = el.getAttribute('data-perm');
+    if (!perm) return;
+    if (isOwner) {
+      el.style.display = '';
+    } else {
+      el.style.display = permissions.includes(perm) ? '' : 'none';
+    }
+  });
+
+  /* Guard halaman — redirect jika tidak punya izin */
+  if (!isOwner) {
+    var PAGE_PERM_MAP = {
+      '/keuangan/':  'keuangan',
+      '/maps/':      'maps',
+      '/olt/':       'olt',
+      '/mikrotik/':  'mikrotik',
+    };
+    var path = window.location.pathname;
+    for (var pagePath in PAGE_PERM_MAP) {
+      if (path.includes(pagePath) && !permissions.includes(PAGE_PERM_MAP[pagePath])) {
+        if (typeof toast === 'function') toast('Akses ditolak.', 'danger');
+        setTimeout(function () {
+          window.location.href = '/app/frontend/dashboard/dashboard.html';
+        }, 1200);
+        break;
+      }
+    }
+  }
+}
+
+/* Simpan permissions ke localStorage setelah login berhasil.
+   Panggil dari auth.js: savePermissions(data.user.permissions) */
+function savePermissions(permissions) {
+  if (!Array.isArray(permissions)) permissions = [];
+  localStorage.setItem('tf_permissions', JSON.stringify(permissions));
+}
+
+window.applyUIPermissions = applyUIPermissions;
+window.savePermissions    = savePermissions;

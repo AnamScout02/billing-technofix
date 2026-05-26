@@ -401,9 +401,9 @@
           <div class="auth-form-sub">Login untuk Owner maupun Teknisi yang sudah memiliki akun.</div>
 
           <!-- Alert -->
-          <div class="auth-alert danger" id="login-alert">
+          <div class="auth-alert" id="alert-login">
             <span class="material-symbols-outlined">error</span>
-            <span id="login-alert-msg"></span>
+            <span id="alert-login-msg"></span>
           </div>
 
           <div class="auth-fields">
@@ -426,7 +426,7 @@
             </div>
           </div>
 
-          <button class="btn-auth" id="btn-login" onclick="doLogin()">
+          <button class="btn-auth" id="btn-login" onclick="submitLogin()">
             <span class="btn-spinner"></span>
             <span class="btn-label" style="display:flex;align-items:center;gap:7px;">
               <span class="material-symbols-outlined">login</span>Masuk ke Sistem
@@ -455,13 +455,9 @@
           </div>
 
           <!-- Alert -->
-          <div class="auth-alert danger" id="register-alert">
+          <div class="auth-alert" id="alert-register">
             <span class="material-symbols-outlined">error</span>
-            <span id="register-alert-msg"></span>
-          </div>
-          <div class="auth-alert success" id="register-success">
-            <span class="material-symbols-outlined">check_circle</span>
-            <span id="register-success-msg"></span>
+            <span id="alert-register-msg"></span>
           </div>
 
           <div class="auth-fields">
@@ -503,7 +499,7 @@
             </div>
           </div>
 
-          <button class="btn-auth" id="btn-register" onclick="doRegister()">
+          <button class="btn-auth" id="btn-register" onclick="submitRegister()">
             <span class="btn-spinner"></span>
             <span class="btn-label" style="display:flex;align-items:center;gap:7px;">
               <span class="material-symbols-outlined">add_business</span>Daftarkan ISP Saya
@@ -525,6 +521,21 @@
   <script src="/app/frontend/statis/global.js"></script>
   <!-- auth.js -->
   <script src="/app/frontend/statis/auth.js"></script>
+  <script>
+    /* togglePwdField — alias untuk togglePassword di auth.js */
+    function togglePwdField(inputId, btn) {
+      const input = document.getElementById(inputId);
+      const icon  = btn ? btn.querySelector('.material-symbols-outlined') : null;
+      if (!input) return;
+      if (input.type === 'password') {
+        input.type = 'text';
+        if (icon) icon.textContent = 'visibility_off';
+      } else {
+        input.type = 'password';
+        if (icon) icon.textContent = 'visibility';
+      }
+    }
+  </script>
 
 </body>
 

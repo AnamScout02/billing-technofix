@@ -63,19 +63,43 @@
             <span class="material-symbols-outlined profile-chevron">expand_more</span>
           </button>
           <div class="profile-dropdown" id="profile-dropdown">
-            <a href="#" class="profile-menu-item">
-              <span class="material-symbols-outlined">person</span>Profil
+
+            <!-- Header sesi: nama + badge role -->
+            <div class="profile-menu-header">
+              <div class="profile-menu-avatar" id="dd-avatar">AD</div>
+              <div class="profile-menu-identity">
+                <span class="profile-menu-name" id="dd-username">Admin</span>
+                <span class="profile-menu-role" id="dd-role-badge">Owner</span>
+              </div>
+            </div>
+            <div class="profile-menu-divider"></div>
+
+            <!-- Navigasi akun -->
+            <a href="/app/frontend/profil/profil.html" class="profile-menu-item">
+              <span class="material-symbols-outlined">person</span>Profil saya
             </a>
-            <a href="#" class="profile-menu-item">
+            <a href="#" class="profile-menu-item" onclick="showModalGantiPassword(); return false;">
+              <span class="material-symbols-outlined">lock_reset</span>Ganti password
+            </a>
+            <a href="#" class="profile-menu-item" onclick="showModalSetting(); return false;">
               <span class="material-symbols-outlined">settings</span>Setting
             </a>
-            <a href="#" class="profile-menu-item">
-              <span class="material-symbols-outlined">manage_accounts</span>Manajemen User
-            </a>
             <div class="profile-menu-divider"></div>
-            <a href="#" class="profile-menu-item logout">
-              <span class="material-symbols-outlined">logout</span>Logout
+
+            <!-- Owner only -->
+            <a href="/app/frontend/manajemen_user/manajemen_user.html" class="profile-menu-item btn-owner-only">
+              <span class="material-symbols-outlined">manage_accounts</span>Manajemen user
             </a>
+            <a href="/app/frontend/manajemen_tim/manajemen_tim.html" class="profile-menu-item btn-owner-only">
+              <span class="material-symbols-outlined">groups</span>Manajemen tim
+            </a>
+            <div class="profile-menu-divider btn-owner-only"></div>
+
+            <!-- Logout -->
+            <a href="#" class="profile-menu-item logout" onclick="showModalLogout(); return false;">
+              <span class="material-symbols-outlined">logout</span>Keluar
+            </a>
+
           </div>
         </div>
       </div>
@@ -525,6 +549,180 @@
   </main>
 
 
+  <!-- ══ MODAL: KONFIRMASI LOGOUT ══ -->
+  <div class="modal-overlay" id="modal-logout" onclick="closeModalLogout(event)">
+    <div class="modal-sheet small" onclick="event.stopPropagation()">
+      <div class="modal-handle"></div>
+      <div class="hapus-icon-wrap" style="background:var(--amber-bg);color:var(--amber)">
+        <span class="material-symbols-outlined hapus-icon">logout</span>
+      </div>
+      <div class="hapus-title">Keluar dari akun?</div>
+      <div class="hapus-sub">Sesi Anda akan diakhiri. Pastikan semua perubahan sudah tersimpan sebelum keluar.</div>
+      <div class="modal-footer">
+        <button class="btn btn-cancel" onclick="closeModalLogout()">Batal</button>
+        <button class="btn" onclick="logout()"
+          style="background:var(--amber-bg);border-color:var(--amber-border);color:var(--amber)">
+          <span class="material-symbols-outlined">logout</span>Ya, keluar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ MODAL: GANTI PASSWORD ══ -->
+  <div class="modal-overlay" id="modal-ganti-password" onclick="closeModalGantiPassword(event)">
+    <div class="modal-sheet" style="max-width:400px" onclick="event.stopPropagation()">
+      <div class="modal-handle"></div>
+      <div style="padding:20px 24px 0">
+        <h2 style="font-family:var(--heading);font-size:16px;font-weight:800;color:var(--text);margin-bottom:4px">
+          Ganti Password
+        </h2>
+        <p style="font-size:12px;color:var(--text-dim);margin-bottom:20px">
+          Gunakan minimal 8 karakter dengan kombinasi huruf dan angka.
+        </p>
+        <div class="form-group" style="margin-bottom:14px">
+          <label class="form-label">Password saat ini <span class="req">*</span></label>
+          <div class="form-pwd-wrap">
+            <input type="password" class="form-input" id="pwd-lama" placeholder="Masukkan password lama" />
+            <button class="form-pwd-toggle" onclick="togglePwd('pwd-lama','eye-lama')" tabindex="-1">
+              <span class="material-symbols-outlined" id="eye-lama">visibility</span>
+            </button>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:14px">
+          <label class="form-label">Password baru <span class="req">*</span></label>
+          <div class="form-pwd-wrap">
+            <input type="password" class="form-input" id="pwd-baru" placeholder="Minimal 8 karakter" />
+            <button class="form-pwd-toggle" onclick="togglePwd('pwd-baru','eye-baru')" tabindex="-1">
+              <span class="material-symbols-outlined" id="eye-baru">visibility</span>
+            </button>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:4px">
+          <label class="form-label">Konfirmasi password baru <span class="req">*</span></label>
+          <div class="form-pwd-wrap">
+            <input type="password" class="form-input" id="pwd-konfirm" placeholder="Ulangi password baru" />
+            <button class="form-pwd-toggle" onclick="togglePwd('pwd-konfirm','eye-konfirm')" tabindex="-1">
+              <span class="material-symbols-outlined" id="eye-konfirm">visibility</span>
+            </button>
+          </div>
+        </div>
+        <p class="form-hint" id="pwd-hint" style="min-height:16px;color:var(--red);display:none"></p>
+      </div>
+      <div class="form-actions" style="padding:16px 24px;margin-top:0">
+        <button class="btn btn-cancel" onclick="closeModalGantiPassword()">Batal</button>
+        <button class="btn-primary" onclick="submitGantiPassword()">
+          <span class="material-symbols-outlined">lock_reset</span>Simpan password
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ MODAL: SETTING ══ -->
+  <div class="modal-overlay" id="modal-setting" onclick="closeModalSetting(event)">
+    <div class="modal-sheet" style="max-width:420px" onclick="event.stopPropagation()">
+      <div class="modal-handle"></div>
+      <div style="padding:20px 24px 0;display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <h2 style="font-family:var(--heading);font-size:16px;font-weight:800;color:var(--text);margin:0">Setting</h2>
+          <p style="font-size:12px;color:var(--text-dim);margin:2px 0 0">Preferensi aplikasi Anda</p>
+        </div>
+        <button onclick="closeModalSetting()"
+          style="width:30px;height:30px;border-radius:50%;border:1px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;flex-shrink:0">
+          <span class="material-symbols-outlined" style="font-size:16px;color:var(--text-muted)">close</span>
+        </button>
+      </div>
+      <div style="padding:16px 24px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;max-height:60vh">
+        <div>
+          <p
+            style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-dim);margin-bottom:10px">
+            Tampilan</p>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <label style="font-size:13px;font-weight:600;color:var(--text)">Tema</label>
+              <select class="filter-select" id="setting-tema" style="width:140px">
+                <option value="auto">Ikuti sistem</option>
+                <option value="light">Terang</option>
+                <option value="dark">Gelap</option>
+              </select>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <label style="font-size:13px;font-weight:600;color:var(--text)">Bahasa</label>
+              <select class="filter-select" id="setting-bahasa" style="width:140px">
+                <option value="id">Indonesia</option>
+                <option value="en">English</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div>
+          <p
+            style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-dim);margin-bottom:10px">
+            Data & Refresh</p>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <label style="font-size:13px;font-weight:600;color:var(--text)">Auto-refresh</label>
+              <select class="filter-select" id="setting-refresh" style="width:140px">
+                <option value="0">Nonaktif</option>
+                <option value="30">30 detik</option>
+                <option value="60">1 menit</option>
+                <option value="300">5 menit</option>
+              </select>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <label style="font-size:13px;font-weight:600;color:var(--text)">Baris per halaman</label>
+              <select class="filter-select" id="setting-perpage" style="width:140px">
+                <option value="50">50 baris</option>
+                <option value="100">100 baris</option>
+                <option value="200">200 baris</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div>
+          <p
+            style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-dim);margin-bottom:10px">
+            Notifikasi</p>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <div>
+                <p style="font-size:13px;font-weight:600;color:var(--text);margin:0">Pelanggan offline</p>
+                <p style="font-size:11px;color:var(--text-dim);margin:0">Notif saat ada pelanggan putus</p>
+              </div>
+              <label style="position:relative;display:inline-block;width:40px;height:22px;cursor:pointer">
+                <input type="checkbox" id="notif-offline" style="opacity:0;width:0;height:0"
+                  onchange="toggleNotif(this,'notif-offline')">
+                <span id="track-offline"
+                  style="position:absolute;inset:0;background:var(--border);border-radius:11px;transition:background .2s"></span>
+                <span id="thumb-offline"
+                  style="position:absolute;top:3px;left:3px;width:16px;height:16px;background:#fff;border-radius:50%;transition:transform .2s"></span>
+              </label>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <div>
+                <p style="font-size:13px;font-weight:600;color:var(--text);margin:0">Sinyal lemah (RX)</p>
+                <p style="font-size:11px;color:var(--text-dim);margin:0">Alert saat sinyal di bawah -30 dBm</p>
+              </div>
+              <label style="position:relative;display:inline-block;width:40px;height:22px;cursor:pointer">
+                <input type="checkbox" id="notif-rx" style="opacity:0;width:0;height:0"
+                  onchange="toggleNotif(this,'notif-rx')">
+                <span id="track-rx"
+                  style="position:absolute;inset:0;background:var(--border);border-radius:11px;transition:background .2s"></span>
+                <span id="thumb-rx"
+                  style="position:absolute;top:3px;left:3px;width:16px;height:16px;background:#fff;border-radius:50%;transition:transform .2s"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="form-actions" style="padding:16px 24px;margin-top:0">
+        <button class="btn btn-cancel" onclick="closeModalSetting()">Batal</button>
+        <button class="btn-primary" onclick="simpanSetting()">
+          <span class="material-symbols-outlined">save</span>Simpan setting
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- TOAST -->
   <div id="toast"></div>
 
@@ -548,7 +746,20 @@
         <span class="material-symbols-outlined">close</span>
       </button>
     </div>
+    <!-- 
+  ══════════════════════════════════════════════════════════
+  PASTE INI ke semua file HTML — ganti isi <div class="psheet-list">
+  yang lama dengan blok ini (sudah include ODC baru)
+  ══════════════════════════════════════════════════════════
+-->
+   <!-- 
+  ══════════════════════════════════════════════════════════
+  PASTE INI ke semua file HTML — ganti isi <div class="psheet-list">
+  yang lama dengan blok ini (sudah include ODC baru)
+  ══════════════════════════════════════════════════════════
+-->
     <div class="psheet-list">
+
       <a href="/app/frontend/input_perangkat/input_mikrotik.html" class="psheet-item psheet-mikrotik">
         <div class="psheet-item-icon">
           <span class="material-symbols-outlined">router</span>
@@ -557,9 +768,10 @@
           <div class="psheet-item-name">MikroTik</div>
           <div class="psheet-item-desc">Router, firewall, dan manajemen bandwidth</div>
         </div>
-        <span class="psheet-item-badge">Router</span>
+        <div class="psheet-item-badge">Router</div>
         <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
       </a>
+
       <a href="/app/frontend/input_perangkat/input_olt.html" class="psheet-item psheet-olt">
         <div class="psheet-item-icon">
           <span class="material-symbols-outlined">settings_input_antenna</span>
@@ -568,9 +780,22 @@
           <div class="psheet-item-name">OLT</div>
           <div class="psheet-item-desc">Optical Line Terminal — kontrol jaringan fiber</div>
         </div>
-        <span class="psheet-item-badge">Fiber</span>
+        <div class="psheet-item-badge">Fiber</div>
         <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
       </a>
+
+      <a href="/app/frontend/input_perangkat/input_odc.html" class="psheet-item psheet-odc">
+        <div class="psheet-item-icon">
+          <span class="material-symbols-outlined">storage</span>
+        </div>
+        <div class="psheet-item-body">
+          <div class="psheet-item-name">ODC</div>
+          <div class="psheet-item-desc">Optical Distribution Cabinet — kabinet distribusi utama</div>
+        </div>
+        <div class="psheet-item-badge">Cabinet</div>
+        <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
+      </a>
+
       <a href="/app/frontend/input_perangkat/input_odp.html" class="psheet-item psheet-odp">
         <div class="psheet-item-icon">
           <span class="material-symbols-outlined">hub</span>
@@ -579,11 +804,12 @@
           <div class="psheet-item-name">ODP</div>
           <div class="psheet-item-desc">Optical Distribution Point — titik distribusi kabel</div>
         </div>
-        <span class="psheet-item-badge">Distribusi</span>
+        <div class="psheet-item-badge">Distribusi</div>
         <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
       </a>
+
     </div>
-  </div>
 
 </body>
+
 </html>
