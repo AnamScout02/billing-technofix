@@ -1,0 +1,878 @@
+/* ============================================================
+   detail_pelanggan.css — Halaman Detail Pelanggan TechnoFix
+   ⚠ Load SETELAH global.css
+   ============================================================ */
+
+
+/* ══════════════════════════════════════════════════════════
+   1. BREADCRUMB
+══════════════════════════════════════════════════════════ */
+.dp-breadcrumb {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.dp-breadcrumb-trail {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12.5px;
+  color: var(--text-dim);
+  font-family: var(--sans);
+}
+.dp-breadcrumb-trail .material-symbols-outlined { font-size: 14px; opacity: .6; }
+
+/* Link ke halaman parent — bisa diklik */
+.dp-breadcrumb-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-dim);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color .14s;
+}
+.dp-breadcrumb-link .material-symbols-outlined { font-size: 15px; }
+.dp-breadcrumb-link:hover { color: var(--primary); }
+
+/* Node terakhir (username) — lebih tebal & primary */
+.dp-breadcrumb-trail span:last-child {
+  color: var(--text);
+  font-weight: 700;
+}
+
+
+/* ══════════════════════════════════════════════════════════
+   2. HERO CARD — Profile-style (fixed & enhanced)
+══════════════════════════════════════════════════════════ */
+.dp-hero {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl, 16px);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+/* ── Banner biru dengan RX Signal di dalamnya ── */
+.dp-hero-cover {
+  height: 120px;
+  background: linear-gradient(135deg, #002f6e 0%, #0046a0 45%, #0061c8 100%);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 28px;
+  overflow: hidden;
+}
+
+/* Grid pattern */
+.dp-hero-cover::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.06) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+/* Decorative glow circle di kiri bawah */
+.dp-hero-cover::after {
+  content: '';
+  position: absolute;
+  left: -40px;
+  bottom: -40px;
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* RX Signal overlay di dalam banner — pojok kanan */
+.dp-hero-rx-overlay {
+  position: relative;
+  z-index: 1;
+  text-align: right;
+}
+
+.dp-rx-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: rgba(255,255,255,.9);
+  margin-bottom: 4px;
+}
+.dp-rx-value {
+  font-family: var(--heading);
+  font-size: 30px;
+  font-weight: 800;
+  color: #FFD600;
+  line-height: 1;
+}
+/* Override warna saat ada class rx-* */
+.dp-rx-value.rx-good { color: #FFD600; }
+.dp-rx-value.rx-warn { color: #FFB300; }
+.dp-rx-value.rx-bad  { color: #FF6B6B; }
+.dp-rx-value.rx-none { color: rgba(255,255,255,.45); }
+.dp-rx-sub {
+  display: none;
+}
+
+/* ── Avatar row — menimpa border bawah banner ── */
+.dp-hero-avatar-wrap {
+  padding: 0 24px;
+  margin-top: -36px;
+  position: relative;
+  z-index: 2;
+}
+
+.dp-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0046a0, #0069d9);
+  border: 4px solid var(--bg);
+  color: #fff;
+  font-family: var(--heading);
+  font-size: 24px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  letter-spacing: -.5px;
+  user-select: none;
+  box-shadow: 0 4px 20px rgba(0,64,161,.40);
+}
+
+/* ── Info body di bawah avatar ── */
+.dp-hero-info-body {
+  padding: 10px 24px 22px;
+}
+
+.dp-hero-name {
+  font-family: var(--heading);
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -.02em;
+  margin-bottom: 10px;
+  word-break: break-all;
+}
+
+.dp-hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  align-items: center;
+}
+
+.dp-meta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 11px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--sans);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+.dp-meta-chip .material-symbols-outlined { font-size: 14px; }
+.dp-meta-chip.accent {
+  background: var(--primary-light);
+  border-color: rgba(0,64,161,.2);
+  color: var(--primary);
+}
+
+.dp-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 11px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+.dp-status-badge.online  { background: var(--green-bg); color: var(--green); border-color: var(--green-border); }
+.dp-status-badge.online .badge-dot { background: var(--green); animation: pulse-green .9s infinite; }
+.dp-status-badge.offline { background: var(--red-bg);   color: var(--red);   border-color: var(--red-border); }
+.dp-status-badge.offline .badge-dot { background: var(--red); }
+
+.badge-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+
+/* ══════════════════════════════════════════════════════════
+   3. ACTION BAR
+══════════════════════════════════════════════════════════ */
+.dp-action-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding: 12px 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-xs);
+}
+
+/* Grup tombol — desktop: berderet, mobile: grid 2 kolom */
+.dp-action-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Separator vertikal antar grup di desktop */
+.dp-action-group + .dp-action-group {
+  padding-left: 10px;
+  border-left: 1.5px solid var(--border);
+}
+
+/* Base button */
+.dp-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: var(--r-md);
+  border: 1.5px solid transparent;
+  font-size: 12.5px;
+  font-weight: 600;
+  font-family: var(--sans);
+  cursor: pointer;
+  transition: background .14s, border-color .14s, color .14s,
+              box-shadow .14s, transform .1s;
+  white-space: nowrap;
+}
+.dp-action-btn .material-symbols-outlined { font-size: 16px; }
+.dp-action-btn:active { transform: scale(.97); }
+
+/* ── Resting accent ── */
+.dp-action-btn.green   { background: var(--green-bg);      border-color: var(--green-border);    color: var(--green); }
+.dp-action-btn.gray    { background: var(--surface);       border-color: var(--border);          color: var(--text-muted); }
+.dp-action-btn.amber   { background: var(--amber-bg);      border-color: var(--amber-border);    color: var(--amber); }
+.dp-action-btn.blue    { background: var(--blue-bg);       border-color: var(--blue-border);     color: var(--blue); }
+.dp-action-btn.primary { background: var(--primary-light); border-color: rgba(0,64,161,.20);     color: var(--primary); }
+.dp-action-btn.red     { background: var(--red-bg);        border-color: var(--red-border);      color: var(--red); }
+.dp-action-btn.teal    { background: #e0f7f4;              border-color: #80cbc4;                color: #00897b; }
+
+/* ── Hover: lebih solid + shadow ── */
+.dp-action-btn.green:hover   { background: #c3ecd8; border-color: var(--green);   box-shadow: 0 2px 8px rgba(0,108,71,.14); }
+.dp-action-btn.gray:hover    { background: var(--surface-2); border-color: var(--border-2); box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+.dp-action-btn.amber:hover   { background: #fde8c0; border-color: var(--amber);   box-shadow: 0 2px 8px rgba(180,83,9,.14); }
+.dp-action-btn.blue:hover    { background: #dbeafe; border-color: var(--blue);    box-shadow: 0 2px 8px rgba(29,78,216,.14); }
+.dp-action-btn.primary:hover { background: #d4e2ff; border-color: var(--primary); box-shadow: 0 2px 8px rgba(0,64,161,.18); }
+.dp-action-btn.red:hover     { background: #fbd0d0; border-color: var(--red);     box-shadow: 0 2px 8px rgba(186,26,26,.14); }
+.dp-action-btn.teal:hover    { background: #b2dfdb; border-color: #00897b;        box-shadow: 0 2px 8px rgba(0,137,123,.14); }
+
+
+/* ══════════════════════════════════════════════════════════
+   4. DETAIL GRID — 2 kolom responsif
+══════════════════════════════════════════════════════════ */
+.dp-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+  /* Mobile: pastikan tidak overflow ke kanan */
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+.dp-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;  /* ← wajib agar grid child tidak overflow */
+  overflow: hidden;
+}
+
+
+/* ══════════════════════════════════════════════════════════
+   5. INFO CARD
+══════════════════════════════════════════════════════════ */
+.dp-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.dp-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 18px;
+  border-bottom: 1px solid rgba(255,255,255,.12);
+  font-family: var(--heading);
+  font-size: 13px;
+  font-weight: 800;
+  color: #ffffff;
+  background: #003f88;
+}
+.dp-card-head .material-symbols-outlined {
+  font-size: 18px;
+  color: rgba(255,255,255,.80);
+}
+
+.dp-info-list { padding: 4px 0; }
+
+.dp-info-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;          /* ← key fix: biarkan wrap di layar sempit */
+  gap: 4px 12px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.dp-info-row:last-child { border-bottom: none; }
+
+/* Zebra stripe — putih & putih kebiruan, selaras tabel global */
+.dp-info-row:nth-child(odd)  { background: #ffffff; }
+.dp-info-row:nth-child(even) { background: #f0f5ff; }
+.dp-info-row:hover { background: #e0eaff; transition: background .15s ease; }
+
+.dp-info-key {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+  flex-shrink: 0;
+  white-space: nowrap;
+  min-width: 110px;        /* ← cegah label terlalu sempit */
+}
+.dp-info-val {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  text-align: right;
+  word-break: break-all;
+  flex: 1;
+  min-width: 60px;         /* ← pastikan nilai punya ruang minimal */
+}
+.dp-info-val.mono  { font-family: var(--sans); font-size: 12px; letter-spacing: 0.01em; }
+.dp-info-val.small { font-size: 11px; }
+
+
+/* ══════════════════════════════════════════════════════════
+   6. CLI CARD — terminal OLT
+══════════════════════════════════════════════════════════ */
+.dp-cli-sub {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(255,255,255,.55);
+  font-family: var(--sans);
+}
+
+/* Tab selector ZTE / Huawei */
+.dp-cli-tabs {
+  display: flex;
+  gap: 0;
+  padding: 12px 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+.dp-cli-tab {
+  padding: 7px 18px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: var(--sans);
+  color: var(--text-dim);
+  background: none;
+  border: none;
+  border-bottom: 2.5px solid transparent;
+  cursor: pointer;
+  transition: color .14s, border-color .14s;
+  margin-bottom: -1px;
+}
+.dp-cli-tab:hover  { color: var(--text); }
+.dp-cli-tab.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+/* Terminal window */
+.dp-cli-wrap {
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  margin: 16px;
+  overflow: hidden;
+  background: #0d1117;
+  /* ── Mobile fix: pastikan tidak keluar dari card ── */
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.dp-cli-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: #161b22;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  /* ── Agar toolbar tidak overflow pada layar sempit ── */
+  min-width: 0;
+  overflow: hidden;
+}
+
+.dp-cli-dots { display: flex; gap: 5px; align-items: center; flex-shrink: 0; }
+.dp-cli-dot  { width: 11px; height: 11px; border-radius: 50%; }
+.dp-cli-dot.red   { background: #ff5f57; }
+.dp-cli-dot.amber { background: #ffbd2e; }
+.dp-cli-dot.green { background: #28c840; }
+
+.dp-cli-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255,255,255,.5);
+  font-family: var(--sans);
+  flex: 1;
+  text-align: center;
+  /* ── Truncate label jika ruang sempit, bukan CLI body ── */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.dp-cli-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: var(--r-sm);
+  border: 1px solid rgba(255,255,255,.15);
+  background: rgba(255,255,255,.07);
+  color: rgba(255,255,255,.7);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--sans);
+  cursor: pointer;
+  transition: background .14s, color .14s;
+  flex-shrink: 0;
+}
+.dp-cli-copy-btn:hover { background: rgba(255,255,255,.15); color: #fff; }
+.dp-cli-copy-btn .material-symbols-outlined { font-size: 14px; }
+
+.dp-cli-body {
+  margin: 0;
+  padding: 16px;
+  font-family: 'Courier New', 'Courier', monospace;
+  font-size: 12px;
+  line-height: 1.75;
+  color: #7bf5a4;
+  background: #0d1117;
+  /* ── Mobile fix: horizontal scroll HANYA pada blok CLI ── */
+  overflow-x: auto;
+  overflow-y: visible;
+  /* ── Gunakan pre-wrap agar teks bisa wrap di mobile ── */
+  white-space: pre-wrap;
+  word-break: break-all;
+  min-height: 160px;
+  tab-size: 2;
+  /* ── Pastikan 100% lebar parent, bukan lebih ── */
+  width: 100%;
+  box-sizing: border-box;
+}
+.dp-cli-body::-webkit-scrollbar       { height: 4px; }
+.dp-cli-body::-webkit-scrollbar-track { background: transparent; }
+.dp-cli-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 4px; }
+
+/* Highlight tokens */
+.dp-cli-body .cli-comment  { color: #6e7681; }
+.dp-cli-body .cli-cmd      { color: #7bf5a4; }
+.dp-cli-body .cli-keyword  { color: #79c0ff; }
+.dp-cli-body .cli-value    { color: #ffa657; }
+
+
+/* ══════════════════════════════════════════════════════════
+   7. CLI ACTIONS — Regis Ulang & help text
+══════════════════════════════════════════════════════════ */
+.dp-cli-actions {
+  padding: 14px 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dp-cli-help {
+  display: grid;
+  grid-template-columns: 16px 1fr;
+  gap: 8px;
+  align-items: start;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.65;
+  margin: 0;
+  padding: 11px 13px;
+  background: var(--primary-light, #eef3ff);
+  border: 1px solid rgba(0,64,161,.15);
+  border-radius: var(--r-md);
+}
+.dp-cli-help .material-symbols-outlined {
+  font-size: 16px;
+  color: var(--primary);
+  margin-top: 1px;
+  display: block;
+}
+.dp-cli-help span { min-width: 0; }
+.dp-cli-help strong { color: var(--primary); font-weight: 700; }
+
+.dp-regis-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 13px 20px;
+  border-radius: var(--r-md);
+  border: none;
+  background: linear-gradient(135deg, #0046a0, #0069d9);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: var(--sans);
+  cursor: pointer;
+  transition: background .15s, transform .1s, box-shadow .15s;
+  box-shadow: 0 3px 12px rgba(0,64,161,.30);
+  letter-spacing: .01em;
+}
+.dp-regis-btn:hover   { background: linear-gradient(135deg, #003585, #0057c2); box-shadow: 0 5px 18px rgba(0,64,161,.40); }
+.dp-regis-btn:active  { transform: scale(.98); }
+.dp-regis-btn:disabled {
+  background: var(--border);
+  color: var(--text-dim);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.dp-regis-btn .material-symbols-outlined { font-size: 18px; }
+
+
+/* ══════════════════════════════════════════════════════════
+   8. MODAL HAPUS PELANGGAN — opsi Billing / MikroTik / OLT
+══════════════════════════════════════════════════════════ */
+.hapus-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 24px 4px;
+}
+
+.hapus-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color .14s, background .14s;
+  user-select: none;
+}
+.hapus-option:hover { border-color: var(--primary); background: var(--primary-light); }
+
+/* Menyembunyikan checkbox asli lalu styling via sibling */
+.hapus-option input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 2px solid var(--border-2);
+  background: var(--bg);
+  flex-shrink: 0;
+  cursor: pointer;
+  position: relative;
+  transition: border-color .14s, background .14s;
+}
+.hapus-option input[type="checkbox"]:checked {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+.hapus-option input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 0px;
+  width: 5px;
+  height: 9px;
+  border: 2px solid #fff;
+  border-top: none;
+  border-left: none;
+  transform: rotate(45deg);
+}
+
+.hapus-option-body {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+.hapus-option-body .material-symbols-outlined {
+  font-size: 20px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.hapus-option-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  font-family: var(--sans);
+}
+.hapus-option-desc {
+  font-size: 11.5px;
+  color: var(--text-dim);
+  margin-top: 1px;
+  font-family: var(--sans);
+}
+
+/* Warning OLT */
+.hapus-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 24px 8px;
+  padding: 10px 14px;
+  background: var(--amber-bg);
+  border: 1px solid var(--amber-border);
+  border-radius: var(--r-sm);
+  font-size: 12px;
+  color: var(--amber);
+  font-family: var(--sans);
+  line-height: 1.6;
+}
+.hapus-warning .material-symbols-outlined { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+.hapus-warning code {
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  background: rgba(0,0,0,.08);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+
+/* ══════════════════════════════════════════════════════════
+   9. FORM HELPERS
+   ✅ Semua style form (form-group, form-label, form-input, form-hint,
+      form-actions, form-pwd-wrap, form-pwd-toggle) sudah tersedia di
+      global.css — tidak perlu didefinisikan ulang di sini.
+══════════════════════════════════════════════════════════ */
+.req { color: var(--red); margin-left: 2px; }
+/* Catatan: .btn-cancel sudah didefinisikan di global.css */
+
+.hapus-icon-wrap {
+  width: 56px; height: 56px; border-radius: 50%;
+  background: var(--red-bg); color: var(--red);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 16px;
+}
+.hapus-icon  { font-size: 26px !important; }
+.hapus-title {
+  font-size: 16px; font-weight: 800;
+  font-family: var(--heading); color: var(--text);
+  text-align: center; margin-bottom: 8px;
+}
+.hapus-sub {
+  font-size: 13px; color: var(--text-muted);
+  text-align: center; line-height: 1.7;
+  padding: 0 24px;
+}
+.modal-footer {
+  display: flex; gap: 10px; justify-content: flex-end;
+  margin-top: 20px; padding: 16px 24px 0;
+  border-top: 1px solid var(--border);
+}
+/* ══════════════════════════════════════════════════════════
+   10. MODAL SHARED HELPERS
+══════════════════════════════════════════════════════════ */
+.modal-sheet.small { max-width: 380px; padding: 24px; }
+
+/* ── Modal Bottom-Sheet Universal
+   Desktop : centered | Mobile (≤768px) : bottom-sheet rapat navbar ── */
+.modal-bs {
+  align-items: center;
+  justify-content: center;
+}
+.modal-bs-sheet {
+  border-radius: var(--r-xl);
+}
+
+@media (max-width: 768px) {
+  .modal-bs {
+    align-items: flex-end;
+    justify-content: stretch;
+  }
+  .modal-bs-sheet {
+    max-width: 100% !important;
+    width: 100%;
+    border-radius: var(--r-xl) var(--r-xl) 0 0;
+    padding-bottom: env(safe-area-inset-bottom, 8px);
+    animation: slideUp .28s cubic-bezier(.22,1,.36,1);
+  }
+}
+
+/* ── Modal Hapus Pelanggan — bottom-sheet di mobile, centered di desktop ── */
+
+/* Desktop: tetap centered */
+.modal-hapus-bottom {
+  align-items: center;
+  justify-content: center;
+}
+.modal-hapus-sheet {
+  max-width: 440px;
+  border-radius: var(--r-xl);
+  padding: 24px 0 8px;
+}
+
+/* Mobile: geser ke bawah, rapat di atas bottom navbar */
+@media (max-width: 768px) {
+  .modal-hapus-bottom {
+    align-items: flex-end;
+    justify-content: stretch;
+  }
+  .modal-hapus-sheet {
+    max-width: 100%;
+    width: 100%;
+    border-radius: var(--r-xl) var(--r-xl) 0 0;
+    padding-bottom: env(safe-area-inset-bottom, 8px);
+    animation: slideUp .28s cubic-bezier(.22,1,.36,1);
+  }
+}
+
+
+/* ══════════════════════════════════════════════════════════
+   11. RESPONSIVE
+══════════════════════════════════════════════════════════ */
+
+/* Tablet (≤900px): grid satu kolom */
+@media (max-width: 900px) {
+  .dp-grid { grid-template-columns: 1fr; }
+}
+
+/* Phablet (≤640px): hero stack, action bar per-grup jadi grid */
+@media (max-width: 640px) {
+  .dp-hero-cover { height: 80px; }
+  .dp-hero-rx { text-align: left; }
+  .dp-breadcrumb { flex-direction: column; align-items: flex-start; }
+  .hapus-sub { padding: 0 8px; }
+
+  /* Action bar: flex-column, tiap grup = grid 2 kolom rata */
+  .dp-action-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+  /* Hapus separator kiri antar grup di mobile */
+  .dp-action-group + .dp-action-group {
+    padding-left: 0;
+    border-left: none;
+    padding-top: 6px;
+    border-top: 1px dashed var(--border);
+  }
+  /* Semua grup: grid 2 kolom sama lebar */
+  .dp-action-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 7px;
+  }
+  /* Tombol tunggal dalam grup → full width (fallback) */
+  .dp-action-group:has(> .dp-action-btn:only-child) .dp-action-btn {
+    grid-column: 1 / -1;
+  }
+  .dp-action-btn {
+    font-size: 13px;
+    padding: 10px 12px;
+    width: 100%;
+  }
+}
+
+/* Mobile (≤480px): paling compact */
+@media (max-width: 480px) {
+  /* Paksa page tidak overflow */
+  .page { overflow-x: hidden; padding-left: 12px; padding-right: 12px; }
+
+  /* Hero lebih compact */
+  .dp-hero-cover { height: 88px; padding: 0 18px; }
+  .dp-rx-value   { font-size: 24px; }
+  .dp-hero-avatar-wrap { padding: 0 16px; margin-top: -32px; }
+  .dp-avatar { width: 60px; height: 60px; font-size: 20px; }
+  .dp-hero-info-body { padding: 8px 16px 18px; }
+  .dp-hero-name { font-size: 17px; }
+
+  /* Info rows: label di atas, nilai di bawah (stack layout) */
+  .dp-info-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    padding: 10px 14px;
+  }
+  .dp-info-key {
+    white-space: normal;   /* biarkan wrap di HP kecil */
+    min-width: unset;
+    width: 100%;
+  }
+  .dp-info-val {
+    text-align: left;
+    width: 100%;
+    word-break: break-all;
+  }
+  .dp-info-row:nth-child(odd)  { background: #ffffff; }
+  .dp-info-row:nth-child(even) { background: #f0f5ff; }
+  .dp-info-row { border-bottom: 1px solid var(--border); }
+
+  /* CLI wrap: hapus margin samping agar tidak overflow */
+  .dp-cli-wrap {
+    margin: 8px;
+    max-width: calc(100% - 16px);
+    box-sizing: border-box;
+  }
+  .dp-cli-body {
+    font-size: 11px;
+    padding: 10px;
+    min-height: 120px;
+    /* Izinkan scroll horizontal HANYA di dalam CLI body */
+    overflow-x: auto;
+    white-space: pre;       /* pre agar baris CLI tidak wrap aneh */
+    word-break: normal;
+  }
+  .dp-cli-tabs { padding: 8px 10px 0; gap: 4px; }
+  .dp-cli-tab  { padding: 6px 10px; font-size: 11px; }
+  .dp-cli-toolbar { padding: 6px 10px; gap: 6px; }
+  .dp-cli-label { font-size: 10px; }
+  .dp-cli-copy-btn { padding: 3px 7px; font-size: 10px; }
+
+  /* Card head compact */
+  .dp-card-head { padding: 11px 14px; font-size: 12px; }
+  /* Tetap 2 kolom di HP kecil, font sedikit lebih kecil */
+  .dp-action-btn { font-size: 12px; padding: 9px 8px; }
+}
+
+/* Sangat sempit (≤360px) */
+@media (max-width: 360px) {
+  .page { padding-left: 8px; padding-right: 8px; }
+  .dp-card-head { font-size: 11.5px; }
+  .dp-info-key  { font-size: 11px; }
+  .dp-info-val  { font-size: 12px; }
+  .dp-cli-body  { font-size: 10.5px; }
+}

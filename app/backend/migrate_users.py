@@ -50,3 +50,24 @@ print('')
 print('Selesai! Login dengan:')
 print('  username : owner')
 print('  password : admin123')
+# ── Migrasi tabel pelanggan ────────────────────────────────────
+print('')
+print('=== Migrasi tabel pelanggan ===')
+conn = get_db()
+cols_p = {r[1] for r in conn.execute('PRAGMA table_info(pelanggan)').fetchall()}
+print('Kolom saat ini:', cols_p)
+
+for col, defval in [
+    ('nama',  "TEXT DEFAULT ''"),
+    ('no_hp', "TEXT DEFAULT ''"),
+    ('aktif', 'INTEGER DEFAULT 1'),
+]:
+    if col not in cols_p:
+        conn.execute(f"ALTER TABLE pelanggan ADD COLUMN {col} {defval}")
+        print(f'+ kolom {col}')
+    else:
+        print(f'sudah ada: {col}')
+
+conn.commit()
+conn.close()
+print('Migrasi pelanggan selesai.')

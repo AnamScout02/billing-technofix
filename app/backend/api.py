@@ -112,23 +112,9 @@ def cari_olt(olt_id: int) -> dict | None:
 @api_bp.route('/pelanggan/<int:device_id>', methods=['GET'])
 def get_pelanggan(device_id):
     """
-    Gabungkan data PPP Secret dari MikroTik dengan data ONU
-    (slot_port, vlan, sn, rx_power, tx_power) dari tabel onu_mapping.
-
-    Response per item:
-    {
-        "id":        ".1",
-        "username":  "pelanggan01",
-        "profil":    "10Mbps",
-        "hp":        "08123456789",
-        "status":    "Online" | "Offline",
-        "slot_port": "0/1/1:3",
-        "vlan":      "100",
-        "sn":        "HWTC1A2B3C4D",
-        "rx_power":  -24.5,
-        "tx_power":  2.3,
-        "olt_id":    1
-    }
+    Gabungkan data PPP Secret dari MikroTik dengan data ONU dari onu_mapping,
+    serta lakukan AUTO-SAVE (Upsert) ke database lokal.
+    Jika password dari MikroTik disembunyikan (kosong), gunakan password dari DB lokal.
     """
     device = cari_device(device_id)
     if not device:
@@ -136,27 +122,110 @@ def get_pelanggan(device_id):
 
     try:
         with MikroTikClient(device) as mt:
-            api = mt._get_api()
-
-            secrets      = list(api.path('/ppp/secret'))
-            active_conns = list(api.path('/ppp/active'))
+            secrets      = mt.get_ppp_secrets()
+            active_conns = mt.get_active_connections()
             active_names = {a.get('name') for a in active_conns}
+            # Mapping username → raw dict active session (IP & MAC)
+            active_detail = {
+                a.get('name'): a
+                for a in active_conns if a.get('name')
+            }
+            # Debug: log sample active session untuk verifikasi field tersedia
+            if active_conns:
+                sample = active_conns[0]
+                logging.info(f"[active sample] keys={list(sample.keys())} "
+                             f"address={sample.get('address')} "
+                             f"caller-id={sample.get('caller-id')}")
 
         hasil = []
         conn  = get_db()
+        
         for s in secrets:
-            username = str(s.get('name', '') or '')
-            onu      = get_onu_data(username)
+            username = str(s.get('name', '') or '').strip()
+            if not username:
+                continue
+                
+            onu = get_onu_data(username)
 
-            # Ambil hp & kolom opsional dari tabel pelanggan lokal
-            # (tgl_pasang, tgl_jatuh, titik_koordinat mungkin belum ada — pakai SELECT *)
-            row_lokal = conn.execute(
-                'SELECT * FROM pelanggan WHERE username = ?',
+            profile_mt  = s.get('profile', 'default')
+            comment_mt  = s.get('comment', '')
+            password_mt = str(s.get('password', '') or '').strip() # Password dari API MikroTik
+            service_mt  = s.get('service', 'pppoe')
+            disabled_mt = 1 if s.get('disabled') == 'true' else 0
+
+            # 1. CEK DATA LAMA DI DATABASE LOKAL TERLEBIH DAHULU
+            row_lama = conn.execute(
+                'SELECT password, nama, hp, no_hp FROM pelanggan WHERE username = ?',
                 (username,)
             ).fetchone()
 
+            password_saved = ''
+            if row_lama:
+                password_saved = row_lama['password'] if row_lama['password'] else ''
+
+            # Tentukan password final yang akan disimpan ke DB: 
+            # Jika dari MikroTik dapet password (tidak kosong), pakai dari MikroTik.
+            # Jika dari MikroTik kosong, amankan dengan memakai password yang sudah ada di DB lokal sebelumnya.
+            password_ke_db = password_mt if password_mt else password_saved
+
+            # 2. AUTO-SAVE / UPSERT KE TABEL PELANGGAN LOKAL
+            try:
+                conn.execute('''
+                    INSERT INTO pelanggan (
+                        username, nama, password, profil, service, aktif,
+                        olt_id, slot_port, vlan, sn
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(username) DO UPDATE SET
+                        profil    = excluded.profil,
+                        service   = excluded.service,
+                        aktif     = excluded.aktif,
+                        password  = excluded.password,
+                        nama      = CASE WHEN nama IS NULL OR nama = '' THEN excluded.nama ELSE nama END,
+                        olt_id    = CASE WHEN olt_id IS NULL OR olt_id = 0 THEN excluded.olt_id ELSE olt_id END,
+                        slot_port = CASE WHEN slot_port IS NULL OR slot_port = '' THEN excluded.slot_port ELSE slot_port END,
+                        vlan      = CASE WHEN vlan IS NULL OR vlan = 0 THEN excluded.vlan ELSE vlan END,
+                        sn        = CASE WHEN sn IS NULL OR sn = '' THEN excluded.sn ELSE sn END
+                ''', (
+                    username,
+                    comment_mt if comment_mt else username,
+                    password_ke_db,
+                    profile_mt,
+                    service_mt,
+                    1 if disabled_mt == 0 else 0,
+                    onu.get('olt_id'),
+                    onu.get('slot_port'),
+                    onu.get('vlan'),
+                    onu.get('sn')
+                ))
+                conn.commit()
+            except Exception:
+                pass
+
+            # 3. TARIK KEMBALI DATA RESMI SETELAH SINKRONISASI
+            row_lokal = conn.execute(
+                'SELECT id, username, nama, password, profil, no_hp, hp, service, aktif, tgl_pasang, tgl_jatuh, titik_koordinat FROM pelanggan WHERE username = ?',
+                (username,)
+            ).fetchone()
+
+            if row_lokal:
+                id_pelanggan   = row_lokal['id']
+                hp_pelanggan   = row_lokal['hp'] if row_lokal['hp'] else (row_lokal['no_hp'] if row_lokal['no_hp'] else '')
+                nama_pelanggan = row_lokal['nama'] or comment_mt or username
+                password_fix   = row_lokal['password'] # Menggunakan password fix database
+            else:
+                id_pelanggan   = s.get('id') or s.get('.id')
+                hp_pelanggan   = ''
+                nama_pelanggan = comment_mt or username
+                password_fix   = password_mt
+
+            # Ambil detail koneksi aktif untuk username ini
+            # caller-id = MAC address modem, address = IP yang di-assign
+            _sesi = active_detail.get(username, {})
+
             hasil.append({
-                'id':          s.get('.id'),
+                'id':          id_pelanggan,  # ID database lokal (dipakai openDetail/openEdit)
+                'mikrotik_id': s.get('.id'),  # ID asli MikroTik — disimpan terpisah
+                'device_id':   device_id,
                 'username':    username,
                 'password':    s.get('password', ''),
                 'profil':      s.get('profile', 'default'),
@@ -164,21 +233,29 @@ def get_pelanggan(device_id):
                 'comment':     s.get('comment', ''),
                 'disabled':    s.get('disabled', 'false'),
                 'status':      'Online' if username in active_names else 'Offline',
-                # Data dari tabel lokal
-                'hp':          row_lokal['hp']            if row_lokal else '',
-                'tgl_pasang':  row_lokal['tgl_pasang']    if row_lokal and 'tgl_pasang'    in row_lokal.keys() else '',
-                'tgl_jatuh':   row_lokal['tgl_jatuh']     if row_lokal and 'tgl_jatuh'     in row_lokal.keys() else '',
-                'koordinat':   row_lokal['titik_koordinat'] if row_lokal and 'titik_koordinat' in row_lokal.keys() else '',
-                # Data ONU dari onu_mapping
+
+                # IP Address & MAC Address modem dari active session MikroTik
+                # Hanya terisi saat pelanggan sedang Online
+                'ip_modem':    _sesi.get('address',   ''),
+                'mac_address': _sesi.get('caller-id', ''),
+
+                # Data lokal database
+                'hp':          row_lokal['hp'] if row_lokal else '',
+
+                # Data ONU OLT hasil sync
                 'slot_port':   onu['slot_port'],
                 'vlan':        onu['vlan'],
                 'sn':          onu['sn'],
                 'olt_id':      onu['olt_id'],
+                'titik_koordinat': row_lokal['titik_koordinat'] if row_lokal else '',
+                'tgl_pasang':  row_lokal['tgl_pasang'] if row_lokal else '',
+                'tgl_jatuh':   row_lokal['tgl_jatuh'] if row_lokal else '',
+                'nama':        row_lokal['nama'] if row_lokal else '',
                 'rx_power':    onu['rx_power'],
                 'tx_power':    onu['tx_power'],
             })
+            
         conn.close()
-
         return jsonify(hasil), 200
 
     except MikroTikError as e:
@@ -188,155 +265,180 @@ def get_pelanggan(device_id):
         return jsonify({'error': f'Terjadi kesalahan internal: {str(e)}'}), 500
 
 
+
 @api_bp.route('/pelanggan', methods=['POST'])
-def add_pelanggan():
-    """Tambah PPP Secret baru ke MikroTik + simpan ke DB lokal."""
-    body = request.get_json(silent=True) or {}
-
+def tambah_pelanggan():
+    """
+    Tambah pelanggan baru:
+      1. Buat PPP Secret di MikroTik
+      2. Simpan ke tabel pelanggan lokal
+      3. Provisioning ONU ke OLT (opsional, jika olt_id & sn & slot_port ada)
+    """
+    body      = request.get_json() or {}
     device_id = body.get('device_id')
-    username  = (body.get('name') or body.get('username') or '').strip()
-    password  = (body.get('password') or '').strip()
+    username  = str(body.get('username', '') or '').strip()
+    password  = str(body.get('password', '') or '').strip()
+    profil    = str(body.get('profil', 'default') or 'default').strip()
+    hp        = str(body.get('hp', '') or body.get('no_hp', '') or '').strip()
+    nama      = str(body.get('nama', '') or username).strip()
+    olt_id    = body.get('olt_id')
+    slot_port = str(body.get('slot_port', '') or '').strip()
+    vlan      = str(body.get('vlan', '') or '').strip()
+    sn        = str(body.get('sn', '') or '').strip()
+    koordinat = str(body.get('titik_koordinat', '') or body.get('koordinat', '') or '').strip()
+    tgl_pasang = str(body.get('tgl_pasang', '') or '').strip()
+    tgl_jatuh  = str(body.get('tgl_jatuh', '') or '').strip()
 
-    if not device_id: return jsonify({'error': 'device_id wajib'}), 400
-    if not username:  return jsonify({'error': 'username wajib'}), 400
-    if not password:  return jsonify({'error': 'password wajib'}), 400
+    if not username:
+        return jsonify({'error': 'Username wajib diisi'}), 400
+    if not password:
+        return jsonify({'error': 'Password wajib diisi'}), 400
+    if not device_id:
+        return jsonify({'error': 'Perangkat MikroTik wajib dipilih'}), 400
 
-    device = cari_device(device_id)
+    device = cari_device(int(device_id))
     if not device:
         return jsonify({'error': 'Perangkat tidak ditemukan'}), 404
 
+    steps    = {}
+    warnings = []
+
+    # ── 1. Tambah PPP Secret ke MikroTik ──────────────────
     try:
         with MikroTikClient(device) as mt:
             mt.tambah_secret({
                 'name':     username,
                 'password': password,
-                'profile':  body.get('profil') or body.get('profile') or 'default',
-                'service':  body.get('service', 'pppoe'),
-                'comment':  body.get('comment', ''),
-                'disabled': 'yes' if body.get('disabled', False) else 'no',
+                'profile':  profil,
+                'service':  'pppoe',
+                'comment':  nama,
             })
-
-        # Simpan ke tabel pelanggan lokal
-        # [DIPERBAIKI] tambahkan kolom service, tgl_pasang, tgl_jatuh
-        conn = get_db()
-        conn.execute(
-            '''INSERT INTO pelanggan
-               (device_id, username, password, profil, service,
-                hp, sn, slot_port_onu, vlan, titik_koordinat,
-                tgl_pasang, tgl_jatuh)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-            (
-                device_id, username, password,
-                body.get('profil', 'default'),
-                body.get('service', 'pppoe'),
-                body.get('hp', ''),
-                body.get('sn', ''),
-                body.get('slot_port', ''),
-                body.get('vlan', ''),
-                body.get('koordinat', ''),
-                body.get('tgl_pasang', ''),
-                body.get('tgl_jatuh', ''),
-            )
-        )
-        # Simpan/update onu_mapping jika ada data OLT
-        if body.get('olt_id') or body.get('sn') or body.get('slot_port'):
-            conn.execute(
-                '''INSERT INTO onu_mapping
-                   (username, olt_id, slot_port, vlan, sn)
-                   VALUES (?, ?, ?, ?, ?)
-                   ON CONFLICT(username) DO UPDATE SET
-                     olt_id    = excluded.olt_id,
-                     slot_port = excluded.slot_port,
-                     vlan      = excluded.vlan,
-                     sn        = excluded.sn''',
-                (username, body.get('olt_id'), body.get('slot_port', ''),
-                 body.get('vlan', ''), body.get('sn', ''))
-            )
-        conn.commit()
-        conn.close()
-
-        return jsonify({'message': f'{username} berhasil ditambahkan ke MikroTik'}), 201
-
+        steps['mikrotik'] = 'success'
     except MikroTikError as e:
-        return jsonify({'error': str(e)}), 502
-    except Exception as e:
-        return jsonify({'error': f'Kesalahan server: {str(e)}'}), 500
+        return jsonify({'error': f'Gagal tambah ke MikroTik: {e}'}), 502
 
-
-@api_bp.route('/pelanggan/<int:pelanggan_id>', methods=['PUT'])
-def update_pelanggan(pelanggan_id):
-    """Edit PPP Secret di MikroTik + perbarui DB lokal."""
-    body = request.get_json(silent=True) or {}
-
-    device_id = body.get('device_id')
-    username  = (body.get('username') or '').strip()
-
-    if not device_id: return jsonify({'error': 'device_id wajib'}), 400
-    if not username:  return jsonify({'error': 'username wajib'}), 400
-
-    device = cari_device(device_id)
-    if not device:
-        return jsonify({'error': 'Perangkat tidak ditemukan'}), 404
-
-    update_mt = {}
-    if body.get('password'):
-        update_mt['password'] = body['password']
-    if body.get('profil'):
-        update_mt['profile'] = body['profil']
-    if body.get('service'):
-        update_mt['service'] = body['service']
-    if 'disabled' in body:
-        update_mt['disabled'] = 'yes' if body['disabled'] else 'no'
-
+    # ── 2. Simpan ke DB lokal ──────────────────────────────
     try:
-        if update_mt:
-            with MikroTikClient(device) as mt:
-                mt.edit_secret(username, update_mt)
-
-        # [DIPERBAIKI] tambahkan tgl_pasang, tgl_jatuh ke UPDATE
         conn = get_db()
-        conn.execute(
-            '''UPDATE pelanggan
-               SET profil = ?, hp = ?, sn = ?,
-                   slot_port_onu = ?, vlan = ?, titik_koordinat = ?,
-                   tgl_pasang = ?, tgl_jatuh = ?
-               WHERE id = ?''',
-            (
-                body.get('profil', ''),
-                body.get('hp', ''),
-                body.get('sn', ''),
-                body.get('slot_port', ''),
-                body.get('vlan', ''),
-                body.get('koordinat', ''),
-                body.get('tgl_pasang', ''),
-                body.get('tgl_jatuh', ''),
-                pelanggan_id,
-            )
-        )
-        # Update onu_mapping juga
-        if body.get('olt_id') or body.get('sn') or body.get('slot_port'):
-            conn.execute(
-                '''INSERT INTO onu_mapping
-                   (username, olt_id, slot_port, vlan, sn)
-                   VALUES (?, ?, ?, ?, ?)
-                   ON CONFLICT(username) DO UPDATE SET
-                     olt_id    = excluded.olt_id,
-                     slot_port = excluded.slot_port,
-                     vlan      = excluded.vlan,
-                     sn        = excluded.sn''',
-                (username, body.get('olt_id'), body.get('slot_port', ''),
-                 body.get('vlan', ''), body.get('sn', ''))
-            )
+        existing = conn.execute(
+            'SELECT id FROM pelanggan WHERE username = ?', (username,)
+        ).fetchone()
+
+        if existing:
+            conn.execute('''
+                UPDATE pelanggan
+                SET device_id=?, password=?, profil=?, hp=?, no_hp=?, nama=?,
+                    slot_port_onu=?, vlan=?, sn=?, titik_koordinat=?,
+                    tgl_pasang=?, tgl_jatuh=?, aktif=1
+                WHERE username=?
+            ''', (device_id, password, profil, hp, hp, nama,
+                   slot_port, vlan, sn, koordinat,
+                   tgl_pasang, tgl_jatuh, username))
+        else:
+            conn.execute('''
+                INSERT INTO pelanggan
+                  (device_id, username, password, profil, hp, no_hp, nama,
+                   slot_port_onu, vlan, sn, titik_koordinat,
+                   tgl_pasang, tgl_jatuh, aktif, service)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,1,'pppoe')
+            ''', (device_id, username, password, profil, hp, hp, nama,
+                   slot_port, vlan, sn, koordinat,
+                   tgl_pasang, tgl_jatuh))
+        conn.commit()
+        conn.close()
+        steps['database'] = 'success'
+    except Exception as e:
+        warnings.append(f'DB lokal: {e}')
+        steps['database'] = 'warning'
+
+    # ── 3. Update onu_mapping jika ada data ONU ────────────
+    if olt_id and (sn or slot_port):
+        try:
+            conn = get_db()
+            conn.execute('''
+                INSERT INTO onu_mapping (username, olt_id, slot_port, vlan, sn)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(username) DO UPDATE SET
+                    olt_id=excluded.olt_id, slot_port=excluded.slot_port,
+                    vlan=excluded.vlan, sn=excluded.sn
+            ''', (username, olt_id, slot_port, vlan, sn))
+            conn.commit()
+            conn.close()
+            steps['onu_mapping'] = 'success'
+        except Exception as e:
+            warnings.append(f'ONU mapping: {e}')
+
+    status_code = 207 if warnings else 201
+    return jsonify({
+        'status':   'success',
+        'message':  f'{username} berhasil ditambahkan',
+        'steps':    steps,
+        'warnings': warnings,
+    }), status_code
+
+
+@api_bp.route('/pelanggan/<string:id_pelanggan>', methods=['PUT'])
+def update_pelanggan(id_pelanggan):
+    """
+    Endpoint untuk menyimpan perubahan edit pelanggan (termasuk Nomor HP/Telepon)
+    """
+    try:
+        body = request.get_json() or {}
+        username = body.get('username', '').strip()
+        hp = body.get('hp', '') or body.get('no_hp', '') or ''
+        nama = body.get('nama', '') or body.get('name', '') or ''
+        
+        if not username:
+            return jsonify({'error': 'Username tidak boleh kosong'}), 400
+
+        conn = get_db()
+
+        # 1. Cek apakah user sudah ada di database lokal berdasarkan username
+        user_lokal = conn.execute('SELECT id FROM pelanggan WHERE username = ?', (username,)).fetchone()
+
+        koordinat  = str(body.get('titik_koordinat', '') or body.get('koordinat', '') or '').strip()
+        tgl_pasang = str(body.get('tgl_pasang', '') or '').strip()
+        tgl_jatuh  = str(body.get('tgl_jatuh', '') or '').strip()
+        profil     = str(body.get('profil', '') or '').strip()
+        slot_port  = str(body.get('slot_port', '') or '').strip()
+        vlan       = str(body.get('vlan', '') or '').strip()
+        sn         = str(body.get('sn', '') or '').strip()
+
+        if user_lokal:
+            conn.execute('''
+                UPDATE pelanggan
+                SET hp=?, no_hp=?, nama=?,
+                    slot_port_onu=?, vlan=?, sn=?,
+                    titik_koordinat=?, tgl_pasang=?, tgl_jatuh=?,
+                    profil=CASE WHEN ?!=\'\' THEN ? ELSE profil END
+                WHERE username=?
+            ''', (
+                hp, hp, nama,
+                slot_port, vlan, sn,
+                koordinat, tgl_pasang, tgl_jatuh,
+                profil, profil,
+                username
+            ))
+        else:
+            conn.execute('''
+                INSERT INTO pelanggan
+                  (username, nama, hp, no_hp, slot_port_onu, vlan, sn,
+                   titik_koordinat, tgl_pasang, tgl_jatuh)
+                VALUES (?,?,?,?,?,?,?,?,?,?)
+            ''', (
+                username, nama, hp, hp,
+                slot_port, vlan, sn,
+                koordinat, tgl_pasang, tgl_jatuh
+            ))
+
         conn.commit()
         conn.close()
 
-        return jsonify({'message': f'{username} berhasil diperbarui'}), 200
+        return jsonify({'status': 'success', 'message': 'Data pelanggan berhasil diperbarui lokal'}), 200
 
-    except MikroTikError as e:
-        return jsonify({'error': str(e)}), 502
     except Exception as e:
-        return jsonify({'error': f'Kesalahan server: {str(e)}'}), 500
-
+        import traceback; traceback.print_exc()
+        return jsonify({'error': f'Gagal menyimpan data: {str(e)}'}), 500
 
 @api_bp.route('/pelanggan/<int:pelanggan_id>', methods=['DELETE'])
 def delete_pelanggan(pelanggan_id):
@@ -386,8 +488,7 @@ def get_rx_tx(device_id):
 
     try:
         with MikroTikClient(device) as mt:
-            api     = mt._get_api()
-            secrets = list(api.path('/ppp/secret'))
+            secrets = mt.get_ppp_secrets()
 
         hasil = []
         for s in secrets:
@@ -603,163 +704,6 @@ def action_pelanggan(device_id):
     except Exception as e:
         return jsonify({'error': f'Kesalahan server: {str(e)}'}), 500
 
-
-# ══════════════════════════════════════════════════════════════
-# BAGIAN 3 — PETA TOPOLOGI
-# ══════════════════════════════════════════════════════════════
-
-@api_bp.route('/maps/topology', methods=['GET'])
-def get_topology():
-    """
-    Mengembalikan data node & link topologi jaringan untuk Leaflet.js.
-
-    ⚠ Catatan: data di bawah masih hardcoded sebagai placeholder.
-    TODO Fase 4: ganti dengan query dari tabel devices, olt, odp, onu_mapping.
-    """
-    nodes = [
-        {
-            "id": "router-1", "type": "router", "name": "Router Core Banyuwangi",
-            "lat": -8.2192, "lng": 114.3691, "status": "online",
-            "detail": {"ip": "192.168.1.1", "model": "MikroTik CCR1036",
-                       "uptime": "47d 12h 33m", "lokasi": "NOC Pusat, Jl. A. Yani Banyuwangi"}
-        },
-        {
-            "id": "router-2", "type": "router", "name": "Router Core Genteng",
-            "lat": -8.3731, "lng": 114.1567, "status": "online",
-            "detail": {"ip": "192.168.1.2", "model": "MikroTik CCR1009",
-                       "uptime": "12d 8h 15m", "lokasi": "NOC Genteng, Jl. PB Sudirman"}
-        },
-        {
-            "id": "olt-1", "type": "olt", "name": "OLT-Banyuwangi-1",
-            "lat": -8.2305, "lng": 114.3788, "status": "online",
-            "detail": {"ip": "10.10.1.10", "tipe": "Huawei MA5800",
-                       "port": "16 PON Port", "lokasi": "Ruko Brawijaya, Banyuwangi Kota"}
-        },
-        {
-            "id": "olt-2", "type": "olt", "name": "OLT-Rogojampi",
-            "lat": -8.2988, "lng": 114.2854, "status": "online",
-            "detail": {"ip": "10.10.1.11", "tipe": "ZTE C300",
-                       "port": "8 PON Port", "lokasi": "Jl. Raya Rogojampi"}
-        },
-        {
-            "id": "olt-3", "type": "olt", "name": "OLT-Srono",
-            "lat": -8.3512, "lng": 114.2134, "status": "offline",
-            "detail": {"ip": "10.10.1.12", "tipe": "Huawei MA5600",
-                       "port": "8 PON Port", "lokasi": "Jl. Raya Srono"}
-        },
-        {
-            "id": "olt-4", "type": "olt", "name": "OLT-Genteng",
-            "lat": -8.3641, "lng": 114.1478, "status": "online",
-            "detail": {"ip": "10.10.1.13", "tipe": "ZTE C600",
-                       "port": "16 PON Port", "lokasi": "Kawasan Industri Genteng"}
-        },
-        {
-            "id": "odp-1", "type": "odp", "name": "ODP-BWI-A1",
-            "lat": -8.2245, "lng": 114.3853, "status": "online",
-            "detail": {"kapasitas": "16 port", "terisi": "12 port",
-                       "lokasi": "Tiang JTM, Jl. Veteran No.12"}
-        },
-        {
-            "id": "odp-2", "type": "odp", "name": "ODP-BWI-A2",
-            "lat": -8.2178, "lng": 114.3915, "status": "online",
-            "detail": {"kapasitas": "8 port", "terisi": "7 port",
-                       "lokasi": "Tiang JTM, Jl. Ikan Tongkol"}
-        },
-        {
-            "id": "odp-3", "type": "odp", "name": "ODP-RGJ-B1",
-            "lat": -8.2920, "lng": 114.2945, "status": "online",
-            "detail": {"kapasitas": "16 port", "terisi": "9 port",
-                       "lokasi": "Tiang JTM, Jl. Ahmad Dahlan"}
-        },
-        {
-            "id": "odp-4", "type": "odp", "name": "ODP-SRN-C1",
-            "lat": -8.3488, "lng": 114.2202, "status": "offline",
-            "detail": {"kapasitas": "8 port", "terisi": "5 port",
-                       "lokasi": "Tiang JTM, Jl. Raya Srono Km.3"}
-        },
-        {
-            "id": "odp-5", "type": "odp", "name": "ODP-GTG-D1",
-            "lat": -8.3598, "lng": 114.1555, "status": "online",
-            "detail": {"kapasitas": "16 port", "terisi": "11 port",
-                       "lokasi": "Tiang JTM, Jl. PB Sudirman Genteng"}
-        },
-        {
-            "id": "odp-6", "type": "odp", "name": "ODP-GTG-D2",
-            "lat": -8.3721, "lng": 114.1622, "status": "online",
-            "detail": {"kapasitas": "8 port", "terisi": "6 port",
-                       "lokasi": "Tiang JTM, Jl. Raya Glenmore"}
-        },
-        {
-            "id": "onu-1", "type": "onu", "name": "pelanggan.budi",
-            "lat": -8.2260, "lng": 114.3878, "status": "online", "rx_power": -18.5,
-            "detail": {"profil": "FTTH-10Mbps", "sn": "HWTC1A2B3C4D",
-                       "vlan": "100", "slot_port": "0/0/1", "hp": "08123456789"}
-        },
-        {
-            "id": "onu-2", "type": "onu", "name": "pelanggan.sari",
-            "lat": -8.2195, "lng": 114.3932, "status": "online", "rx_power": -22.8,
-            "detail": {"profil": "FTTH-20Mbps", "sn": "ZTEG5E6F7G8H",
-                       "vlan": "101", "slot_port": "0/0/2", "hp": "08234567890"}
-        },
-        {
-            "id": "onu-3", "type": "onu", "name": "pelanggan.wawan",
-            "lat": -8.2930, "lng": 114.2965, "status": "online", "rx_power": -19.2,
-            "detail": {"profil": "FTTH-10Mbps", "sn": "HWTCA1B2C3D4",
-                       "vlan": "200", "slot_port": "0/1/1", "hp": "08345678901"}
-        },
-        {
-            "id": "onu-4", "type": "onu", "name": "pelanggan.dewi",
-            "lat": -8.2905, "lng": 114.2925, "status": "online", "rx_power": -26.4,
-            "detail": {"profil": "FTTH-30Mbps", "sn": "ZTEGE5F6G7H8",
-                       "vlan": "201", "slot_port": "0/1/2", "hp": "08456789012"}
-        },
-        {
-            "id": "onu-5", "type": "onu", "name": "pelanggan.rizal",
-            "lat": -8.3502, "lng": 114.2218, "status": "offline", "rx_power": -30.1,
-            "detail": {"profil": "FTTH-10Mbps", "sn": "HWTC9I0J1K2L",
-                       "vlan": "300", "slot_port": "0/2/1", "hp": "08567890123"}
-        },
-        {
-            "id": "onu-6", "type": "onu", "name": "pelanggan.andi",
-            "lat": -8.3615, "lng": 114.1572, "status": "online", "rx_power": -20.9,
-            "detail": {"profil": "FTTH-20Mbps", "sn": "ZTEGM3N4O5P6",
-                       "vlan": "400", "slot_port": "0/3/1", "hp": "08678901234"}
-        },
-        {
-            "id": "onu-7", "type": "onu", "name": "pelanggan.fitri",
-            "lat": -8.3738, "lng": 114.1640, "status": "online", "rx_power": -17.3,
-            "detail": {"profil": "FTTH-50Mbps", "sn": "HWTCQ7R8S9T0",
-                       "vlan": "401", "slot_port": "0/3/2", "hp": "08789012345"}
-        },
-        {
-            "id": "onu-8", "type": "onu", "name": "pelanggan.hendra",
-            "lat": -8.2158, "lng": 114.3950, "status": "online", "rx_power": -23.5,
-            "detail": {"profil": "FTTH-10Mbps", "sn": "ZTEGU1V2W3X4",
-                       "vlan": "102", "slot_port": "0/0/3", "hp": "08890123456"}
-        },
-    ]
-
-    links = [
-        {"source": "router-1", "target": "olt-1"},
-        {"source": "router-1", "target": "olt-2"},
-        {"source": "router-1", "target": "olt-3"},
-        {"source": "router-2", "target": "olt-4"},
-        {"source": "router-1", "target": "router-2"},
-        {"source": "olt-1", "target": "odp-1"},
-        {"source": "olt-1", "target": "odp-2"},
-        {"source": "olt-2", "target": "odp-3"},
-        {"source": "olt-3", "target": "odp-4"},
-        {"source": "olt-4", "target": "odp-5"},
-        {"source": "olt-4", "target": "odp-6"},
-        {"source": "odp-1", "target": "onu-1"},
-        {"source": "odp-2", "target": "onu-2"},
-        {"source": "odp-2", "target": "onu-8"},
-        {"source": "odp-3", "target": "onu-3"},
-        {"source": "odp-3", "target": "onu-4"},
-        {"source": "odp-4", "target": "onu-5"},
-        {"source": "odp-5", "target": "onu-6"},
-        {"source": "odp-6", "target": "onu-7"},
-    ]
 
     return jsonify({"nodes": nodes, "links": links}), 200
 
@@ -1128,8 +1072,7 @@ def get_profiles(device_id):
     try:
         with MikroTikClient(device) as mt:
             profiles = mt.get_ppp_profiles()
-            api      = mt._get_api()
-            secrets  = list(api.path('/ppp/secret'))
+            secrets  = mt.get_ppp_secrets()
 
         user_count = {}
         for s in secrets:
@@ -1279,3 +1222,167 @@ def delete_profile(device_id, nama_profile):
         return jsonify({'error': str(e)}), 502
     except Exception as e:
         return jsonify({'error': f'Kesalahan server: {str(e)}'}), 500
+
+# ══════════════════════════════════════════════════════════════
+# ENDPOINT — GET /api/maps/topology
+# Data untuk halaman peta: node perangkat + ONU pelanggan
+# ══════════════════════════════════════════════════════════════
+
+@api_bp.route('/maps/topology', methods=['GET'])
+def maps_topology():
+    """
+    Mengembalikan semua node (MikroTik, OLT, ONU/pelanggan)
+    yang punya titik_koordinat untuk ditampilkan di peta Leaflet.
+
+    Format response:
+    {
+      "nodes": [
+        {
+          "id":       "onu-123",
+          "name":     "budi.santoso",
+          "type":     "onu",          // router | olt | onu
+          "lat":      -8.267,
+          "lng":      114.369,
+          "status":   "online",       // online | offline
+          "rx_power": -21.5,          // null jika tidak ada
+          "detail": {
+            "profil": "10MB",
+            "sn":     "ZTEG...",
+            "vlan":   "200",
+            "slot_port": "1/1/1:5",
+            "hp":     "08123456789"
+          }
+        }
+      ],
+      "links": []   // dikembangkan nanti (OLT→ONU)
+    }
+    """
+    conn  = get_db()
+    nodes = []
+
+    # ── 1. MikroTik devices ────────────────────────────────
+    devices = conn.execute('SELECT * FROM devices').fetchall()
+    for d in devices:
+        coord = ''  # devices tabel belum punya titik_koordinat
+        # skip jika tidak ada koordinat
+        if not coord:
+            continue
+        lat, lng = _parse_coord(coord)
+        if lat is None:
+            continue
+        nodes.append({
+            'id':       f'router-{d["id"]}',
+            'name':     d['name'],
+            'type':     'router',
+            'lat':      lat,
+            'lng':      lng,
+            'status':   'online' if d['status'] == 'connected' else 'offline',
+            'rx_power': None,
+            'detail':   {'ip': d['ip']},
+        })
+
+    # ── 2. OLT ────────────────────────────────────────────
+    olts = conn.execute('SELECT * FROM olt').fetchall()
+    for o in olts:
+        coord = (o['lokasi'] or '').strip()
+        lat, lng = _parse_coord(coord)
+        if lat is None:
+            # coba field keterangan juga
+            lat, lng = _parse_coord((o['keterangan'] or '').strip())
+        if lat is None:
+            continue
+        nodes.append({
+            'id':       f'olt-{o["id"]}',
+            'name':     o['name'],
+            'type':     'olt',
+            'lat':      lat,
+            'lng':      lng,
+            'status':   'online' if o['status'] == 'connected' else 'offline',
+            'rx_power': None,
+            'detail':   {
+                'ip':    o['ip'],
+                'tipe':  o['tipe'] or '',
+                'lokasi': o['lokasi'] or '',
+            },
+        })
+
+    # ── 3. Pelanggan (ONU) — yang punya titik_koordinat ──
+    # Join dengan onu_mapping untuk rx_power & active status
+    rows = conn.execute('''
+        SELECT p.id, p.username, p.profil, p.hp, p.no_hp,
+               p.titik_koordinat, p.aktif,
+               m.rx_power, m.tx_power, m.sn, m.vlan, m.slot_port,
+               m.olt_id
+        FROM pelanggan p
+        LEFT JOIN onu_mapping m ON m.username = p.username
+        WHERE p.titik_koordinat IS NOT NULL
+          AND p.titik_koordinat != ''
+    ''').fetchall()
+
+    # Ambil daftar username yang sedang online dari semua MikroTik
+    online_set = set()
+    try:
+        active_rows = conn.execute('''
+            SELECT DISTINCT username FROM pelanggan
+        ''').fetchall()
+        # Cek via tabel — online_set diisi dari /api/pelanggan live check
+        # Fallback: anggap semua aktif=1 sebagai online
+        for r in rows:
+            if r['aktif']:
+                online_set.add(r['username'])
+    except Exception:
+        pass
+
+    for r in rows:
+        lat, lng = _parse_coord(r['titik_koordinat'])
+        if lat is None:
+            continue
+
+        username = r['username'] or ''
+        status   = 'online' if username in online_set else 'offline'
+        rx       = r['rx_power']
+        try:
+            rx = float(rx) if rx is not None else None
+        except (TypeError, ValueError):
+            rx = None
+
+        nodes.append({
+            'id':       f'onu-{r["id"]}',
+            'name':     username,
+            'type':     'onu',
+            'lat':      lat,
+            'lng':      lng,
+            'status':   status,
+            'rx_power': rx,
+            'detail':   {
+                'profil':    r['profil'] or '',
+                'sn':        r['sn'] or '',
+                'vlan':      r['vlan'] or '',
+                'slot_port': r['slot_port'] or '',
+                'hp':        r['hp'] or r['no_hp'] or '',
+            },
+        })
+
+    conn.close()
+
+    return jsonify({'nodes': nodes, 'links': []}), 200
+
+
+def _parse_coord(coord_str: str):
+    """
+    Parse string koordinat 'lat, lng' → (float, float) atau (None, None).
+    Mendukung: '-8.2678707, 114.3692840' atau '-8.2678707,114.3692840'
+    """
+    if not coord_str:
+        return None, None
+    try:
+        parts = coord_str.replace(';', ',').split(',')
+        if len(parts) >= 2:
+            lat = float(parts[0].strip())
+            lng = float(parts[1].strip())
+            # Validasi range
+            if -90 <= lat <= 90 and -180 <= lng <= 180:
+                return lat, lng
+    except (ValueError, AttributeError):
+        pass
+    return None, None

@@ -127,21 +127,21 @@
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 16px 20px;
-      border-bottom: 1px solid var(--border);
-      background: var(--surface);
+      padding: 13px 20px;
+      border-bottom: 1px solid rgba(255,255,255,.12);
+      background: var(--card-head-bg, #003f88);
     }
 
     .settings-section-head .material-symbols-outlined {
       font-size: 20px;
-      color: var(--primary);
+      color: rgba(255,255,255,.80);
     }
 
     .settings-section-title {
       font-size: 14px;
       font-weight: 700;
       font-family: var(--heading);
-      color: var(--text);
+      color: #ffffff;
     }
 
     .settings-section-body {
@@ -265,9 +265,6 @@
         <a href="/app/frontend/pelanggan/pelanggan.html">
           <span class="material-symbols-outlined">group</span>Pelanggan
         </a>
-        <a href="/app/frontend/profile/profile.html" class="active">
-          <span class="material-symbols-outlined">person</span>Profile
-        </a>
         <a href="#" onclick="openPerangkatSheet(event)">
           <span class="material-symbols-outlined">router</span>Perangkat
         </a>
@@ -298,7 +295,7 @@
             <div class="profile-menu-divider"></div>
 
             <!-- Navigasi akun -->
-            <a href="/app/frontend/profil/profil.html" class="profile-menu-item">
+            <a href="/app/frontend/profile/profile.html" class="profile-menu-item">
               <span class="material-symbols-outlined">person</span>Profil saya
             </a>
             <a href="#" class="profile-menu-item" onclick="showModalGantiPassword(); return false;">
@@ -340,10 +337,6 @@
       <a href="/app/frontend/pelanggan/pelanggan.html" class="bottom-nav-item">
         <div class="bottom-nav-icon"><span class="material-symbols-outlined">group</span></div>
         <span class="bottom-nav-label">Pelanggan</span>
-      </a>
-      <a href="/app/frontend/profile/profile.html" class="bottom-nav-item active">
-        <div class="bottom-nav-icon"><span class="material-symbols-outlined">person</span></div>
-        <span class="bottom-nav-label">Profile</span>
       </a>
       <a href="#" class="bottom-nav-item" onclick="openPerangkatSheet(event)">
         <div class="bottom-nav-icon"><span class="material-symbols-outlined">router</span></div>

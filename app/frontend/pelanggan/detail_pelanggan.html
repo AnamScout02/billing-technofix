@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Detail Pelanggan — TechnoFix Billing</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Poppins:wght@400;500;600&display=swap"
+    rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
+    rel="stylesheet" />
+
+  <!-- global.css WAJIB pertama -->
+  <link rel="stylesheet" href="/app/frontend/statis/global.css" />
+  <link rel="stylesheet" href="/app/frontend/pelanggan/detail_pelanggan.css" />
+</head>
+
+<body>
+
+  <!-- ══ HEADER ══ -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="header-brand">
+        <div class="brand-logo">
+          <span class="material-symbols-outlined">router</span>
+        </div>
+        <div>
+          <div class="brand-name">TechnoFix</div>
+          <div class="brand-sub">Monitoring status jaringan &amp; pelanggan</div>
+        </div>
+      </div>
+
+      <nav class="topbar-nav">
+        <a href="/app/frontend/dashboard/dashboard.html">
+          <span class="material-symbols-outlined">dashboard</span>Dashboard
+        </a>
+        <a href="/app/frontend/pelanggan/pelanggan.html" class="active">
+          <span class="material-symbols-outlined">group</span>Pelanggan
+        </a>
+        <a href="/app/frontend/profile_pppoe/profile_pppoe.html">
+          <span class="material-symbols-outlined">person</span>Profile
+        </a>
+        <a href="#" onclick="openPerangkatSheet(event)" data-perm="perangkat">
+          <span class="material-symbols-outlined">router</span>Perangkat
+        </a>
+        <a href="#" data-perm="keuangan">
+          <span class="material-symbols-outlined">payments</span>Keuangan
+        </a>
+        <a href="#" data-perm="maps">
+          <span class="material-symbols-outlined">map</span>Maps
+        </a>
+      </nav>
+
+      <div class="header-actions">
+        <!-- Tombol refresh data pelanggan -->
+        <button class="icon-btn" onclick="location.reload()" title="Refresh halaman">
+          <span class="material-symbols-outlined">refresh</span>
+        </button>
+        <div class="profile-wrap" id="profile-wrap">
+          <button class="profile-btn" onclick="toggleProfileMenu()" title="Profil">
+            <div class="avatar-circle" id="avatar-initials">AD</div>
+            <span class="profile-username" id="profile-username">Admin</span>
+            <span class="material-symbols-outlined profile-chevron">expand_more</span>
+          </button>
+          <div class="profile-dropdown" id="profile-dropdown">
+            <div class="profile-menu-header">
+              <div class="profile-menu-avatar" id="dd-avatar">AD</div>
+              <div class="profile-menu-identity">
+                <span class="profile-menu-name" id="dd-username">Admin</span>
+                <span class="profile-menu-role" id="dd-role-badge">Owner</span>
+              </div>
+            </div>
+            <div class="profile-menu-divider"></div>
+            <a href="/app/frontend/profil/profil.html" class="profile-menu-item">
+              <span class="material-symbols-outlined">person</span>Profil saya
+            </a>
+            <a href="#" class="profile-menu-item" onclick="showModalGantiPassword(); return false;">
+              <span class="material-symbols-outlined">lock_reset</span>Ganti password
+            </a>
+            <a href="#" class="profile-menu-item" onclick="showModalSetting(); return false;">
+              <span class="material-symbols-outlined">settings</span>Setting
+            </a>
+            <div class="profile-menu-divider"></div>
+            <a href="/app/frontend/manajemen_user/manajemen_user.html" class="profile-menu-item btn-owner-only">
+              <span class="material-symbols-outlined">manage_accounts</span>Manajemen user
+            </a>
+            <a href="/app/frontend/manajemen_tim/manajemen_tim.html" class="profile-menu-item btn-owner-only">
+              <span class="material-symbols-outlined">groups</span>Manajemen tim
+            </a>
+            <div class="profile-menu-divider btn-owner-only"></div>
+            <a href="#" class="profile-menu-item logout" onclick="showModalLogout(); return false;">
+              <span class="material-symbols-outlined">logout</span>Keluar
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+
+  <!-- ══ BOTTOM NAVBAR — MOBILE ONLY ══ -->
+  <nav class="bottom-nav">
+    <div class="bottom-nav-inner">
+      <div class="bottom-nav-indicator" id="bottom-nav-indicator"></div>
+
+      <a href="/app/frontend/dashboard/dashboard.html" class="bottom-nav-item">
+        <div class="bottom-nav-icon">
+          <span class="material-symbols-outlined">dashboard</span>
+        </div>
+        <span class="bottom-nav-label">Dashboard</span>
+      </a>
+      <a href="/app/frontend/pelanggan/pelanggan.html" class="bottom-nav-item active">
+        <div class="bottom-nav-icon">
+          <span class="material-symbols-outlined">group</span>
+        </div>
+        <span class="bottom-nav-label">Pelanggan</span>
+      </a>
+      <a href="/app/frontend/profile_pppoe/profile_pppoe.html" class="bottom-nav-item">
+        <div class="bottom-nav-icon">
+          <span class="material-symbols-outlined">person</span>
+        </div>
+        <span class="bottom-nav-label">Profile</span>
+      </a>
+      <a href="#" class="bottom-nav-item" onclick="openPerangkatSheet(event)" data-perm="perangkat">
+        <div class="bottom-nav-icon">
+          <span class="material-symbols-outlined">router</span>
+        </div>
+        <span class="bottom-nav-label">Perangkat</span>
+      </a>
+      <a href="#" class="bottom-nav-item" data-perm="keuangan">
+        <div class="bottom-nav-icon">
+          <span class="material-symbols-outlined">payments</span>
+        </div>
+        <span class="bottom-nav-label">Keuangan</span>
+      </a>
+      <a href="#" class="bottom-nav-item" data-perm="maps">
+        <div class="bottom-nav-icon">
+          <span class="material-symbols-outlined">map</span>
+        </div>
+        <span class="bottom-nav-label">Maps</span>
+      </a>
+    </div>
+  </nav>
+
+
+  <!-- ══ PAGE ══ -->
+  <main class="page">
+
+    <!-- BREADCRUMB -->
+    <div class="dp-breadcrumb">
+      <div class="dp-breadcrumb-trail">
+        <a href="/app/frontend/pelanggan/pelanggan.html" class="dp-breadcrumb-link">
+          <span class="material-symbols-outlined">group</span>Pelanggan
+        </a>
+        <span class="material-symbols-outlined">chevron_right</span>
+        <span id="bc-username">—</span>
+      </div>
+    </div>
+
+    <!-- HERO CARD -->
+    <div class="dp-hero" id="dp-hero">
+      <!-- Banner biru: RX signal tampil di dalam banner -->
+      <div class="dp-hero-cover">
+        <div class="dp-hero-rx-overlay">
+          <div class="dp-rx-label">RX Signal</div>
+          <div class="dp-rx-value" id="dp-rx">—</div>
+          <div class="dp-rx-sub" id="dp-tx-sub">TX: —</div>
+        </div>
+      </div>
+      <!-- Avatar row -->
+      <div class="dp-hero-avatar-wrap">
+        <div class="dp-avatar" id="dp-avatar">—</div>
+      </div>
+      <!-- Info nama + chips -->
+      <div class="dp-hero-info-body">
+        <div class="dp-hero-name" id="dp-username">—</div>
+      </div>
+    </div>
+
+    <!-- ══ ACTION BUTTONS BAR ══ -->
+    <div class="dp-action-bar">
+      <!-- Grup 1: Enable + Disable -->
+      <div class="dp-action-group">
+        <button class="dp-action-btn green"   onclick="aksiModem('enable')"  title="Enable pelanggan di MikroTik">
+          <span class="material-symbols-outlined">check_circle</span>Enable
+        </button>
+        <button class="dp-action-btn gray"    onclick="aksiModem('disable')" title="Disable pelanggan di MikroTik">
+          <span class="material-symbols-outlined">block</span>Disable
+        </button>
+      </div>
+      <!-- Grup 2: Aksi modem -->
+      <div class="dp-action-group">
+        <button class="dp-action-btn blue"    onclick="aksiModem('reboot')"  title="Reboot modem pelanggan">
+          <span class="material-symbols-outlined">restart_alt</span>Reboot Modem
+        </button>
+        <button class="dp-action-btn primary" onclick="aksiModem('remote')"  title="Remote modem pelanggan via IP">
+          <span class="material-symbols-outlined">settings_remote</span>Remote Modem
+        </button>
+      </div>
+      <!-- Grup 3: Isolir + Hapus -->
+      <div class="dp-action-group">
+        <button class="dp-action-btn amber"   onclick="aksiModem('isolir')"  title="Ubah profil ke Isolir & tendang sesi aktif">
+          <span class="material-symbols-outlined">person_off</span>Isolir
+        </button>
+        <button class="dp-action-btn red"     onclick="openModalHapusPelanggan()" title="Hapus data pelanggan">
+          <span class="material-symbols-outlined">delete</span>Hapus Pelanggan
+        </button>
+      </div>
+    </div>
+
+    <!-- DETAIL GRID -->
+    <div class="dp-grid">
+
+      <!-- ─── KOLOM KIRI ─── -->
+      <div class="dp-col">
+
+        <!-- Informasi Pelanggan (gabungan: info dasar + data MikroTik + data OLT/GPON) -->
+        <div class="dp-card">
+          <div class="dp-card-head">
+            <span class="material-symbols-outlined">person</span>
+            Informasi Pelanggan
+          </div>
+          <div class="dp-info-list">
+            <div class="dp-info-row">
+              <span class="dp-info-key">Username</span>
+              <span class="dp-info-val mono" id="info-username">—</span>
+            </div>
+            <div class="dp-info-row">
+              <span class="dp-info-key">No. Telepon</span>
+              <span class="dp-info-val" id="info-hp">—</span>
+            </div>
+            <div class="dp-info-row">
+              <span class="dp-info-key">Profil / Paket</span>
+              <span class="dp-info-val" id="info-profil">—</span>
+            </div>
+            <div class="dp-info-row">
+              <span class="dp-info-key">Tgl. Pasang</span>
+              <span class="dp-info-val" id="info-tgl-pasang">—</span>
+            </div>
+            <div class="dp-info-row">
+              <span class="dp-info-key">Tgl. Jatuh Tempo</span>
+              <span class="dp-info-val" id="info-tgl-jatuh">—</span>
+            </div>
+            <div class="dp-info-row">
+              <span class="dp-info-key">Koordinat</span>
+              <span class="dp-info-val mono small" id="info-koordinat">—</span>
+            </div>
+            <div class="dp-info-row">
+              <span class="dp-info-key">Status Koneksi</span>
+              <span class="dp-info-val" id="info-status">—</span>
+            </div>
+            <!-- IP Address & MAC dari MikroTik (active session) -->
+            <div class="dp-info-row">
+              <span class="dp-info-key">IP Address Modem</span>
+              <span class="dp-info-val mono" id="info-ip-modem">—</span>
+            </div>
+            <div class="dp-info-row">
+              <span class="dp-info-key">MAC Address</span>
+              <span class="dp-info-val mono" id="info-mac">—</span>
+            </div>
+            <!-- Data OLT / GPON -->
+            <div class="dp-info-row">
+              <span class="dp-info-key">Perangkat OLT</span>
+              <span class="dp-info-val" id="info-olt-name">—</span>
+            </div>
+            <div class="dp-info-row">
+              <span class="dp-info-key">Tipe OLT</span>
+              <span class="dp-info-val" id="info-olt-tipe">—</span>
+            </div>
+            <div class="dp-info-row">
+              <span class="dp-info-key">IP OLT</span>
+              <span class="dp-info-val mono" id="info-olt-ip">—</span>
+            </div>
+            <div class="dp-info-row">
+              <span class="dp-info-key">Slot / Port : ONU-ID</span>
+              <span class="dp-info-val mono" id="info-slot-port">—</span>
+            </div>
+            <div class="dp-info-row">
+              <span class="dp-info-key">VLAN</span>
+              <span class="dp-info-val mono" id="info-vlan">—</span>
+            </div>
+            <div class="dp-info-row">
+              <span class="dp-info-key">Serial Number (SN)</span>
+              <span class="dp-info-val mono" id="info-sn">—</span>
+            </div>
+            <div class="dp-info-row">
+              <span class="dp-info-key">RX Power</span>
+              <span class="dp-info-val" id="info-rx">—</span>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /.dp-col kiri -->
+
+      <!-- ─── KOLOM KANAN — CLI OLT Registration ─── -->
+      <div class="dp-col">
+        <div class="dp-card dp-card-cli">
+
+          <div class="dp-card-head">
+            <span class="material-symbols-outlined">terminal</span>
+            Data Registrasi OLT
+            <span class="dp-cli-sub">Script CLI OLT Terminal</span>
+          </div>
+
+          <!-- Tab selector: ZTE / Huawei -->
+          <div class="dp-cli-tabs" id="dp-cli-tabs">
+            <button class="dp-cli-tab active" id="tab-zte"    onclick="switchCliTab('zte')">ZTE C300/C600</button>
+            <button class="dp-cli-tab"        id="tab-huawei" onclick="switchCliTab('huawei')">Huawei MA5800</button>
+          </div>
+
+          <!-- Script CLI terminal -->
+          <div class="dp-cli-wrap">
+            <div class="dp-cli-toolbar">
+              <div class="dp-cli-dots">
+                <span class="dp-cli-dot red"></span>
+                <span class="dp-cli-dot amber"></span>
+                <span class="dp-cli-dot green"></span>
+              </div>
+              <span class="dp-cli-label" id="dp-cli-device-label">ZTE GPON Terminal</span>
+              <button class="dp-cli-copy-btn" onclick="copyCliScript()" title="Salin semua perintah">
+                <span class="material-symbols-outlined">content_copy</span>
+                Salin
+              </button>
+            </div>
+            <pre class="dp-cli-body" id="cli-script-content"><!-- diisi JS --></pre>
+          </div>
+
+          <!-- Tombol Registrasi Ulang & help -->
+          <div class="dp-cli-actions">
+            <div class="dp-cli-help">
+              <span class="material-symbols-outlined">info</span>
+              <span>Salin perintah di atas dan jalankan di terminal OLT, atau klik <strong>Regis Ulang</strong> untuk provisioning otomatis via SSH ke OLT.</span>
+            </div>
+            <button class="dp-regis-btn" id="btn-regis-ulang" onclick="registrasiUlang()">
+              <span class="material-symbols-outlined">bolt</span>
+              Regis Ulang
+            </button>
+          </div>
+
+        </div>
+      </div><!-- /.dp-col kanan -->
+
+    </div><!-- /.dp-grid -->
+
+  </main>
+
+
+  <!-- ══════════════════════════════════════════════════════════
+       MODAL: HAPUS PELANGGAN — Checkbox Billing / MikroTik / OLT
+  ══════════════════════════════════════════════════════════ -->
+  <div class="modal-overlay modal-hapus-bottom" id="modal-hapus-pelanggan" onclick="_closeModalOnOverlay(event,'modal-hapus-pelanggan')">
+    <div class="modal-sheet modal-hapus-sheet" onclick="event.stopPropagation()">
+      <div class="modal-handle"></div>
+      <div class="hapus-icon-wrap">
+        <span class="material-symbols-outlined hapus-icon">delete_forever</span>
+      </div>
+      <div class="hapus-title">Hapus Pelanggan</div>
+      <div class="hapus-sub" id="hapus-sub-text">
+        Pilih dari mana data <strong id="hapus-nama-pelanggan">—</strong> akan dihapus.
+      </div>
+
+      <!-- Opsi target hapus -->
+      <div class="hapus-options">
+        <label class="hapus-option">
+          <input type="checkbox" id="hapus-billing" checked>
+          <div class="hapus-option-body">
+            <span class="material-symbols-outlined">receipt_long</span>
+            <div>
+              <div class="hapus-option-title">Billing</div>
+              <div class="hapus-option-desc">Hapus data dari database billing TechnoFix</div>
+            </div>
+          </div>
+        </label>
+        <label class="hapus-option">
+          <input type="checkbox" id="hapus-mikrotik">
+          <div class="hapus-option-body">
+            <span class="material-symbols-outlined">router</span>
+            <div>
+              <div class="hapus-option-title">MikroTik</div>
+              <div class="hapus-option-desc">Hapus secret PPPoE dari router MikroTik</div>
+            </div>
+          </div>
+        </label>
+        <label class="hapus-option">
+          <input type="checkbox" id="hapus-olt">
+          <div class="hapus-option-body">
+            <span class="material-symbols-outlined">settings_input_antenna</span>
+            <div>
+              <div class="hapus-option-title">OLT</div>
+              <div class="hapus-option-desc">Hapus ONU dari terminal OLT via SSH (slot/port otomatis)</div>
+            </div>
+          </div>
+        </label>
+      </div>
+
+      <!-- Warning OLT -->
+      <div class="hapus-warning" id="hapus-olt-warning" style="display:none">
+        <span class="material-symbols-outlined">warning</span>
+        Hapus OLT akan mengirim perintah <code>no onu</code> ke terminal OLT secara otomatis.
+        Pastikan data slot/port sudah benar.
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-cancel" onclick="_tutupModal('modal-hapus-pelanggan')">Batal</button>
+        <button class="btn btn-hapus" id="btn-konfirmasi-hapus" onclick="konfirmasiHapusPelanggan()">
+          <span class="material-symbols-outlined">delete</span>Ya, Hapus
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════
+       MODAL: ISOLIR PELANGGAN
+  ══════════════════════════════════════════════════════════ -->
+  <div class="modal-overlay modal-bs" id="modal-isolir" onclick="_closeModalOnOverlay(event,'modal-isolir')">
+    <div class="modal-sheet modal-bs-sheet small" onclick="event.stopPropagation()">
+      <div class="modal-handle"></div>
+      <div class="hapus-icon-wrap" style="background:var(--amber-bg);color:var(--amber)">
+        <span class="material-symbols-outlined hapus-icon">person_off</span>
+      </div>
+      <div class="hapus-title">Isolir Pelanggan?</div>
+      <div class="hapus-sub">
+        Profil PPPoE <strong id="isolir-username">—</strong> akan diubah ke
+        <code>Isolir</code> dan sesi aktif akan ditendang dari MikroTik.
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-cancel" onclick="_tutupModal('modal-isolir')">Batal</button>
+        <button class="btn" id="btn-konfirmasi-isolir" onclick="konfirmasiIsolir()"
+          style="background:var(--amber-bg);border-color:var(--amber-border);color:var(--amber)">
+          <span class="material-symbols-outlined">person_off</span>Ya, Isolir
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════
+       MODAL: REMOTE MODEM — Input IP
+  ══════════════════════════════════════════════════════════ -->
+  <div class="modal-overlay modal-bs" id="modal-remote" onclick="_closeModalOnOverlay(event,'modal-remote')">
+    <div class="modal-sheet modal-bs-sheet" onclick="event.stopPropagation()">
+      <div class="modal-handle"></div>
+      <div style="padding:20px 24px 0">
+        <h2 style="font-family:var(--heading);font-size:16px;font-weight:800;color:var(--text);margin-bottom:4px">
+          <span class="material-symbols-outlined" style="font-size:18px;color:var(--primary);vertical-align:-4px">settings_remote</span>
+          Remote Modem
+        </h2>
+        <p style="font-size:12px;color:var(--text-dim);margin-bottom:20px">
+          Masukkan IP address modem untuk membuka sesi remote / akses ke antarmuka modem.
+        </p>
+        <div class="form-group">
+          <label class="form-label">IP Address Modem <span class="req">*</span></label>
+          <input class="form-input" id="remote-ip" type="text"
+            placeholder="cth: 192.168.1.1"
+            oninput="validateRemoteIp()"
+            onkeydown="if(event.key==='Enter') konfirmasiRemote()" />
+          <p class="form-hint" id="remote-ip-hint" style="display:none;color:var(--red)">Format IP tidak valid.</p>
+        </div>
+      </div>
+      <div class="form-actions" style="padding:16px 24px;margin-top:0">
+        <button class="btn btn-cancel" onclick="_tutupModal('modal-remote')">Batal</button>
+        <button class="btn-primary" id="btn-remote-go" onclick="konfirmasiRemote()">
+          <span class="material-symbols-outlined">open_in_new</span>Remote Sekarang
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════
+       MODAL: KONFIRMASI REBOOT
+  ══════════════════════════════════════════════════════════ -->
+  <div class="modal-overlay modal-bs" id="modal-reboot" onclick="_closeModalOnOverlay(event,'modal-reboot')">
+    <div class="modal-sheet modal-bs-sheet small" onclick="event.stopPropagation()">
+      <div class="modal-handle"></div>
+      <div class="hapus-icon-wrap" style="background:var(--blue-bg);color:var(--blue)">
+        <span class="material-symbols-outlined hapus-icon">restart_alt</span>
+      </div>
+      <div class="hapus-title">Reboot Modem?</div>
+      <div class="hapus-sub">
+        Modem pelanggan <strong id="reboot-username">—</strong> akan di-restart.
+        Koneksi akan terputus sementara selama proses reboot.
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-cancel" onclick="_tutupModal('modal-reboot')">Batal</button>
+        <button class="btn" id="btn-konfirmasi-reboot" onclick="konfirmasiReboot()"
+          style="background:var(--blue-bg);border-color:var(--blue-border);color:var(--blue)">
+          <span class="material-symbols-outlined">restart_alt</span>Ya, Reboot
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════
+       MODAL: KONFIRMASI DISABLE
+  ══════════════════════════════════════════════════════════ -->
+  <div class="modal-overlay modal-bs" id="modal-disable" onclick="_closeModalOnOverlay(event,'modal-disable')">
+    <div class="modal-sheet modal-bs-sheet small" onclick="event.stopPropagation()">
+      <div class="modal-handle"></div>
+      <div class="hapus-icon-wrap" style="background:var(--surface);color:var(--text-muted)">
+        <span class="material-symbols-outlined hapus-icon">block</span>
+      </div>
+      <div class="hapus-title">Disable Pelanggan?</div>
+      <div class="hapus-sub">
+        Secret PPPoE <strong id="disable-username">—</strong> akan di-disable di MikroTik.
+        Pelanggan tidak dapat terhubung hingga di-enable kembali.
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-cancel" onclick="_tutupModal('modal-disable')">Batal</button>
+        <button class="btn" id="btn-konfirmasi-disable" onclick="konfirmasiDisable()"
+          style="background:var(--surface);border:1.5px solid var(--border-2);color:var(--text)">
+          <span class="material-symbols-outlined">block</span>Ya, Disable
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════
+       MODAL: KONFIRMASI ENABLE
+  ══════════════════════════════════════════════════════════ -->
+  <div class="modal-overlay modal-bs" id="modal-enable" onclick="_closeModalOnOverlay(event,'modal-enable')">
+    <div class="modal-sheet modal-bs-sheet small" onclick="event.stopPropagation()">
+      <div class="modal-handle"></div>
+      <div class="hapus-icon-wrap" style="background:var(--green-bg);color:var(--green)">
+        <span class="material-symbols-outlined hapus-icon">check_circle</span>
+      </div>
+      <div class="hapus-title">Enable Pelanggan?</div>
+      <div class="hapus-sub">
+        Secret PPPoE <strong id="enable-username">—</strong> akan diaktifkan kembali di MikroTik.
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-cancel" onclick="_tutupModal('modal-enable')">Batal</button>
+        <button class="btn" id="btn-konfirmasi-enable" onclick="konfirmasiEnable()"
+          style="background:var(--green-bg);border-color:var(--green-border);color:var(--green)">
+          <span class="material-symbols-outlined">check_circle</span>Ya, Enable
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══ MODAL: KONFIRMASI LOGOUT ══ -->
+  <div class="modal-overlay" id="modal-logout" onclick="closeModalLogout(event)">
+    <div class="modal-sheet small" onclick="event.stopPropagation()">
+      <div class="modal-handle"></div>
+      <div class="hapus-icon-wrap" style="background:var(--amber-bg);color:var(--amber)">
+        <span class="material-symbols-outlined hapus-icon">logout</span>
+      </div>
+      <div class="hapus-title">Keluar dari akun?</div>
+      <div class="hapus-sub">Sesi Anda akan diakhiri. Pastikan semua perubahan sudah tersimpan sebelum keluar.</div>
+      <div class="modal-footer">
+        <button class="btn btn-cancel" onclick="closeModalLogout()">Batal</button>
+        <button class="btn" onclick="logout()"
+          style="background:var(--amber-bg);border-color:var(--amber-border);color:var(--amber)">
+          <span class="material-symbols-outlined">logout</span>Ya, keluar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ MODAL: GANTI PASSWORD ══ -->
+  <div class="modal-overlay" id="modal-ganti-password" onclick="closeModalGantiPassword(event)">
+    <div class="modal-sheet" style="max-width:400px" onclick="event.stopPropagation()">
+      <div class="modal-handle"></div>
+      <div style="padding:20px 24px 0">
+        <h2 style="font-family:var(--heading);font-size:16px;font-weight:800;color:var(--text);margin-bottom:4px">
+          Ganti Password
+        </h2>
+        <p style="font-size:12px;color:var(--text-dim);margin-bottom:20px">
+          Gunakan minimal 8 karakter dengan kombinasi huruf dan angka.
+        </p>
+        <div class="form-group" style="margin-bottom:14px">
+          <label class="form-label">Password saat ini <span class="req">*</span></label>
+          <div class="form-pwd-wrap">
+            <input type="password" class="form-input" id="pwd-lama" placeholder="Masukkan password lama" />
+            <button class="form-pwd-toggle" onclick="togglePwd('pwd-lama','eye-lama')" tabindex="-1">
+              <span class="material-symbols-outlined" id="eye-lama">visibility</span>
+            </button>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:14px">
+          <label class="form-label">Password baru <span class="req">*</span></label>
+          <div class="form-pwd-wrap">
+            <input type="password" class="form-input" id="pwd-baru" placeholder="Minimal 8 karakter" />
+            <button class="form-pwd-toggle" onclick="togglePwd('pwd-baru','eye-baru')" tabindex="-1">
+              <span class="material-symbols-outlined" id="eye-baru">visibility</span>
+            </button>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:4px">
+          <label class="form-label">Konfirmasi password baru <span class="req">*</span></label>
+          <div class="form-pwd-wrap">
+            <input type="password" class="form-input" id="pwd-konfirm" placeholder="Ulangi password baru" />
+            <button class="form-pwd-toggle" onclick="togglePwd('pwd-konfirm','eye-konfirm')" tabindex="-1">
+              <span class="material-symbols-outlined" id="eye-konfirm">visibility</span>
+            </button>
+          </div>
+        </div>
+        <p class="form-hint" id="pwd-hint" style="min-height:16px;color:var(--red);display:none"></p>
+      </div>
+      <div class="form-actions" style="padding:16px 24px;margin-top:0">
+        <button class="btn btn-cancel" onclick="closeModalGantiPassword()">Batal</button>
+        <button class="btn-primary" onclick="submitGantiPassword()">
+          <span class="material-symbols-outlined">lock_reset</span>Simpan password
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div id="toast"></div>
+
+  <!-- ══ PERANGKAT SHEET ══ -->
+  <div class="psheet-overlay" id="psheet-overlay" onclick="closePerangkatSheet()"></div>
+  <div class="psheet" id="psheet" role="dialog" aria-modal="true" aria-label="Pilih Perangkat">
+    <div class="psheet-handle"></div>
+    <div class="psheet-head">
+      <div>
+        <p class="psheet-eyebrow">Manajemen Jaringan</p>
+        <h2 class="psheet-title">Pilih Perangkat</h2>
+      </div>
+      <button class="psheet-close" onclick="closePerangkatSheet()" aria-label="Tutup">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <div class="psheet-list">
+      <a href="/app/frontend/input_perangkat/input_mikrotik.html" class="psheet-item psheet-mikrotik">
+        <div class="psheet-item-icon"><span class="material-symbols-outlined">router</span></div>
+        <div class="psheet-item-body">
+          <div class="psheet-item-name">MikroTik</div>
+          <div class="psheet-item-desc">Router, firewall, dan manajemen bandwidth</div>
+        </div>
+        <div class="psheet-item-badge">Router</div>
+        <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
+      </a>
+      <a href="/app/frontend/input_perangkat/input_olt.html" class="psheet-item psheet-olt">
+        <div class="psheet-item-icon"><span class="material-symbols-outlined">settings_input_antenna</span></div>
+        <div class="psheet-item-body">
+          <div class="psheet-item-name">OLT</div>
+          <div class="psheet-item-desc">Optical Line Terminal — kontrol jaringan fiber</div>
+        </div>
+        <div class="psheet-item-badge">Fiber</div>
+        <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
+      </a>
+      <a href="/app/frontend/input_perangkat/input_odc.html" class="psheet-item psheet-odc">
+        <div class="psheet-item-icon"><span class="material-symbols-outlined">storage</span></div>
+        <div class="psheet-item-body">
+          <div class="psheet-item-name">ODC</div>
+          <div class="psheet-item-desc">Optical Distribution Cabinet</div>
+        </div>
+        <div class="psheet-item-badge">Cabinet</div>
+        <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
+      </a>
+      <a href="/app/frontend/input_perangkat/input_odp.html" class="psheet-item psheet-odp">
+        <div class="psheet-item-icon"><span class="material-symbols-outlined">hub</span></div>
+        <div class="psheet-item-body">
+          <div class="psheet-item-name">ODP</div>
+          <div class="psheet-item-desc">Optical Distribution Point</div>
+        </div>
+        <div class="psheet-item-badge">Distribusi</div>
+        <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- Scripts: global.js WAJIB sebelum detail_pelanggan.js -->
+  <script src="/app/frontend/statis/global.js"></script>
+  <script src="/app/frontend/pelanggan/detail_pelanggan.js"></script>
+
+</body>
+</html>

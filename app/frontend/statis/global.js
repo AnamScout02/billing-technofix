@@ -240,70 +240,135 @@ function initHeaderCanvas() {
   }
 
   const ctx = canvas.getContext('2d');
+  let W, H;
 
   function resize() {
-    canvas.width  = header.offsetWidth;
-    canvas.height = header.offsetHeight;
+    W = canvas.width  = header.offsetWidth;
+    H = canvas.height = header.offsetHeight;
   }
   resize();
   window.addEventListener('resize', resize);
 
-  const NODE_COUNT = 28;
-  const MAX_DIST   = 120;
-
-  const nodes = Array.from({ length: NODE_COUNT }, function () {
+  /* ── Aurora orbs melayang ── */
+  const ORBS = Array.from({ length: 5 }, function (_, i) {
     return {
-      x:    Math.random() * canvas.width,
-      y:    Math.random() * canvas.height,
-      vx:   (Math.random() - .5) * .55,
-      vy:   (Math.random() - .5) * .55,
-      r:    Math.random() * 1.8 + .8,
-      pulse: Math.random() * Math.PI * 2,
+      x:     Math.random(),
+      y:     Math.random(),
+      vx:    (Math.random() - .5) * 0.00018,
+      vy:    (Math.random() - .5) * 0.00012,
+      r:     0.28 + Math.random() * 0.22,
+      hue:   [210, 195, 220, 200, 230][i],
+      phase: Math.random() * Math.PI * 2,
     };
   });
 
-  function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  /* ── Partikel debu bercahaya mengambang naik ── */
+  const PARTICLES = Array.from({ length: 38 }, function () {
+    return {
+      x:     Math.random(),
+      y:     Math.random(),
+      vx:    (Math.random() - .5) * 0.00035,
+      vy:    -0.00018 - Math.random() * 0.00022,
+      r:     0.6 + Math.random() * 1.2,
+      alpha: 0.15 + Math.random() * 0.35,
+      phase: Math.random() * Math.PI * 2,
+    };
+  });
 
-    const W = canvas.width;
-    const H = canvas.height;
+  /* ── Data streams — garis vertikal berjalan ke atas ── */
+  const STREAMS = Array.from({ length: 8 }, function () {
+    return {
+      x:      Math.random(),
+      y:      Math.random(),
+      speed:  0.0006 + Math.random() * 0.001,
+      length: 0.12 + Math.random() * 0.18,
+      alpha:  0.06 + Math.random() * 0.10,
+      width:  0.6 + Math.random() * 0.5,
+    };
+  });
 
-    nodes.forEach(function (n) {
-      n.x    += n.vx;
-      n.y    += n.vy;
-      n.pulse += 0.035;
-      if (n.x < 0 || n.x > W) n.vx *= -1;
-      if (n.y < 0 || n.y > H) n.vy *= -1;
+  /* ── Pulse rings sesekali muncul ── */
+  const rings = [];
+  function spawnRing() {
+    rings.push({
+      x: 0.1 + Math.random() * 0.8,
+      y: Math.random(),
+      r: 0,
+      alpha: 0.22,
+      speed: 0.0005 + Math.random() * 0.0004,
     });
+  }
+  spawnRing();
+  setInterval(spawnRing, 2800);
 
-    for (let i = 0; i < nodes.length; i++) {
-      for (let j = i + 1; j < nodes.length; j++) {
-        const a  = nodes[i];
-        const b  = nodes[j];
-        const dx = a.x - b.x;
-        const dy = a.y - b.y;
-        const d  = Math.sqrt(dx * dx + dy * dy);
-        if (d < MAX_DIST) {
-          const alpha = (1 - d / MAX_DIST) * .28;
-          ctx.beginPath();
-          ctx.strokeStyle = 'rgba(255,255,255,' + alpha + ')';
-          ctx.lineWidth   = .8;
-          ctx.moveTo(a.x, a.y);
-          ctx.lineTo(b.x, b.y);
-          ctx.stroke();
-        }
-      }
-    }
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
 
-    nodes.forEach(function (n) {
-      const pulseFactor = 1 + Math.sin(n.pulse) * .25;
-      const r = n.r * pulseFactor;
+    /* Aurora orbs */
+    ORBS.forEach(function (o) {
+      o.x += o.vx; o.y += o.vy; o.phase += 0.008;
+      if (o.x < -o.r) o.x = 1 + o.r;
+      if (o.x > 1 + o.r) o.x = -o.r;
+      if (o.y < -o.r) o.y = 1 + o.r;
+      if (o.y > 1 + o.r) o.y = -o.r;
 
+      const pulse = 1 + Math.sin(o.phase) * 0.12;
+      const rx = o.x * W, ry = o.y * H;
+      const rr = o.r * Math.min(W, H) * pulse;
+      const alpha = 0.055 + Math.sin(o.phase * 0.7) * 0.02;
+
+      const g = ctx.createRadialGradient(rx, ry, 0, rx, ry, rr);
+      g.addColorStop(0, 'hsla(' + o.hue + ',80%,70%,' + (alpha * 2.2) + ')');
+      g.addColorStop(0.4, 'hsla(' + o.hue + ',70%,60%,' + alpha + ')');
+      g.addColorStop(1, 'hsla(' + o.hue + ',60%,50%,0)');
       ctx.beginPath();
-      ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(255,255,255,0.50)';
+      ctx.arc(rx, ry, rr, 0, Math.PI * 2);
+      ctx.fillStyle = g;
       ctx.fill();
     });
+
+    /* Data streams */
+    STREAMS.forEach(function (s) {
+      s.y -= s.speed;
+      if (s.y + s.length < 0) { s.y = 1 + s.length; s.x = Math.random(); }
+      const x = s.x * W;
+      const g = ctx.createLinearGradient(x, s.y * H, x, (s.y + s.length) * H);
+      g.addColorStop(0, 'rgba(255,255,255,0)');
+      g.addColorStop(0.4, 'rgba(120,200,255,' + s.alpha + ')');
+      g.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.beginPath();
+      ctx.moveTo(x, s.y * H);
+      ctx.lineTo(x, (s.y + s.length) * H);
+      ctx.strokeStyle = g;
+      ctx.lineWidth = s.width;
+      ctx.stroke();
+    });
+
+    /* Partikel mengambang */
+    PARTICLES.forEach(function (p) {
+      p.x += p.vx; p.y += p.vy; p.phase += 0.022;
+      if (p.y < -0.02) p.y = 1.02;
+      if (p.x < 0) p.x = 1;
+      if (p.x > 1) p.x = 0;
+      const a = p.alpha * (0.7 + Math.sin(p.phase) * 0.3);
+      ctx.beginPath();
+      ctx.arc(p.x * W, p.y * H, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(180,220,255,' + a + ')';
+      ctx.fill();
+    });
+
+    /* Pulse rings */
+    for (let i = rings.length - 1; i >= 0; i--) {
+      const ring = rings[i];
+      ring.r += ring.speed;
+      ring.alpha -= ring.speed * 2.2;
+      if (ring.alpha <= 0) { rings.splice(i, 1); continue; }
+      ctx.beginPath();
+      ctx.arc(ring.x * W, ring.y * H, ring.r * Math.min(W, H), 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(150,210,255,' + ring.alpha + ')';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
 
     requestAnimationFrame(draw);
   }
@@ -330,15 +395,47 @@ function initDateBadge() {
 
 /* ══════════════════════════════════════════════════════════
    13. openPerangkatSheet / closePerangkatSheet
+   Mobile  : bottom sheet (overlay + slide-up)
+   Desktop : dropdown muncul tepat di bawah tombol Perangkat
 ══════════════════════════════════════════════════════════ */
 function openPerangkatSheet(e) {
   if (e) e.preventDefault();
   const overlay = document.getElementById('psheet-overlay');
   const sheet   = document.getElementById('psheet');
-  if (!overlay || !sheet) return;
-  overlay.classList.add('open');
+  if (!sheet) return;
+
+  const isDesktop = window.innerWidth >= 769;
+
+  if (isDesktop) {
+    /* ── Posisikan dropdown di bawah tombol yang diklik ── */
+    const trigger = e && e.currentTarget ? e.currentTarget : null;
+    if (trigger) {
+      const rect      = trigger.getBoundingClientRect();
+      const sheetW    = 320;
+      /* Letakkan kiri sejajar tombol, tapi jangan keluar viewport */
+      let leftPos     = rect.left;
+      if (leftPos + sheetW > window.innerWidth - 12) {
+        leftPos = window.innerWidth - sheetW - 12;
+      }
+      sheet.style.left = leftPos + 'px';
+      sheet.style.right = 'auto';
+    } else {
+      /* Fallback: sejajar kanan */
+      sheet.style.right = '32px';
+      sheet.style.left  = 'auto';
+    }
+    /* Overlay tidak dipakai di desktop */
+    if (overlay) overlay.classList.remove('open');
+    document.body.style.overflow = '';
+  } else {
+    /* ── Mobile: bottom sheet dengan overlay ── */
+    if (overlay) overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    sheet.style.left  = '';
+    sheet.style.right = '';
+  }
+
   sheet.classList.add('open');
-  document.body.style.overflow = 'hidden';
 }
 
 function closePerangkatSheet() {
@@ -348,6 +445,18 @@ function closePerangkatSheet() {
   if (sheet)   sheet.classList.remove('open');
   document.body.style.overflow = '';
 }
+
+/* ── Tutup dropdown saat klik di luar (desktop) ── */
+document.addEventListener('click', function (e) {
+  const sheet = document.getElementById('psheet');
+  if (!sheet || !sheet.classList.contains('open')) return;
+  if (window.innerWidth < 769) return; /* Mobile: overlay sudah handle */
+  /* Jika klik bukan di dalam sheet dan bukan di trigger Perangkat → tutup */
+  const trigger = e.target.closest('[onclick*="openPerangkatSheet"]');
+  if (!trigger && !sheet.contains(e.target)) {
+    closePerangkatSheet();
+  }
+});
 
 document.addEventListener('keydown', function (e) {
   if (e.key === 'Escape') {

@@ -108,6 +108,12 @@
   --shadow-md: 0 4px 16px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.04);
   --shadow-lg: 0 12px 36px rgba(0,0,0,.11), 0 4px 8px rgba(0,0,0,.05);
 
+  /* ── Card / Section Header ── */
+  --card-head-bg:      #003f88;   /* sama dengan navbar */
+  --card-head-text:    #ffffff;
+  --card-head-icon:    rgba(255,255,255,.80);
+  --card-head-border:  rgba(255,255,255,.12);
+
   /* ── Bottom Navbar ── */
   --bnav-bg:        #003f88;
   --bnav-active:    #ffffff;
@@ -119,13 +125,31 @@
   /* ── Background Texture ── */
   --page-bg: #f0f4fb;
 
-  /* ── Stat Card Gradient Colors (3 varian) ── */
-  --card-1-bg:      #e8f1ff;
-  --card-1-border:  #b8d0ff;
-  --card-2-bg:      #ddf0fb;
-  --card-2-border:  #93d4ef;
-  --card-3-bg:      #e0eaf8;
-  --card-3-border:  #9ab7e0;
+  /* ── Stat Card Gradient Colors (blue family — nuansa berbeda tiap card) ── */
+
+  /* Card 1 — Navy / Royal Blue */
+  --card-1-bg:      linear-gradient(135deg, #1e40af 0%, #2563eb 60%, #3b82f6 100%);
+  --card-1-border:  #1d4ed8;
+  --card-1-shadow:  rgba(30, 64, 175, 0.40);
+  --card-1-accent:  #ffffff;
+
+  /* Card 2 — Ocean / Teal Blue */
+  --card-2-bg:      linear-gradient(135deg, #0e7490 0%, #0891b2 60%, #22d3ee 100%);
+  --card-2-border:  #0e7490;
+  --card-2-shadow:  rgba(14, 116, 144, 0.40);
+  --card-2-accent:  #ffffff;
+
+  /* Card 3 — Sky / Ice Blue */
+  --card-3-bg:      linear-gradient(135deg, #0369a1 0%, #0284c7 60%, #38bdf8 100%);
+  --card-3-border:  #0369a1;
+  --card-3-shadow:  rgba(3, 105, 161, 0.40);
+  --card-3-accent:  #ffffff;
+
+  /* Card 4 — Periwinkle / Indigo Blue */
+  --card-4-bg:      linear-gradient(135deg, #3730a3 0%, #4f46e5 60%, #818cf8 100%);
+  --card-4-border:  #3730a3;
+  --card-4-shadow:  rgba(55, 48, 163, 0.40);
+  --card-4-accent:  #ffffff;
 }
 
 
@@ -219,12 +243,12 @@ body {
   clip-path: inset(0);
 }
 
-/* Canvas animasi partikel jaringan — diisi JS */
+/* Canvas animasi aurora — diisi JS */
 .header-canvas {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: .45;
+  opacity: .75;
   z-index: 1;
 }
 
@@ -482,12 +506,12 @@ body {
 .bottom-nav-icon {
   display: flex; align-items: center; justify-content: center;
   width: 26px; height: 26px;
-  transition: transform .32s cubic-bezier(.34,1.5,.64,1), opacity .22s ease;
+  transition: transform .32s cubic-bezier(.34,1.5,.64,1), opacity .22s ease, filter .25s ease;
 }
 .bottom-nav-item .material-symbols-outlined {
   font-size: 22px; display: block;
-  transition: font-variation-settings .22s ease;
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  transition: font-variation-settings .25s ease, color .22s ease;
+  font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
 }
 
 .bottom-nav-label {
@@ -500,11 +524,18 @@ body {
 
 .bottom-nav-item.active { color: var(--bnav-active); }
 .bottom-nav-item.active .bottom-nav-label { font-weight: 700; }
-.bottom-nav-item.active .bottom-nav-icon { transform: translateY(-2px); }
+.bottom-nav-item.active .bottom-nav-icon {
+  transform: translateY(-3px) scale(1.18);
+  filter: drop-shadow(0 0 6px rgba(255,255,255,.55));
+}
 .bottom-nav-item.active .material-symbols-outlined {
-  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  font-variation-settings: 'FILL' 1, 'wght' 600, 'GRAD' 0, 'opsz' 24;
+}
+.bottom-nav-item:not(.active) .material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
 }
 .bottom-nav-item:not(.active):hover { color: rgba(255,255,255,.80); }
+.bottom-nav-item:not(.active):hover .bottom-nav-icon { transform: translateY(-1px) scale(1.06); }
 
 .bottom-nav-ripple {
   position: absolute; border-radius: 50%;
@@ -676,45 +707,88 @@ body {
   padding: 18px 20px;
   display: flex; align-items: center; gap: 14px;
   box-shadow: var(--shadow-sm);
-  transition: box-shadow .2s, border-color .2s, transform .15s;
-  border: 1px solid var(--card-1-border);
+  transition: box-shadow .25s ease, border-color .25s ease, transform .2s cubic-bezier(.34,1.4,.64,1);
+  border: 1.5px solid var(--card-1-border);
   background: var(--card-1-bg);
+  position: relative;
+  overflow: hidden;
 }
+
+/* Subtle shine shimmer overlay */
+.stat-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,.18) 0%, rgba(255,255,255,.0) 55%);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
 /* Warna berbeda tiap card berdasarkan urutan */
 .stat-row .stat-card:nth-child(1),
 .stats-row .stat-card:nth-child(1),
 .stat-row-4 .stat-card:nth-child(1) {
   background: var(--card-1-bg);
   border-color: var(--card-1-border);
+  box-shadow: var(--shadow-sm), 0 4px 18px var(--card-1-shadow);
 }
 .stat-row .stat-card:nth-child(2),
 .stats-row .stat-card:nth-child(2),
 .stat-row-4 .stat-card:nth-child(2) {
   background: var(--card-2-bg);
   border-color: var(--card-2-border);
+  box-shadow: var(--shadow-sm), 0 4px 18px var(--card-2-shadow);
 }
 .stat-row .stat-card:nth-child(3),
 .stats-row .stat-card:nth-child(3),
 .stat-row-4 .stat-card:nth-child(3) {
   background: var(--card-3-bg);
   border-color: var(--card-3-border);
+  box-shadow: var(--shadow-sm), 0 4px 18px var(--card-3-shadow);
 }
+.stat-row-4 .stat-card:nth-child(4) {
+  background: var(--card-4-bg);
+  border-color: var(--card-4-border);
+  box-shadow: var(--shadow-sm), 0 4px 18px var(--card-4-shadow);
+}
+
 .stat-card:hover {
-  box-shadow: var(--shadow-md);
-  transform: translateY(-2px);
+  box-shadow: var(--shadow-md), 0 8px 28px var(--card-1-shadow);
+  transform: translateY(-3px) scale(1.008);
+}
+.stat-row .stat-card:nth-child(1):hover,
+.stats-row .stat-card:nth-child(1):hover,
+.stat-row-4 .stat-card:nth-child(1):hover {
+  box-shadow: var(--shadow-md), 0 10px 32px var(--card-1-shadow);
+}
+.stat-row .stat-card:nth-child(2):hover,
+.stats-row .stat-card:nth-child(2):hover,
+.stat-row-4 .stat-card:nth-child(2):hover {
+  box-shadow: var(--shadow-md), 0 10px 32px var(--card-2-shadow);
+}
+.stat-row .stat-card:nth-child(3):hover,
+.stats-row .stat-card:nth-child(3):hover,
+.stat-row-4 .stat-card:nth-child(3):hover {
+  box-shadow: var(--shadow-md), 0 10px 32px var(--card-3-shadow);
+}
+.stat-row-4 .stat-card:nth-child(4):hover {
+  box-shadow: var(--shadow-md), 0 10px 32px var(--card-4-shadow);
 }
 
 .stat-icon {
   width: 48px; height: 48px; border-radius: var(--r-md);
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
+  transition: transform .2s cubic-bezier(.34,1.5,.64,1);
 }
+.stat-card:hover .stat-icon { transform: scale(1.10) rotate(-4deg); }
 .stat-icon .material-symbols-outlined { font-size: 24px; }
-.stat-icon.blue    { background: rgba(29,78,216,.12);  color: var(--blue); }
-.stat-icon.green   { background: rgba(0,108,71,.12);   color: var(--green); }
-.stat-icon.red     { background: rgba(186,26,26,.12);  color: var(--red); }
-.stat-icon.amber   { background: rgba(180,83,9,.12);   color: var(--amber); }
-.stat-icon.primary { background: var(--primary-light); color: var(--primary); }
+.stat-icon.blue    { background: rgba(255,255,255,.20); color: #ffffff; box-shadow: 0 2px 10px rgba(0,0,0,.20); }
+.stat-icon.green   { background: rgba(255,255,255,.20); color: #ffffff; box-shadow: 0 2px 10px rgba(0,0,0,.20); }
+.stat-icon.red     { background: rgba(255,255,255,.20); color: #ffffff; box-shadow: 0 2px 10px rgba(0,0,0,.20); }
+.stat-icon.amber   { background: rgba(255,255,255,.20); color: #ffffff; box-shadow: 0 2px 10px rgba(0,0,0,.20); }
+.stat-icon.primary { background: rgba(255,255,255,.20); color: #ffffff; box-shadow: 0 2px 10px rgba(0,0,0,.20); }
+.stat-icon.pink    { background: rgba(255,255,255,.20); color: #ffffff; box-shadow: 0 2px 10px rgba(0,0,0,.20); }
 
 .stat-body { flex: 1; min-width: 0; }
 
@@ -723,10 +797,26 @@ body {
   font-family: var(--heading);
   color: var(--text); letter-spacing: -.04em; line-height: 1;
 }
+/* Semua card pakai teks putih karena background gelap */
+.stat-row .stat-card:nth-child(1) .stat-num,
+.stats-row .stat-card:nth-child(1) .stat-num,
+.stat-row-4 .stat-card:nth-child(1) .stat-num,
+.stat-row .stat-card:nth-child(2) .stat-num,
+.stats-row .stat-card:nth-child(2) .stat-num,
+.stat-row-4 .stat-card:nth-child(2) .stat-num,
+.stat-row .stat-card:nth-child(3) .stat-num,
+.stats-row .stat-card:nth-child(3) .stat-num,
+.stat-row-4 .stat-card:nth-child(3) .stat-num,
+.stat-row-4 .stat-card:nth-child(4) .stat-num { color: #ffffff; }
+
 .stat-label {
   font-size: 12px; color: var(--text-muted);
   margin-top: 4px; font-weight: 500;
 }
+/* Label putih transparan di atas background gelap */
+.stat-row .stat-card .stat-label,
+.stats-row .stat-card .stat-label,
+.stat-row-4 .stat-card .stat-label { color: rgba(255,255,255,.80); }
 
 .stat-trend {
   display: inline-flex; align-items: center; gap: 4px;
@@ -964,6 +1054,24 @@ body {
   box-shadow: 0 0 0 3px var(--primary-ring), var(--shadow-md);
   animation: slideDown .22s cubic-bezier(.22,1,.36,1);
 }
+/* Universal card/section header — dipakai semua halaman */
+.card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 18px;
+  border-bottom: 1px solid var(--card-head-border);
+  font-family: var(--heading);
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--card-head-text);
+  background: var(--card-head-bg);
+}
+.card-head .material-symbols-outlined {
+  font-size: 18px;
+  color: var(--card-head-icon);
+}
+
 .form-card-title {
   font-size: 15px; font-weight: 700; font-family: var(--heading);
   color: var(--text); letter-spacing: -.01em; margin-bottom: 20px;
@@ -1226,6 +1334,39 @@ select.field-input {
 .tbl-hp           { font-size: 12px; color: var(--text-muted); font-family: var(--sans); }
 
 
+
+
+/* ══════════════════════════════════════════════════════════
+   20b. ZEBRA STRIPING GLOBAL (tabel & info-row div)
+   Berlaku otomatis semua halaman.
+
+   Untuk <table>  → gunakan <tbody> biasa
+   Untuk div list → gunakan class .info-row di tiap baris
+══════════════════════════════════════════════════════════ */
+
+/* ── <table> zebra ── */
+tbody tr:nth-child(odd) td  { background-color: #ffffff; }
+tbody tr:nth-child(even) td { background-color: #f0f5ff; }
+tbody tr:hover td           { background-color: #e0eaff !important; transition: background-color .15s ease; }
+
+/* Sticky column ikut warna zebra */
+tbody tr:nth-child(odd) td.sticky-col-1,
+tbody tr:nth-child(odd) td.sticky-col-2  { background-color: #ffffff; }
+tbody tr:nth-child(even) td.sticky-col-1,
+tbody tr:nth-child(even) td.sticky-col-2 { background-color: #f0f5ff; }
+tbody tr:hover td.sticky-col-1,
+tbody tr:hover td.sticky-col-2           { background-color: #e0eaff !important; }
+
+/* ── div .info-row zebra (untuk halaman detail / info list) ── */
+/* Gunakan class ini di tiap div baris:
+   <div class="info-row"> ... </div>
+   Cocok untuk dp-info-row, detail-row, dll — cukup tambah class info-row */
+.info-row:nth-child(odd)  { background: #ffffff; }
+.info-row:nth-child(even) { background: #f0f5ff; }
+.info-row:hover           { background: #e0eaff; transition: background .15s ease; }
+
+
+
 /* ══════════════════════════════════════════════════════════
    21. ANIMASI GLOBAL
 ══════════════════════════════════════════════════════════ */
@@ -1252,8 +1393,11 @@ select.field-input {
 
 /* ══════════════════════════════════════════════════════════
    22. PERANGKAT BOTTOM SHEET (psheet)
-   z-index: 500 — di bawah bottom-navbar (600)
+   Mobile  : slide-up bottom sheet (z-index 500)
+   Desktop : dropdown dari tombol nav / topbar (z-index 1001)
 ══════════════════════════════════════════════════════════ */
+
+/* ── Overlay hanya muncul di mobile ── */
 .psheet-overlay {
   display: none; position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
@@ -1265,6 +1409,7 @@ select.field-input {
 }
 .psheet-overlay.open { display: block; }
 
+/* ── MOBILE default: bottom sheet ── */
 .psheet {
   position: fixed;
   bottom: 0; left: 0; right: 0; top: auto; width: 100%;
@@ -1280,101 +1425,174 @@ select.field-input {
 }
 .psheet.open { display: flex; transform: translateY(0); }
 
+/* ── DESKTOP: dropdown muncul dari nav perangkat ── */
 @media (min-width: 769px) {
+  /* Overlay tidak dipakai di desktop */
+  .psheet-overlay { display: none !important; }
+
   .psheet {
-    top: 50%; left: 50%; right: auto; bottom: auto;
-    width: 400px; max-height: 90vh;
-    transform: translate(-50%, -46%);
+    /* Reset posisi fixed ke absolute dari anchor nav */
+    position: fixed;
+    top: calc(var(--header-h) + env(safe-area-inset-top) + 6px);
+    /* Posisi horizontal diatur via JS (lihat openPerangkatSheet) */
+    left: auto;
+    right: auto;
+    bottom: auto;
+    width: 320px;
+    max-height: calc(100vh - var(--header-h) - 40px);
     border-radius: var(--r-xl);
     border: 1px solid var(--border);
     box-shadow: var(--shadow-lg);
-    padding-bottom: 8px; transition: none; opacity: 0;
+    padding-bottom: 8px;
+    transform: translateY(-8px);
+    opacity: 0;
+    transition: transform .2s cubic-bezier(.22,1,.36,1),
+                opacity .18s ease;
+    overflow: hidden;
   }
   .psheet.open {
-    transform: translate(-50%, -50%);
-    animation: popIn .22s cubic-bezier(.22,1,.36,1) forwards;
+    transform: translateY(0);
     opacity: 1;
+    display: flex;
   }
+  /* Handle & footer safe-area tidak perlu di desktop */
+  .psheet-handle { display: none; }
 }
 
-.psheet-handle {
-  width: 36px; height: 4px; border-radius: 99px;
-  background: var(--border-2); margin: 10px auto 0; flex-shrink: 0;
-}
-@media (min-width: 769px) { .psheet-handle { display: none; } }
-
+/* ── Header sheet ── */
 .psheet-head {
   display: flex; align-items: center;
   justify-content: space-between;
-  padding: 16px 20px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+  padding: 14px 18px 10px; border-bottom: 1px solid var(--border); flex-shrink: 0;
 }
-.psheet-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--primary); opacity: .8; margin-bottom: 2px; }
-.psheet-title   { font-family: var(--heading); font-size: 17px; font-weight: 800; color: var(--text); letter-spacing: -.02em; line-height: 1.2; }
+.psheet-eyebrow {
+  font-size: 10px; font-weight: 700; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--primary); opacity: .8; margin-bottom: 2px;
+}
+.psheet-title {
+  font-family: var(--heading); font-size: 16px; font-weight: 800;
+  color: var(--text); letter-spacing: -.02em; line-height: 1.2;
+}
 .psheet-close {
-  width: 34px; height: 34px; border-radius: 50%;
+  width: 32px; height: 32px; border-radius: 50%;
   border: 1px solid var(--border); background: var(--surface);
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; color: var(--text-muted);
   transition: background .15s, border-color .15s, color .15s; flex-shrink: 0;
 }
 .psheet-close:hover { background: var(--red-bg); border-color: var(--red-border); color: var(--red); }
-.psheet-close .material-symbols-outlined { font-size: 18px; }
+.psheet-close .material-symbols-outlined { font-size: 17px; }
 
-.psheet-list { padding: 10px 12px 4px; display: flex; flex-direction: column; gap: 4px; }
+/* ── Item list ── */
+.psheet-list { padding: 8px 10px 4px; display: flex; flex-direction: column; gap: 4px; }
 
 .psheet-item {
-  display: flex; align-items: center; gap: 14px;
-  padding: 13px 12px; border-radius: var(--r-lg);
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 10px; border-radius: var(--r-lg);
   border: 1.5px solid transparent;
   text-decoration: none;
-  transition: background .16s, border-color .16s, transform .12s;
+  transition: background .16s, border-color .16s, transform .12s, box-shadow .16s;
   position: relative;
 }
 .psheet-item:active { transform: scale(.98); }
 
+/* Icon container */
 .psheet-item-icon {
-  width: 46px; height: 46px; border-radius: 14px;
+  width: 44px; height: 44px; border-radius: 13px;
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
   transition: transform .18s;
 }
-.psheet-item-icon .material-symbols-outlined { font-size: 24px; }
+.psheet-item-icon .material-symbols-outlined { font-size: 22px; }
 .psheet-item:hover .psheet-item-icon { transform: scale(1.08); }
 
 .psheet-item-body { flex: 1; min-width: 0; }
-.psheet-item-name { font-size: 14px; font-weight: 700; font-family: var(--heading); color: var(--text); letter-spacing: -.01em; line-height: 1.3; margin-bottom: 2px; }
-.psheet-item-desc { font-size: 12px; color: var(--text-muted); line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.psheet-item-name {
+  font-size: 13.5px; font-weight: 700; font-family: var(--heading);
+  color: var(--text); letter-spacing: -.01em; line-height: 1.3; margin-bottom: 2px;
+}
+.psheet-item-desc {
+  font-size: 11.5px; color: var(--text-muted); line-height: 1.4;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 
 .psheet-item-badge {
-  font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  font-size: 9.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
   padding: 3px 8px; border-radius: 20px; flex-shrink: 0; white-space: nowrap;
 }
-.psheet-item-arrow { font-size: 20px; color: var(--text-dim); flex-shrink: 0; transition: transform .18s, color .18s; }
+.psheet-item-arrow {
+  font-size: 18px; color: var(--text-dim); flex-shrink: 0;
+  transition: transform .18s, color .18s;
+}
 .psheet-item:hover .psheet-item-arrow { transform: translateX(3px); }
 
-.psheet-mikrotik:hover           { background: var(--primary-light); border-color: rgba(0,64,161,.15); }
-.psheet-mikrotik .psheet-item-icon  { background: var(--primary-light); color: var(--primary); }
-.psheet-mikrotik .psheet-item-badge { background: var(--primary-light); color: var(--primary); }
+/* ══ Warna RESTING tiap item (langsung terlihat, bukan hanya hover) ══ */
+
+/* MikroTik — primary blue */
+.psheet-mikrotik {
+  background: var(--primary-light);
+  border-color: rgba(0,64,161,.12);
+}
+.psheet-mikrotik .psheet-item-icon  { background: rgba(0,64,161,.12); color: var(--primary); }
+.psheet-mikrotik .psheet-item-badge { background: var(--primary);     color: #fff; }
+.psheet-mikrotik .psheet-item-arrow { color: rgba(0,64,161,.40); }
+.psheet-mikrotik:hover {
+  background: #d4e2ff;
+  border-color: rgba(0,64,161,.25);
+  box-shadow: 0 2px 10px rgba(0,64,161,.10);
+}
 .psheet-mikrotik:hover .psheet-item-arrow { color: var(--primary); }
 
-.psheet-olt:hover                { background: var(--green-bg); border-color: var(--green-border); }
-.psheet-olt .psheet-item-icon    { background: var(--green-bg); color: var(--green); }
-.psheet-olt .psheet-item-badge   { background: var(--green-bg); color: var(--green); }
+/* OLT — green */
+.psheet-olt {
+  background: var(--green-bg);
+  border-color: rgba(0,108,71,.15);
+}
+.psheet-olt .psheet-item-icon  { background: rgba(0,108,71,.12); color: var(--green); }
+.psheet-olt .psheet-item-badge { background: var(--green);       color: #fff; }
+.psheet-olt .psheet-item-arrow { color: rgba(0,108,71,.40); }
+.psheet-olt:hover {
+  background: #c3ecd8;
+  border-color: var(--green-border);
+  box-shadow: 0 2px 10px rgba(0,108,71,.10);
+}
 .psheet-olt:hover .psheet-item-arrow { color: var(--green); }
 
-.psheet-odc:hover                { background: var(--navy-bg); border-color: var(--green-border); }
-.psheet-odc .psheet-item-icon    { background: var(--navy-bg); color: var(--green); }
-.psheet-odc .psheet-item-badge   { background: var(--navy-bg); color: var(--green); }
-.psheet-odc:hover .psheet-item-arrow { color: var(--navy); }
+/* ODC — teal/navy */
+.psheet-odc {
+  background: #e8f4f8;
+  border-color: rgba(0,80,120,.12);
+}
+.psheet-odc .psheet-item-icon  { background: rgba(0,80,120,.10); color: #006994; }
+.psheet-odc .psheet-item-badge { background: #006994;            color: #fff; }
+.psheet-odc .psheet-item-arrow { color: rgba(0,80,120,.35); }
+.psheet-odc:hover {
+  background: #d0e8f0;
+  border-color: rgba(0,80,120,.25);
+  box-shadow: 0 2px 10px rgba(0,80,120,.10);
+}
+.psheet-odc:hover .psheet-item-arrow { color: #006994; }
 
-.psheet-odp:hover                { background: var(--amber-bg); border-color: var(--amber-border); }
-.psheet-odp .psheet-item-icon    { background: var(--amber-bg); color: var(--amber); }
-.psheet-odp .psheet-item-badge   { background: var(--amber-bg); color: var(--amber); }
+/* ODP — amber */
+.psheet-odp {
+  background: var(--amber-bg);
+  border-color: rgba(180,83,9,.12);
+}
+.psheet-odp .psheet-item-icon  { background: rgba(180,83,9,.10); color: var(--amber); }
+.psheet-odp .psheet-item-badge { background: var(--amber);       color: #fff; }
+.psheet-odp .psheet-item-arrow { color: rgba(180,83,9,.40); }
+.psheet-odp:hover {
+  background: #fde8c0;
+  border-color: var(--amber-border);
+  box-shadow: 0 2px 10px rgba(180,83,9,.10);
+}
 .psheet-odp:hover .psheet-item-arrow { color: var(--amber); }
 
+/* Animasi staggered saat sheet terbuka */
 .psheet.open .psheet-item { animation: fadeUp .25s cubic-bezier(.22,1,.36,1) both; }
-.psheet.open .psheet-item:nth-child(1) { animation-delay: .05s; }
-.psheet.open .psheet-item:nth-child(2) { animation-delay: .11s; }
-.psheet.open .psheet-item:nth-child(3) { animation-delay: .17s; }
+.psheet.open .psheet-item:nth-child(1) { animation-delay: .04s; }
+.psheet.open .psheet-item:nth-child(2) { animation-delay: .09s; }
+.psheet.open .psheet-item:nth-child(3) { animation-delay: .14s; }
+.psheet.open .psheet-item:nth-child(4) { animation-delay: .19s; }
 
 
 /* ══════════════════════════════════════════════════════════

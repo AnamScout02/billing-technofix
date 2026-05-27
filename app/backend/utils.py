@@ -258,7 +258,13 @@ def parse_zte_rx(cli_output: str) -> dict:
       'show pon onu optical-info gpon-onu_<slot/port>:<onu>'
     atau perintah equivalen.
 
-    Contoh output ZTE:
+    Mendukung dua format output ZTE C300/C600 yang umum ditemui:
+
+    Format A — satuan di belakang label (paling umum di C300/C600):
+      Rx optical power(dBm)         :-25.47
+      Tx optical power(dBm)         : 2.10
+
+    Format B — satuan di belakang angka:
       Rx power   : -25.47 dBm
       Tx power   : 2.10 dBm
 
@@ -267,14 +273,27 @@ def parse_zte_rx(cli_output: str) -> dict:
     """
     result = {'rx_power': None, 'tx_power': None}
 
+    # Format A: "Rx optical power(dBm) : -25.47"  — satuan di label
     rx_match = re.search(
-        r'[Rr]x\s+power\s*[:\-]\s*(-?\d+(?:\.\d+)?)\s*dBm',
+        r'[Rr]x\s+(?:optical\s+)?power\s*\(?dBm\)?\s*[:\-]\s*(-?\d+(?:\.\d+)?)',
         cli_output
     )
     tx_match = re.search(
-        r'[Tt]x\s+power\s*[:\-]\s*(-?\d+(?:\.\d+)?)\s*dBm',
+        r'[Tt]x\s+(?:optical\s+)?power\s*\(?dBm\)?\s*[:\-]\s*(-?\d+(?:\.\d+)?)',
         cli_output
     )
+
+    # Format B: "Rx power : -25.47 dBm"  — satuan di belakang angka (fallback)
+    if not rx_match:
+        rx_match = re.search(
+            r'[Rr]x\s+power\s*[:\-]\s*(-?\d+(?:\.\d+)?)\s*dBm',
+            cli_output
+        )
+    if not tx_match:
+        tx_match = re.search(
+            r'[Tt]x\s+power\s*[:\-]\s*(-?\d+(?:\.\d+)?)\s*dBm',
+            cli_output
+        )
 
     if rx_match:
         result['rx_power'] = float(rx_match.group(1))

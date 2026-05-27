@@ -168,11 +168,11 @@ class MikroTikClient:
         """Mengambil daftar koneksi aktif dari MikroTik."""
         try:
             api  = self._get_api()
-            rows = api.path('/ppp/active').select(
-                Key('name'), Key('service'), Key('address'),
-                Key('uptime'), Key('caller-id'),
-            )
-            result = [dict(r) for r in rows]
+            # Tanpa .select() agar SEMUA field dikembalikan,
+            # termasuk 'address' dan 'caller-id' yang kadang hilang saat pakai .select()
+            result = [dict(r) for r in api.path('/ppp/active')]
+            if result:
+                logger.info(f"[active] sample keys: {list(result[0].keys())}")
             logger.info(f"Berhasil mengambil {len(result)} koneksi aktif dari MikroTik {self.ip}")
             return result
         except MikroTikError:

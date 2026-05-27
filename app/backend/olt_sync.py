@@ -130,10 +130,12 @@ def _enter_privileged_zte(ssh_conn, olt: dict) -> bool:
          - Sudah '#' → langsung return True (C320, atau sudah di enable mode)
       2. Cek flag dari field 'tipe' di DB:
          - Mengandung 'c320', 'no_enable', 'noenable' → skip enable, return True
-      3. Coba kirim 'enable' via send_command() biasa (non-interactive):
-         - Jika prompt berubah jadi '#' → return True
-      4. Jika masih belum '#', coba send_interactive dengan password 'zxr10'
-         (C300 / C600 / C650 standar).
+      3. Coba send_interactive dengan password (C300/C600/C650 standar):
+         - Kirim 'enable', tunggu 'Password:', kirim password, tunggu 'ZXAN'
+         - Ini cara yang benar untuk C300/C600 — jangan gunakan send_command('enable')
+           karena ZTE menunggu password → deadlock → timeout → koneksi terputus.
+      4. Fallback: send_command('enable') timeout singkat 5 detik
+         - Untuk OLT ZTE yang tidak memerlukan password enable (konfigurasi khusus).
       5. Jika semua gagal → return False (sinkronisasi tetap dicoba)
 
     Selalu aman: tidak raise exception, hanya return bool.
@@ -157,31 +159,35 @@ def _enter_privileged_zte(ssh_conn, olt: dict) -> bool:
         logger.info(f"[{olt['name']}] Tipe '{tipe}' → skip enable mode")
         return True
 
-    # ── Langkah 3: kirim 'enable' non-interactive ──
-    try:
-        ssh_conn.send_command('enable', timeout_ops=5)
-        prompt_after = ssh_conn.get_prompt()
-        if '#' in prompt_after:
-            logger.info(f"[{olt['name']}] enable berhasil (non-interactive), prompt: {prompt_after!r}")
-            return True
-    except Exception as e:
-        logger.debug(f"[{olt['name']}] enable non-interactive: {e}")
-
-    # ── Langkah 4: interactive enable (C300/C600/C650 dengan password) ──
-    # Password enable ZTE standar adalah 'zxr10'; bisa disesuaikan lewat
-    # field 'snmp' atau 'keterangan' di DB jika berbeda.
+    # ── Langkah 3: interactive enable dengan password (C300/C600/C650) ──
+    # PENTING: Jangan gunakan send_command('enable') non-interactive di sini.
+    # ZTE C300/C600 dengan prompt '>' membutuhkan password setelah 'enable'.
+    # send_command() akan menunggu prompt kembali → deadlock → timeout 15 detik
+    # → Scrapli menutup koneksi → semua perintah berikutnya gagal.
+    # Solusi: langsung pakai send_interactive yang menangani challenge-response.
     enable_pwd = _extract_enable_pwd(olt)
     try:
         ssh_conn.send_interactive([
             ('enable',     'Password:', False),
             (enable_pwd,   'ZXAN',      True),
-        ])
+        ], timeout_ops=6)
         prompt_after = ssh_conn.get_prompt()
         if '#' in prompt_after:
             logger.info(f"[{olt['name']}] enable interactive berhasil")
             return True
     except Exception as e:
         logger.warning(f"[{olt['name']}] enable interactive gagal: {e} — melanjutkan tanpa enable")
+
+    # ── Langkah 4: fallback — send_command tanpa password ──
+    # Untuk OLT ZTE yang tidak memerlukan password enable (konfigurasi khusus).
+    try:
+        ssh_conn.send_command('enable', timeout_ops=3)
+        prompt_after = ssh_conn.get_prompt()
+        if '#' in prompt_after:
+            logger.info(f"[{olt['name']}] enable tanpa password berhasil, prompt: {prompt_after!r}")
+            return True
+    except Exception as e:
+        logger.debug(f"[{olt['name']}] enable non-interactive fallback: {e}")
 
     return False
 
@@ -229,7 +235,7 @@ def sync_zte(ssh_conn, conn, olt: dict):
         _enter_privileged_zte(ssh_conn, olt)
 
         # Matikan paginasi agar output tidak terpotong
-        ssh_conn.send_command('terminal length 0', timeout_ops=5)
+        ssh_conn.send_command('terminal length 0', timeout_ops=15)
 
         # ── 1. Tarik running-config satu kali ──
         config_text = ssh_conn.send_command(
@@ -247,32 +253,39 @@ def sync_zte(ssh_conn, conn, olt: dict):
             ):
                 sn_map[f'{port}:{onu_id}'] = sn
 
-        # ── 3. Peta Name & VLAN dari blok gpon-onu ──
+        # ── 3. Kumpulkan semua ONU dari blok gpon-onu ──
+        onu_list = []  # list of (iface, username, vlan, sn)
         for iface, block in re.findall(
             r'interface gpon-onu_(\d+/\d+/\d+:\d+)(.*?)!',
             config_text, re.DOTALL
         ):
             name_match = re.search(r'name\s+([^\r\n]+)', block)
-            # VLAN bisa di service-port atau di switchport
-            vlan_match = re.search(
-                r'(?:user-vlan|vlan)\s+(\d+)', block
-            )
+            vlan_match = re.search(r'(?:user-vlan|vlan)\s+(\d+)', block)
 
             if not name_match:
                 continue
 
             username = name_match.group(1).strip()
-            vlan     = vlan_match.group(1) if vlan_match else ''
-            sn       = sn_map.get(iface, '')
-
             if not username or username.lower() in ('n/a', '-', ''):
                 continue
 
-            # ── 4. Ambil RX/TX power per ONU ──
-            rx_power, tx_power = _get_zte_optical(ssh_conn, iface)
+            vlan = vlan_match.group(1) if vlan_match else ''
+            sn   = sn_map.get(iface, '')
+            onu_list.append((iface, username, vlan, sn))
 
+        # ── 4. Bulk fetch RX power per port (1 request per port, bukan per ONU) ──
+        rx_cache = {}  # { port: { iface: rx_power } }
+        for iface, *_ in onu_list:
+            port = iface.rsplit(':', 1)[0]  # "1/1/1:2" -> "1/1/1"
+            if port not in rx_cache:
+                rx_cache[port] = _fetch_zte_rx_bulk(ssh_conn, port)
+
+        # ── 5. Simpan ke DB ──
+        for iface, username, vlan, sn in onu_list:
+            port     = iface.rsplit(':', 1)[0]
+            rx_power = rx_cache.get(port, {}).get(iface)
             _upsert_onu(conn, username, olt['id'], iface, sn, vlan,
-                        rx_power, tx_power)
+                        rx_power, None)
             match_count += 1
 
         conn.commit()
@@ -285,20 +298,44 @@ def sync_zte(ssh_conn, conn, olt: dict):
         logger.error(f'[{olt_name}] ❌ Error ZTE GPON: {e}')
 
 
-def _get_zte_optical(ssh_conn, iface: str):
+def _fetch_zte_rx_bulk(ssh_conn, port: str) -> dict:
     """
-    Ambil RX/TX power ONU ZTE.
-    Perintah: show pon onu optical-info gpon-onu_<slot>:<onu>
-    Return: (rx_power: float|None, tx_power: float|None)
+    Ambil RX power semua ONU dalam satu port sekaligus (lebih cepat & stabil).
+
+    Perintah: sh pon power onu-rx gpon-olt_<port>
+    Contoh output:
+      Onu              Rx power
+      gpon-onu_1/1/1:1   -12.300(dbm)
+      gpon-onu_1/1/1:2   -25.528(dbm)
+      gpon-onu_1/1/1:7   N/A
+
+    Return: dict  { '1/1/1:1': -12.300, '1/1/1:2': -25.528, '1/1/1:7': None, ... }
     """
+    result = {}
     try:
-        out    = ssh_conn.send_command(
-            f'show pon onu optical-info gpon-onu_{iface}', timeout_ops=10
+        out = ssh_conn.send_command(
+            f'sh pon power onu-rx gpon-olt_{port}', timeout_ops=15
         ).result
-        parsed = parse_zte_rx(out)
-        return parsed.get('rx_power'), parsed.get('tx_power')
-    except Exception:
-        return None, None
+
+        # Format: "gpon-onu_1/1/1:1   -12.300(dbm)"
+        for m in re.finditer(
+            r'gpon-onu_([\d/]+:\d+)\s+([-\d.]+)\s*\(dbm\)',
+            out, re.IGNORECASE
+        ):
+            iface, val = m.group(1), m.group(2)
+            try:
+                result[iface] = float(val)
+            except ValueError:
+                result[iface] = None
+
+        # ONU dengan N/A → None (sudah default jika tidak ada di dict)
+        if not result:
+            logger.debug(f'[ZTE optical bulk] port {port} — tidak ada match, raw:\n{out[:300]}')
+
+    except Exception as e:
+        logger.debug(f'[ZTE optical bulk] port {port} error: {e}')
+
+    return result
 
 
 # ══════════════════════════════════════════════════════════════
@@ -322,9 +359,9 @@ def sync_huawei(ssh_conn, conn, olt: dict):
 
     try:
         # Huawei: prompt sudah di user mode, perlu enable + config
-        ssh_conn.send_command('enable',     timeout_ops=5)
-        ssh_conn.send_command('config',     timeout_ops=5)
-        ssh_conn.send_command('undo smart', timeout_ops=5)
+        ssh_conn.send_command('enable',     timeout_ops=15)
+        ssh_conn.send_command('config',     timeout_ops=15)
+        ssh_conn.send_command('undo smart', timeout_ops=15)
 
         config_text = ssh_conn.send_command(
             'display current-configuration', timeout_ops=90
@@ -438,8 +475,8 @@ def sync_hsgq_epon(ssh_conn, conn, olt: dict):
 
     try:
         # ── Masuk privileged mode ──
-        ssh_conn.send_command('enable',    timeout_ops=5)
-        ssh_conn.send_command('configure', timeout_ops=5)
+        ssh_conn.send_command('enable',    timeout_ops=15)
+        ssh_conn.send_command('configure', timeout_ops=15)
 
         for port_num in range(1, epon_ports + 1):
             logger.info(f'[{olt_name}] Memproses EPON port {port_num}...')
@@ -595,11 +632,11 @@ def sync_vsol(ssh_conn, conn, olt: dict):
 
         if '#' not in current_prompt:
             try:
-                ssh_conn.send_command('enable', timeout_ops=5)
+                ssh_conn.send_command('enable', timeout_ops=15)
             except Exception:
                 pass
 
-        ssh_conn.send_command('terminal length 0', timeout_ops=5)
+        ssh_conn.send_command('terminal length 0', timeout_ops=15)
 
         config_text = ssh_conn.send_command(
             'show running-config', timeout_ops=60
@@ -668,11 +705,11 @@ def sync_generic_olt(ssh_conn, conn, olt: dict):
         try:
             current_prompt = ssh_conn.get_prompt()
             if '#' not in current_prompt:
-                ssh_conn.send_command('enable', timeout_ops=5)
+                ssh_conn.send_command('enable', timeout_ops=15)
         except Exception:
             pass
 
-        ssh_conn.send_command('terminal length 0', timeout_ops=5)
+        ssh_conn.send_command('terminal length 0', timeout_ops=15)
 
         config_text = ssh_conn.send_command(
             'show running-config', timeout_ops=60
