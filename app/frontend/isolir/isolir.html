@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Koneksi Terisolir — TechnoFix</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet"/>
+<style>
+/* ── Reset ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+/* ── Design tokens (sama persis dengan portal_login.html) ── */
+:root{
+  --primary:       #0040a1;
+  --primary-light: #e8f0fc;
+  --primary-ring:  rgba(0,64,161,.15);
+  --green:         #16a34a;
+  --green-bg:      #f0fdf4;
+  --red:           #dc2626;
+  --red-bg:        #fef2f2;
+  --amber:         #d97706;
+  --amber-bg:      #fffbeb;
+  --amber-border:  #fde68a;
+  --text:          #0f172a;
+  --text-muted:    #64748b;
+  --text-dim:      #94a3b8;
+  --border:        #e2e8f0;
+  --surface:       #f8fafc;
+  --bg:            #ffffff;
+  --shadow-lg:     0 20px 60px rgba(0,0,0,.12), 0 4px 16px rgba(0,0,0,.06);
+  --r-lg:          14px;
+  --r-md:          10px;
+  --r-sm:          8px;
+  --sans:          'Poppins', sans-serif;
+  --heading:       'Plus Jakarta Sans', sans-serif;
+}
+
+/* ── Body — background sama seperti portal_login ── */
+body{
+  font-family: var(--sans);
+  background: linear-gradient(135deg, #0040a1 0%, #0055cc 40%, #1a6dd4 100%);
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px 16px;
+  position: relative; overflow: hidden;
+}
+body::before{
+  content:'';
+  position:fixed;inset:0;
+  background-image:
+    radial-gradient(circle at 20% 20%, rgba(255,255,255,.08) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(255,255,255,.06) 0%, transparent 50%);
+  pointer-events:none;
+}
+.deco{position:fixed;border-radius:50%;background:rgba(255,255,255,.05);pointer-events:none}
+.deco-1{width:300px;height:300px;top:-80px;right:-80px}
+.deco-2{width:200px;height:200px;bottom:-60px;left:-60px}
+.deco-3{width:150px;height:150px;top:50%;left:10%}
+
+/* ── Card — sama persis dengan portal_login ── */
+.card{
+  background: var(--bg);
+  border-radius: 20px;
+  box-shadow: var(--shadow-lg);
+  width: 100%; max-width: 420px;
+  overflow: hidden;
+  position: relative; z-index: 1;
+  animation: fadeUp .4s cubic-bezier(.22,1,.36,1) both;
+}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── Header card — blue gradient (sama dengan portal_login) ── */
+.card-header{
+  background: linear-gradient(135deg, var(--primary) 0%, #1a6dd4 100%);
+  padding: 28px 32px 24px;
+  text-align: center;
+  position: relative;
+}
+.header-logo{
+  width: 64px; height: 64px;
+  background: rgba(255,255,255,.15);
+  border-radius: 18px;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 14px;
+  backdrop-filter: blur(10px);
+}
+.header-logo img{width:36px;height:36px;object-fit:contain;border-radius:8px}
+.header-brand{
+  font-family: var(--heading);
+  font-size: 22px; font-weight: 800;
+  color: #fff; letter-spacing: -.02em;
+}
+.header-tagline{font-size:13px;color:rgba(255,255,255,.75);margin-top:4px}
+
+/* ── Warning banner ── */
+.warn-banner{
+  background: var(--amber-bg);
+  border-top: 3px solid var(--amber);
+  padding: 16px 24px;
+  display: flex; align-items: center; gap: 14px;
+}
+.warn-icon-wrap{
+  width: 44px; height: 44px;
+  background: #fff;
+  border-radius: 50%;
+  border: 2px solid var(--amber-border);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.warn-icon-wrap .material-symbols-outlined{font-size:22px;color:var(--amber)}
+.warn-title{
+  font-family: var(--heading);
+  font-size: 15px; font-weight: 800;
+  color: #92400e; letter-spacing: -.01em;
+}
+.warn-sub{font-size:12px;color:#b45309;margin-top:2px;line-height:1.5}
+
+/* ── Card body ── */
+.card-body{padding:20px 28px 24px}
+
+/* ── Info list ── */
+.info-list{list-style:none;margin-bottom:20px}
+.info-row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 0;border-bottom:1px solid var(--border);
+  font-size:13px;gap:12px;
+}
+.info-row:last-child{border-bottom:none}
+.info-key{color:var(--text-muted);font-weight:600;flex-shrink:0;font-size:12.5px}
+.info-val{color:var(--text);font-weight:700;text-align:right;word-break:break-all}
+.info-val.amber{color:var(--amber)}
+.info-val.red  {color:var(--red)}
+
+/* ── Status badge ── */
+.status-badge{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:3px 10px;border-radius:99px;
+  font-size:11.5px;font-weight:700;
+  background:var(--red-bg);color:var(--red);
+  border:1px solid #fecaca;
+}
+.status-dot{width:7px;height:7px;border-radius:50%;background:var(--red);flex-shrink:0}
+
+/* ── Hint kecil ── */
+.hint-text{
+  font-size:12px;color:var(--text-muted);
+  text-align:center;margin-bottom:18px;
+  line-height:1.6;
+  background:var(--surface);
+  border-radius:var(--r-sm);
+  padding:10px 14px;
+  border:1px solid var(--border);
+}
+
+/* ── Tombol — sama persis dengan portal_login ── */
+.btn{
+  width:100%;height:48px;border:none;border-radius:var(--r-md);
+  font-size:14px;font-weight:700;font-family:var(--heading);
+  cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;
+  transition:opacity .15s,transform .1s,box-shadow .15s;
+  text-decoration:none;margin-bottom:10px;
+}
+.btn:last-child{margin-bottom:0}
+.btn:hover{opacity:.92}
+.btn:active{transform:scale(.98)}
+.btn-wa{
+  background:#25d366;color:#fff;
+  box-shadow:0 4px 14px rgba(37,211,102,.3);
+}
+.btn-primary{
+  background:linear-gradient(135deg,var(--primary) 0%,#1a6dd4 100%);
+  color:#fff;
+  box-shadow:0 4px 14px rgba(0,64,161,.35);
+}
+.btn-secondary{
+  background:var(--surface);color:var(--text-muted);
+  border:1.5px solid var(--border);
+  box-shadow:none;
+}
+.btn .material-symbols-outlined{font-size:18px}
+
+/* ── Footer card ── */
+.card-footer{
+  padding:14px 32px 20px;
+  text-align:center;border-top:1px solid var(--border);
+}
+.card-footer p{font-size:12px;color:var(--text-dim);line-height:1.6}
+.card-footer strong{color:var(--text-muted)}
+
+/* ── Auto-check indicator ── */
+.auto-check{
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  font-size:11px;color:var(--text-dim);margin-top:14px;
+}
+@keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
+.pulse-dot{
+  width:7px;height:7px;border-radius:50%;background:var(--primary);
+  animation:pulse 1.8s ease-in-out infinite;
+}
+</style>
+</head>
+<body>
+
+<!-- Dekorasi background -->
+<div class="deco deco-1"></div>
+<div class="deco deco-2"></div>
+<div class="deco deco-3"></div>
+
+<div class="card">
+
+  <!-- Header — blue branded seperti portal_login -->
+  <div class="card-header">
+    <div class="header-logo">
+      <img src="/app/frontend/statis/technofixlogo.png" alt="TechnoFix"/>
+    </div>
+    <div class="header-brand" id="isp-name">TechnoFix</div>
+    <div class="header-tagline">Portal Pelanggan</div>
+  </div>
+
+  <!-- Warning banner -->
+  <div class="warn-banner">
+    <div class="warn-icon-wrap">
+      <span class="material-symbols-outlined">wifi_off</span>
+    </div>
+    <div>
+      <div class="warn-title">Koneksi Internet Terisolir</div>
+      <div class="warn-sub">Akses internet Anda sementara dihentikan oleh ISP</div>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div class="card-body">
+
+    <!-- Data pelanggan -->
+    <ul class="info-list">
+      <li class="info-row">
+        <span class="info-key">Pelanggan</span>
+        <span class="info-val" id="d-nama">—</span>
+      </li>
+      <li class="info-row">
+        <span class="info-key">Username</span>
+        <span class="info-val" id="d-username">—</span>
+      </li>
+      <li class="info-row">
+        <span class="info-key">Paket</span>
+        <span class="info-val" id="d-paket">—</span>
+      </li>
+      <li class="info-row">
+        <span class="info-key">Tagihan/Bulan</span>
+        <span class="info-val amber" id="d-harga">—</span>
+      </li>
+      <li class="info-row">
+        <span class="info-key">Jatuh Tempo</span>
+        <span class="info-val red" id="d-jatuh">—</span>
+      </li>
+      <li class="info-row">
+        <span class="info-key">Status Akun</span>
+        <span class="info-val">
+          <span class="status-badge">
+            <span class="status-dot"></span>Terisolir
+          </span>
+        </span>
+      </li>
+    </ul>
+
+    <!-- Hint -->
+    <div class="hint-text" id="hint-text">
+      Segera lunasi tagihan Anda dan hubungi tim teknis untuk memulihkan koneksi internet.
+    </div>
+
+    <!-- Action buttons -->
+    <a href="#" class="btn btn-wa" id="btn-wa">
+      <span class="material-symbols-outlined">chat</span>
+      Hubungi ISP via WhatsApp
+    </a>
+    <a href="/app/frontend/portal/portal_dashboard.html" class="btn btn-primary">
+      <span class="material-symbols-outlined">receipt_long</span>
+      Lihat Tagihan di Portal
+    </a>
+    <a href="/app/frontend/portal/portal_login.html" class="btn btn-secondary">
+      <span class="material-symbols-outlined">logout</span>
+      Keluar / Login Ulang
+    </a>
+
+    <!-- Auto-check indicator -->
+    <div class="auto-check">
+      <div class="pulse-dot"></div>
+      Memeriksa status koneksi secara otomatis...
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <div class="card-footer">
+    <p>Jika sudah melunasi tagihan, koneksi akan dipulihkan<br/>
+    oleh tim teknis <strong id="isp-footer">ISP Anda</strong>.</p>
+  </div>
+
+</div><!-- /card -->
+
+<script>
+const _API = (function(){
+  const h = window.location.hostname;
+  if (h === 'localhost' || h === '127.0.0.1') return 'http://127.0.0.1:5000';
+  if (h === '192.168.70.7')                   return 'http://192.168.70.7:5000';
+  if (h === '103.194.175.54')                 return 'http://103.194.175.54:5000';
+  return '';
+})() + '/api/portal';
+
+function fmtTgl(s){
+  if (!s) return '—';
+  try{ return new Date(s).toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'}); }
+  catch{ return s; }
+}
+function fmtRp(n){
+  return n > 0 ? 'Rp ' + Number(n).toLocaleString('id-ID') + '/bln' : '—';
+}
+function setText(id, val){ const e=document.getElementById(id); if(e)e.textContent=val||'—'; }
+
+/* ─── Load data dari portal session ─── */
+async function loadData(){
+  try{
+    const r = await fetch(`${_API}/detail`, { credentials:'include' });
+    if(!r.ok) return;
+    const d = await r.json();
+
+    const ispName = d.isp_name || 'TechnoFix';
+    setText('isp-name',   ispName);
+    setText('isp-footer', ispName);
+    setText('d-nama',     d.nama     || d.username);
+    setText('d-username', d.username);
+    setText('d-paket',    d.profil);
+    setText('d-harga',    fmtRp(d.harga));
+    setText('d-jatuh',    fmtTgl(d.tgl_jatuh));
+    setText('hint-text',
+      `Segera lunasi tagihan dan hubungi ${ispName} untuk memulihkan koneksi internet Anda.`
+    );
+
+    // WA button
+    const wa  = (d.isp_wa || d.wa_number || '').replace(/\D/g,'');
+    const msg = encodeURIComponent(
+      `Halo ${ispName}, saya ${d.nama||d.username} ingin melunasi tagihan dan memulihkan koneksi. Username: ${d.username||'-'}`
+    );
+    const btnWa = document.getElementById('btn-wa');
+    if(btnWa) btnWa.href = wa ? `https://wa.me/${wa}?text=${msg}` : '#';
+
+  }catch(_){}
+}
+
+/* ─── Cek status tiap 30 dtk — kalau online, redirect ke portal ─── */
+async function checkStatus(){
+  try{
+    const r = await fetch(`${_API}/status`, { credentials:'include' });
+    if(!r.ok) return;
+    const d = await r.json();
+    if(d.online === true)
+      window.location.replace('/app/frontend/portal/portal_dashboard.html');
+  }catch(_){}
+}
+
+/* ─── Init: cek session dulu ─── */
+async function init(){
+  try{
+    const r = await fetch(`${_API}/check`, { credentials:'include' });
+    if(!r.ok){ window.location.replace('/app/frontend/portal/portal_login.html'); return; }
+    const d = await r.json();
+    if(!d.logged_in){ window.location.replace('/app/frontend/portal/portal_login.html'); return; }
+    await loadData();
+    setInterval(checkStatus, 30000);
+  }catch(_){
+    // Server tidak terjangkau — tampil halaman default
+  }
+}
+
+init();
+</script>
+</body>
+</html>

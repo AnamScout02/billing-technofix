@@ -1,0 +1,412 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pengaturan — TechnoFix Billing</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
+
+  <link rel="stylesheet" href="/app/frontend/statis/global.css?v=22" />
+
+  <style>
+    /* Setting — pakai dp-card dari global.css, hanya tambahan kecil */
+    .setting-page { padding-bottom: 40px; }
+
+    /* Grid 2-kolom untuk form */
+    .s-row  { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
+    .s-row:last-child { margin-bottom:0; }
+    .s-row.full { grid-template-columns:1fr; }
+    .s-row.triple { grid-template-columns:1fr 1fr 1fr; }
+
+    /* Toggle */
+    .toggle-row { display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid var(--border); }
+    .toggle-row:last-child { border-bottom:none; padding-bottom:0; }
+    .toggle-label { font-size:13px; color:var(--text); font-weight:600; }
+    .toggle-sub   { font-size:11.5px; color:var(--text-dim); margin-top:2px; }
+    .toggle-switch { position:relative; width:42px; height:24px; flex-shrink:0; }
+    .toggle-switch input { opacity:0; width:0; height:0; }
+    .toggle-slider { position:absolute; inset:0; background:var(--border); border-radius:99px; cursor:pointer; transition:background .2s; }
+    .toggle-slider::before { content:''; position:absolute; width:18px; height:18px; border-radius:50%; background:#fff; top:3px; left:3px; box-shadow:0 1px 4px rgba(0,0,0,.2); transition:transform .2s; }
+    .toggle-switch input:checked + .toggle-slider { background:var(--primary); }
+    .toggle-switch input:checked + .toggle-slider::before { transform:translateX(18px); }
+
+    /* Info system boxes */
+    .info-box { background:var(--surface); border:1px solid var(--border); border-radius:var(--r-md); padding:14px 16px; }
+    .info-box-label { font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--text-dim); }
+    .info-box-val { font-family:var(--heading); font-size:20px; font-weight:800; color:var(--text); margin-top:4px; }
+    .info-box-sub { font-size:11px; color:var(--text-muted); margin-top:2px; }
+
+    /* Toast */
+    .setting-toast { position:fixed; bottom:80px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--text); color:#fff; padding:10px 20px; border-radius:99px; font-size:13px; font-weight:500; opacity:0; pointer-events:none; transition:opacity .2s,transform .2s; z-index:999; white-space:nowrap; display:flex; align-items:center; gap:8px; }
+    .setting-toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+    .setting-toast.success { background:var(--green); }
+    .setting-toast.danger  { background:var(--red); }
+
+    @media(max-width:640px){
+      .s-row,.s-row.triple { grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+
+<body>
+
+<!-- ══ HEADER ══ -->
+<header class="header">
+  <canvas class="header-canvas" id="header-canvas"></canvas>
+  <div class="header-inner">
+    <div class="header-brand">
+      <div class="brand-logo"><img src="/app/frontend/statis/technofixlogo.png" alt="TechnoFix" /></div>
+      <div>
+        <div class="brand-name">TechnoFix</div>
+        <div class="brand-sub">Pengaturan Sistem</div>
+      </div>
+    </div>
+
+    <nav class="topbar-nav">
+      <a href="/app/frontend/dashboard/dashboard.html">
+        <span class="material-symbols-outlined">dashboard</span>Dashboard
+      </a>
+      <a href="/app/frontend/pelanggan/pelanggan.html">
+        <span class="material-symbols-outlined">group</span>Pelanggan
+      </a>
+      <a href="#" onclick="openPerangkatSheet(event)" data-perm="perangkat">
+        <span class="material-symbols-outlined">router</span>Perangkat
+      </a>
+      <a href="#" onclick="openKeuanganSheet(event)" data-perm="keuangan"><span class="material-symbols-outlined">payments</span>Keuangan</a>
+      <a href="/app/frontend/maps/maps.html" data-perm="maps">
+        <span class="material-symbols-outlined">map</span>Maps
+      </a>
+    </nav>
+
+    <div class="header-actions">
+      <button class="icon-btn" onclick="toggleDarkMode()" title="Ganti tema gelap/terang" style="margin-right:2px"><span class="material-symbols-outlined" id="dark-mode-icon">dark_mode</span></button>
+        <div class="profile-wrap" id="profile-wrap">
+        <button class="profile-btn" onclick="toggleProfileMenu()">
+          <div class="avatar-circle" id="avatar-initials">AD</div>
+          <span class="profile-username" id="profile-username">Admin</span>
+          <span class="material-symbols-outlined profile-chevron">expand_more</span>
+        </button>
+        <div class="profile-dropdown" id="profile-dropdown">
+          <div class="profile-menu-header">
+            <div class="profile-menu-avatar" id="dd-avatar">AD</div>
+            <div class="profile-menu-identity">
+              <span class="profile-menu-name" id="dd-username">Admin</span>
+              <span class="profile-menu-role" id="dd-role-badge">Owner</span>
+            </div>
+          </div>
+          <div class="profile-menu-divider"></div>
+          <a href="/app/frontend/profile/profile.html" class="profile-menu-item">
+            <span class="material-symbols-outlined">person</span>Profil saya
+          </a>
+          <a href="/app/frontend/setting/setting.html" class="profile-menu-item">
+            <span class="material-symbols-outlined">settings</span>Setting
+          </a>
+          <a href="/app/frontend/langganan/langganan.html" class="profile-menu-item btn-owner-only">
+            <span class="material-symbols-outlined">workspace_premium</span>Langganan
+          </a>
+          <div class="profile-menu-divider btn-owner-only"></div>
+          <a href="/app/frontend/manajemen_user/manajemen_user.html" class="profile-menu-item btn-owner-only">
+            <span class="material-symbols-outlined">manage_accounts</span>Manajemen user
+          </a>
+          <a href="/app/frontend/panduan/panduan.html" target="_blank" class="profile-menu-item">
+            <span class="material-symbols-outlined">menu_book</span>Panduan Penggunaan
+          </a>
+          <div class="profile-menu-divider"></div>
+          <a href="#" class="profile-menu-item logout" onclick="logout();return false;">
+            <span class="material-symbols-outlined">logout</span>Keluar
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ══ BOTTOM NAV ══ -->
+<nav class="bottom-nav">
+  <div class="bottom-nav-inner">
+    <div class="bottom-nav-indicator" id="bottom-nav-indicator"></div>
+    <a href="/app/frontend/dashboard/dashboard.html" class="bottom-nav-item">
+      <div class="bottom-nav-icon"><span class="material-symbols-outlined">dashboard</span></div>
+      <span class="bottom-nav-label">Dashboard</span>
+    </a>
+    <a href="/app/frontend/pelanggan/pelanggan.html" class="bottom-nav-item">
+      <div class="bottom-nav-icon"><span class="material-symbols-outlined">group</span></div>
+      <span class="bottom-nav-label">Pelanggan</span>
+    </a>
+    <a href="#" onclick="openPerangkatSheet(event)" class="bottom-nav-item" data-perm="perangkat">
+      <div class="bottom-nav-icon"><span class="material-symbols-outlined">router</span></div>
+      <span class="bottom-nav-label">Perangkat</span>
+    </a>
+    <a href="#" onclick="openKeuanganSheet(event)" class="bottom-nav-item" data-perm="keuangan">
+      <div class="bottom-nav-icon"><span class="material-symbols-outlined">payments</span></div>
+      <span class="bottom-nav-label">Keuangan</span>
+    </a>
+    <a href="/app/frontend/maps/maps.html" class="bottom-nav-item" data-perm="maps">
+      <div class="bottom-nav-icon"><span class="material-symbols-outlined">map</span></div>
+      <span class="bottom-nav-label">Maps</span>
+    </a>
+  </div>
+</nav>
+
+<!-- ══ PAGE ══ -->
+<main class="page">
+
+  <div class="page-top">
+    <div>
+      <h1 class="page-title">Pengaturan</h1>
+      <p class="page-sub">Konfigurasi ISP, rekening, portal pelanggan, dan preferensi sistem</p>
+    </div>
+    <div class="page-top-actions">
+      <span class="badge pending" id="setting-status-badge">
+        <span class="badge-dot"></span> Belum tersimpan
+      </span>
+    </div>
+  </div>
+
+  <div class="setting-page">
+
+    <!-- ══ 1. PROFIL ISP ══ -->
+    <div class="dp-card">
+      <div class="dp-card-head">
+        <span class="material-symbols-outlined">business</span>
+        <div style="flex:1;min-width:0">
+          <div>Profil ISP</div>
+          <div style="font-size:11.5px;font-weight:400;opacity:.75;margin-top:1px">Identitas ISP — tampil di portal pelanggan &amp; notifikasi</div>
+        </div>
+      </div>
+      <div class="dp-card-body">
+
+        <!-- Logo upload -->
+        <div style="display:flex;align-items:center;gap:20px;padding:14px 0 20px;border-bottom:1px solid var(--border);margin-bottom:20px">
+          <div id="logo-preview" style="width:72px;height:72px;border-radius:14px;border:2px dashed var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;cursor:pointer" onclick="document.getElementById('logo-input').click()">
+            <span class="material-symbols-outlined" id="logo-icon" style="font-size:28px;color:var(--text-dim)">add_photo_alternate</span>
+          </div>
+          <div>
+            <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">Logo Perusahaan</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">Digunakan di invoice dan halaman portal. Format: PNG/JPG, maks 2 MB.</div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-sm btn-secondary" onclick="document.getElementById('logo-input').click()">
+                <span class="material-symbols-outlined">upload</span>Upload Logo
+              </button>
+              <button class="btn btn-sm btn-secondary" id="btn-hapus-logo" onclick="hapusLogo()" style="display:none;color:var(--red)">
+                <span class="material-symbols-outlined">delete</span>Hapus
+              </button>
+            </div>
+            <input type="file" id="logo-input" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="previewLogo(this)"/>
+          </div>
+        </div>
+
+        <div class="s-row">
+          <div class="form-group">
+            <label class="form-label">Nama ISP / Perusahaan <span class="req">*</span></label>
+            <input class="form-input" type="text" id="profil-isp-name" placeholder="Contoh: MyNet Songgon"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">No. Telepon / HP</label>
+            <input class="form-input" type="text" id="profil-telepon" placeholder="Contoh: 083135851605"/>
+          </div>
+        </div>
+        <div class="s-row">
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input class="form-input" type="email" id="profil-email" placeholder="Contoh: admin@mynet.id"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Nomor WA Admin</label>
+            <input class="form-input" type="text" id="profil-wa-admin" placeholder="Contoh: 6283135851605"/>
+            <span class="form-hint">Format 628xxx — menerima notifikasi request bayar dari portal</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Alamat Lengkap</label>
+          <input class="form-input" type="text" id="profil-alamat" placeholder="Contoh: Jl. KH. Hasyim Asy'ari, Krajan, Sragi, Songgon, Banyuwangi"/>
+        </div>
+        <div class="form-actions" style="justify-content:flex-end">
+          <button class="btn-primary" onclick="saveSection('profil')">
+            <span class="material-symbols-outlined">save</span>Simpan Profil
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ 2. PORTAL PELANGGAN ══ -->
+    <div class="dp-card">
+      <div class="dp-card-head">
+        <span class="material-symbols-outlined">person_pin</span>
+        <div style="flex:1;min-width:0">
+          <div>Portal Pelanggan</div>
+          <div style="font-size:11.5px;font-weight:400;opacity:.75;margin-top:1px">Akses &amp; tampilan halaman portal pelanggan</div>
+        </div>
+      </div>
+      <div class="dp-card-body">
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-label">Aktifkan Portal Pelanggan</div>
+            <div class="toggle-sub">Pelanggan bisa login untuk cek tagihan, status koneksi, dan speed test</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="portal-enabled" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="form-group" style="margin-top:16px">
+          <label class="form-label">Pesan Selamat Datang (opsional)</label>
+          <input class="form-input" type="text" id="portal-welcome-msg"
+                 placeholder="Contoh: Selamat datang di portal pelanggan MyNet!"/>
+          <span class="form-hint">Ditampilkan di halaman beranda portal</span>
+        </div>
+        <div class="note" style="margin-top:12px">
+          <span class="material-symbols-outlined">link</span>
+          <span>Link portal: <strong>/app/frontend/portal/portal_login.html</strong> — bagikan ke pelanggan</span>
+        </div>
+        <div class="form-actions" style="justify-content:flex-end">
+          <button class="btn-primary" onclick="saveSection('portal')">
+            <span class="material-symbols-outlined">save</span>Simpan Portal
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ 3. PREFERENSI SISTEM ══ -->
+    <div class="dp-card">
+      <div class="dp-card-head">
+        <span class="material-symbols-outlined">tune</span>
+        <div style="flex:1;min-width:0">
+          <div>Preferensi Sistem</div>
+          <div style="font-size:11.5px;font-weight:400;opacity:.75;margin-top:1px">Pengaturan tampilan &amp; perilaku aplikasi</div>
+        </div>
+      </div>
+      <div class="dp-card-body">
+        <div class="s-row">
+          <div class="form-group">
+            <label class="form-label">Interval Auto-Refresh</label>
+            <select class="form-input" id="pref-refresh-interval">
+              <option value="0">Mati (manual)</option>
+              <option value="30">30 detik</option>
+              <option value="60" selected>1 menit</option>
+              <option value="300">5 menit</option>
+              <option value="600">10 menit</option>
+            </select>
+          </div>
+        </div>
+        <div class="s-row">
+          <div class="form-group">
+            <label class="form-label">Batas Sinyal RX Baik (dBm)</label>
+            <input class="form-input" type="number" id="pref-rx-good" value="-20"/>
+            <span class="form-hint">Di atas nilai ini = sinyal hijau</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Batas Sinyal RX Buruk (dBm)</label>
+            <input class="form-input" type="number" id="pref-rx-bad" value="-27"/>
+            <span class="form-hint">Di bawah nilai ini = sinyal merah</span>
+          </div>
+        </div>
+        <div style="border-top:1px solid var(--border);padding-top:14px;margin-top:4px">
+          <div class="toggle-row">
+            <div>
+              <div class="toggle-label">Tampilkan Harga di Daftar Pelanggan</div>
+              <div class="toggle-sub">Kolom harga profil terlihat di tabel pelanggan</div>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="pref-show-harga" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="toggle-row">
+            <div>
+              <div class="toggle-label">Auto-Sync Sinyal OLT</div>
+              <div class="toggle-sub">Worker olt_sync.py berjalan otomatis sesuai interval</div>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="pref-auto-sync" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+        <div class="form-actions" style="justify-content:flex-end">
+          <button class="btn-primary" onclick="saveSection('preferensi')">
+            <span class="material-symbols-outlined">save</span>Simpan Preferensi
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ 4. INFORMASI SISTEM ══ -->
+    <div class="dp-card">
+      <div class="dp-card-head">
+        <span class="material-symbols-outlined">info</span>
+        <div style="flex:1;min-width:0">
+          <div>Informasi Sistem</div>
+          <div style="font-size:11.5px;font-weight:400;opacity:.75;margin-top:1px">Versi aplikasi, ukuran database, dan status backend</div>
+        </div>
+      </div>
+      <div class="dp-card-body">
+        <div class="s-row triple">
+          <div class="info-box">
+            <div class="info-box-label">Versi</div>
+            <div class="info-box-val">v2.2</div>
+            <div class="info-box-sub">TechnoFix Billing</div>
+          </div>
+          <div class="info-box">
+            <div class="info-box-label">Database</div>
+            <div class="info-box-val" id="info-db-size">—</div>
+            <div class="info-box-sub">Owner DB</div>
+          </div>
+          <div class="info-box">
+            <div class="info-box-label">Status Backend</div>
+            <div style="font-size:14px;font-weight:700;margin-top:6px;display:flex;align-items:center;gap:6px" id="info-backend-status">
+              <span style="width:8px;height:8px;border-radius:50%;background:var(--text-dim);display:inline-block"></span>Mengecek...
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /setting-page -->
+</main>
+
+<!-- Toast -->
+<div class="setting-toast" id="setting-toast">
+  <span class="material-symbols-outlined" style="font-size:16px">check_circle</span>
+  <span id="setting-toast-msg">Tersimpan</span>
+</div>
+
+<script src="/app/frontend/statis/global.js?v=21"></script>
+<script src="/app/frontend/setting/setting.js?v=6"></script>
+
+  <!-- KEUANGAN SHEET -->
+  <div class="psheet-overlay" id="ksheet-overlay" onclick="closeKeuanganSheet()"></div>
+  <div class="psheet ksheet" id="ksheet" role="dialog" aria-modal="true">
+    <div class="psheet-handle"></div>
+    <div class="psheet-head">
+      <div><p class="psheet-eyebrow">Keuangan & Tagihan</p><h2 class="psheet-title">Pilih Fitur</h2></div>
+      <button class="psheet-close" onclick="closeKeuanganSheet()"><span class="material-symbols-outlined">close</span></button>
+    </div>
+    <div class="psheet-list">
+      <a href="/app/frontend/keuangan/keuangan.html" class="psheet-item psheet-keuangan"><div class="psheet-item-icon"><span class="material-symbols-outlined">payments</span></div><div class="psheet-item-body"><div class="psheet-item-name">Keuangan</div><div class="psheet-item-desc">Pemasukan & pengeluaran</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/tagihan/tagihan.html" class="psheet-item psheet-tagihan" data-perm="keuangan"><div class="psheet-item-icon"><span class="material-symbols-outlined">receipt_long</span></div><div class="psheet-item-body"><div class="psheet-item-name">Tagihan</div><div class="psheet-item-desc">Tagihan bulanan pelanggan</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/loket/loket.html" class="psheet-item psheet-loket" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">point_of_sale</span></div><div class="psheet-item-body"><div class="psheet-item-name">Loket / Kasir</div><div class="psheet-item-desc">Terima bayar + komisi</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/notifikasi/wa.html" class="psheet-item psheet-wa" data-perm="pelanggan"><div class="psheet-item-icon"><span class="material-symbols-outlined">chat</span></div><div class="psheet-item-body"><div class="psheet-item-name">Notifikasi WA</div><div class="psheet-item-desc">Pengingat tagihan WhatsApp</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/pembayaran/payment.html" class="psheet-item psheet-payment" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">credit_card</span></div><div class="psheet-item-body"><div class="psheet-item-name">Bayar Online</div><div class="psheet-item-desc">Midtrans / Xendit</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+    </div>
+  </div>
+  <!-- PERANGKAT SHEET -->
+  <div class="psheet-overlay" id="psheet-overlay" onclick="closePerangkatSheet()"></div>
+  <div class="psheet" id="psheet" role="dialog" aria-modal="true">
+    <div class="psheet-handle"></div>
+    <div class="psheet-head"><div><p class="psheet-eyebrow">Manajemen Jaringan</p><h2 class="psheet-title">Pilih Perangkat</h2></div>
+      <button class="psheet-close" onclick="closePerangkatSheet()"><span class="material-symbols-outlined">close</span></button></div>
+    <div class="psheet-list">
+      <a href="/app/frontend/input_perangkat/input_mikrotik.html" class="psheet-item psheet-mikrotik"><div class="psheet-item-icon"><span class="material-symbols-outlined">router</span></div><div class="psheet-item-body"><div class="psheet-item-name">MikroTik</div><div class="psheet-item-desc">Router & bandwidth</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/input_perangkat/input_olt.html" class="psheet-item psheet-olt"><div class="psheet-item-icon"><span class="material-symbols-outlined">settings_input_antenna</span></div><div class="psheet-item-body"><div class="psheet-item-name">OLT</div><div class="psheet-item-desc">Optical Line Terminal</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/input_perangkat/input_odc.html" class="psheet-item psheet-odc"><div class="psheet-item-icon"><span class="material-symbols-outlined">storage</span></div><div class="psheet-item-body"><div class="psheet-item-name">ODC</div><div class="psheet-item-desc">Distribution Cabinet</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/input_perangkat/input_odp.html" class="psheet-item psheet-odp"><div class="psheet-item-icon"><span class="material-symbols-outlined">hub</span></div><div class="psheet-item-body"><div class="psheet-item-name">ODP</div><div class="psheet-item-desc">Distribution Point</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/genieacs/onu.html" class="psheet-item psheet-onu" data-perm="perangkat"><div class="psheet-item-icon"><span class="material-symbols-outlined">wifi</span></div><div class="psheet-item-body"><div class="psheet-item-name">ONU / GenieACS</div><div class="psheet-item-desc">Monitoring & remote TR-069</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 
 <head>
@@ -18,42 +18,36 @@
     rel="stylesheet" />
 
   <!-- global.css wajib di-load PERTAMA -->
-  <link rel="stylesheet" href="/app/frontend/statis/global.css" />
-  <link rel="stylesheet" href="/app/frontend/statis/pelanggan.css" />
+  <link rel="stylesheet" href="/app/frontend/statis/global.css?v=22" />
+  <link rel="stylesheet" href="/app/frontend/statis/pelanggan.css?v=1" />
 </head>
 
 <body>
 
   <!-- ══ HEADER ══ -->
   <header class="header">
+    <canvas class="header-canvas" id="header-canvas"></canvas>
     <div class="header-inner">
       <div class="header-brand">
-        <div class="brand-logo">
-          <span class="material-symbols-outlined">router</span>
-        </div>
+        <div class="brand-logo"><img src="/app/frontend/statis/technofixlogo.png" alt="TechnoFix" /></div>
         <div>
           <div class="brand-name">TechnoFix</div>
           <div class="brand-sub">Monitoring status jaringan &amp; pelanggan</div>
         </div>
       </div>
 
-      <nav class="topbar-nav">
+            <nav class="topbar-nav">
         <a href="/app/frontend/dashboard/dashboard.html">
           <span class="material-symbols-outlined">dashboard</span>Dashboard
         </a>
         <a href="/app/frontend/pelanggan/pelanggan.html" class="active">
           <span class="material-symbols-outlined">group</span>Pelanggan
         </a>
-        <a href="/app/frontend/profile_pppoe/profile_pppoe.html">
-          <span class="material-symbols-outlined">person</span>Profile
-        </a>
         <a href="#" onclick="openPerangkatSheet(event)" data-perm="perangkat">
           <span class="material-symbols-outlined">router</span>Perangkat
         </a>
-        <a href="#" data-perm="keuangan">
-          <span class="material-symbols-outlined">payments</span>Keuangan
-        </a>
-        <a href="#" data-perm="maps">
+        <a href="#" onclick="openKeuanganSheet(event)" data-perm="keuangan"><span class="material-symbols-outlined">payments</span>Keuangan</a>
+        <a href="/app/frontend/maps/maps.html" data-perm="maps">
           <span class="material-symbols-outlined">map</span>Maps
         </a>
       </nav>
@@ -67,6 +61,8 @@
         <button class="icon-btn" onclick="refreshRxTx()" title="Refresh sinyal RX/TX dari OLT">
           <span class="material-symbols-outlined">signal_cellular_alt</span>
         </button>
+                <a href="/app/frontend/panduan/panduan.html" target="_blank" class="icon-btn" title="Panduan Penggunaan" style="text-decoration:none"><span class="material-symbols-outlined">help</span></a>
+        <button class="icon-btn" onclick="toggleDarkMode()" title="Ganti tema gelap/terang" style="margin-right:2px"><span class="material-symbols-outlined" id="dark-mode-icon">dark_mode</span></button>
         <div class="profile-wrap" id="profile-wrap">
           <button class="profile-btn" onclick="toggleProfileMenu()" title="Profil">
             <div class="avatar-circle" id="avatar-initials">AD</div>
@@ -74,89 +70,62 @@
             <span class="material-symbols-outlined profile-chevron">expand_more</span>
           </button>
           <div class="profile-dropdown" id="profile-dropdown">
-
-            <!-- Header sesi: nama + badge role -->
-            <div class="profile-menu-header">
-              <div class="profile-menu-avatar" id="dd-avatar">AD</div>
-              <div class="profile-menu-identity">
-                <span class="profile-menu-name" id="dd-username">Admin</span>
-                <span class="profile-menu-role" id="dd-role-badge">Owner</span>
-              </div>
+          <div class="profile-menu-header">
+            <div class="profile-menu-avatar" id="dd-avatar">AD</div>
+            <div class="profile-menu-identity">
+              <span class="profile-menu-name" id="dd-username">Admin</span>
+              <span class="profile-menu-role" id="dd-role-badge">Owner</span>
             </div>
-            <div class="profile-menu-divider"></div>
-
-            <!-- Navigasi akun -->
-            <a href="/app/frontend/profil/profil.html" class="profile-menu-item">
-              <span class="material-symbols-outlined">person</span>Profil saya
-            </a>
-            <a href="#" class="profile-menu-item" onclick="showModalGantiPassword(); return false;">
-              <span class="material-symbols-outlined">lock_reset</span>Ganti password
-            </a>
-            <a href="#" class="profile-menu-item" onclick="showModalSetting(); return false;">
-              <span class="material-symbols-outlined">settings</span>Setting
-            </a>
-            <div class="profile-menu-divider"></div>
-
-            <!-- Owner only -->
-            <a href="/app/frontend/manajemen_user/manajemen_user.html" class="profile-menu-item btn-owner-only">
-              <span class="material-symbols-outlined">manage_accounts</span>Manajemen user
-            </a>
-            <a href="/app/frontend/manajemen_tim/manajemen_tim.html" class="profile-menu-item btn-owner-only">
-              <span class="material-symbols-outlined">groups</span>Manajemen tim
-            </a>
-            <div class="profile-menu-divider btn-owner-only"></div>
-
-            <!-- Logout -->
-            <a href="#" class="profile-menu-item logout" onclick="showModalLogout(); return false;">
-              <span class="material-symbols-outlined">logout</span>Keluar
-            </a>
-
           </div>
+          <div class="profile-menu-divider"></div>
+          <a href="/app/frontend/profile/profile.html" class="profile-menu-item">
+            <span class="material-symbols-outlined">person</span>Profil saya
+          </a>
+          <a href="/app/frontend/setting/setting.html" class="profile-menu-item">
+            <span class="material-symbols-outlined">settings</span>Setting
+          </a>
+          <a href="/app/frontend/langganan/langganan.html" class="profile-menu-item btn-owner-only">
+            <span class="material-symbols-outlined">workspace_premium</span>Langganan
+          </a>
+          <div class="profile-menu-divider btn-owner-only"></div>
+          <a href="/app/frontend/manajemen_user/manajemen_user.html" class="profile-menu-item btn-owner-only">
+            <span class="material-symbols-outlined">manage_accounts</span>Manajemen user
+          </a>
+          <a href="/app/frontend/panduan/panduan.html" target="_blank" class="profile-menu-item">
+            <span class="material-symbols-outlined">menu_book</span>Panduan Penggunaan
+          </a>
+          <div class="profile-menu-divider"></div>
+          <a href="#" class="profile-menu-item logout" onclick="showModalLogout();return false;">
+            <span class="material-symbols-outlined">logout</span>Keluar
+          </a>
         </div>
-      </div>
+        </div>
     </div>
   </header>
 
 
-  <!-- ══ BOTTOM NAVBAR — MOBILE ONLY ══ -->
+    <!-- ══ BOTTOM NAVBAR — MOBILE ONLY ══ -->
   <nav class="bottom-nav">
     <div class="bottom-nav-inner">
       <div class="bottom-nav-indicator" id="bottom-nav-indicator"></div>
-
-      <a href="/app/frontend/dashboard/dashboard.html" class="bottom-nav-item">
-        <div class="bottom-nav-icon">
-          <span class="material-symbols-outlined">dashboard</span>
-        </div>
+      <a href="/app/frontend/dashboard/dashboard.html" class="bottom-nav-item ">
+        <div class="bottom-nav-icon"><span class="material-symbols-outlined">dashboard</span></div>
         <span class="bottom-nav-label">Dashboard</span>
       </a>
       <a href="/app/frontend/pelanggan/pelanggan.html" class="bottom-nav-item active">
-        <div class="bottom-nav-icon">
-          <span class="material-symbols-outlined">group</span>
-        </div>
+        <div class="bottom-nav-icon"><span class="material-symbols-outlined">group</span></div>
         <span class="bottom-nav-label">Pelanggan</span>
       </a>
-      <a href="/app/frontend/profile_pppoe/profile_pppoe.html" class="bottom-nav-item">
-        <div class="bottom-nav-icon">
-          <span class="material-symbols-outlined">person</span>
-        </div>
-        <span class="bottom-nav-label">Profile</span>
-      </a>
-      <a href="#" class="bottom-nav-item" onclick="openPerangkatSheet(event)" data-perm="perangkat">
-        <div class="bottom-nav-icon">
-          <span class="material-symbols-outlined">router</span>
-        </div>
+      <a href="#" class="bottom-nav-item " onclick="openPerangkatSheet(event)" data-perm="perangkat">
+        <div class="bottom-nav-icon"><span class="material-symbols-outlined">router</span></div>
         <span class="bottom-nav-label">Perangkat</span>
       </a>
-      <a href="#" class="bottom-nav-item" data-perm="keuangan">
-        <div class="bottom-nav-icon">
-          <span class="material-symbols-outlined">payments</span>
-        </div>
+      <a href="#" onclick="openKeuanganSheet(event)" class="bottom-nav-item" data-perm="keuangan">
+        <div class="bottom-nav-icon"><span class="material-symbols-outlined">payments</span></div>
         <span class="bottom-nav-label">Keuangan</span>
       </a>
-      <a href="#" class="bottom-nav-item" data-perm="maps">
-        <div class="bottom-nav-icon">
-          <span class="material-symbols-outlined">map</span>
-        </div>
+      <a href="/app/frontend/maps/maps.html" class="bottom-nav-item " data-perm="maps">
+        <div class="bottom-nav-icon"><span class="material-symbols-outlined">map</span></div>
         <span class="bottom-nav-label">Maps</span>
       </a>
     </div>
@@ -177,7 +146,7 @@
           <span class="material-symbols-outlined">calendar_today</span>
           <span id="today-date">—</span>
         </span>
-        <button class="btn-primary" onclick="showFormPelanggan()">
+        <button class="btn-primary" id="btn-tambah-pelanggan" onclick="showFormPelanggan()">
           <span class="material-symbols-outlined">person_add</span>
           Tambah Pelanggan
         </button>
@@ -215,17 +184,19 @@
       </div>
     </div>
 
-    <!-- TOOLBAR -->
-    <div class="device-bar" style="margin-bottom: 16px;">
-      <span class="material-symbols-outlined device-bar-icon">router</span>
-      <div class="device-bar-info">
-        <span class="device-bar-label">Perangkat</span>
-        <select id="select-device" class="device-select" onchange="loadPelanggan()">
-          <option value="">— Pilih Perangkat —</option>
-        </select>
+    <!-- TOOLBAR ROW: device-bar kiri + search/filter kanan -->
+    <div class="toolbar-row">
+
+      <div class="device-bar">
+        <span class="material-symbols-outlined device-bar-icon">router</span>
+        <div class="device-bar-info">
+          <span class="device-bar-label">Perangkat</span>
+          <select id="select-device" class="device-select" onchange="loadPelanggan()">
+            <option value="">— Pilih Perangkat —</option>
+          </select>
+        </div>
+        <span id="sync-status" class="sync-status"></span>
       </div>
-      <span id="sync-status" class="sync-status"></span>
-    </div>
 
     <div class="toolbar">
       <div class="search-wrap">
@@ -244,8 +215,15 @@
           <option value="aktif">Online</option>
           <option value="nonaktif">Offline</option>
         </select>
+        <select id="filter-redaman" class="filter-select" onchange="filterPelanggan()">
+          <option value="">Semua Redaman</option>
+          <option value="bagus">🟢 Redaman Bagus</option>
+          <option value="sedang">🟡 Redaman Sedang</option>
+          <option value="buruk">🔴 Redaman Buruk</option>
+        </select>
       </div>
-    </div>
+    </div><!-- /.toolbar -->
+    </div><!-- /.toolbar-row -->
 
     <!-- TABLE WRAPPER -->
     <div class="table-wrap" id="table-wrap">
@@ -281,6 +259,12 @@
         <table class="pelanggan-table" id="table-pelanggan">
           <thead>
             <tr>
+              <th class="sticky-col-0">
+                <input type="checkbox" id="cb-select-all"
+                  title="Pilih semua"
+                  onchange="toggleSelectAll(this.checked)"
+                  style="width:15px;height:15px;accent-color:var(--primary);cursor:pointer">
+              </th>
               <th class="sticky-col-1">#</th>
               <th class="sticky-col-2">Username</th>
               <th>No HP</th>
@@ -288,7 +272,12 @@
               <th>Slot / Port ONU</th>
               <th>VLAN</th>
               <th>SN</th>
-              <th>Rx Signal</th>
+              <th>
+                <button id="sort-rx-btn" class="sort-th-btn" onclick="sortByRx()" title="Urutkan berdasarkan RX Signal">
+                  Rx Signal
+                  <span class="material-symbols-outlined sort-icon neutral">unfold_more</span>
+                </button>
+              </th>
               <th>Status</th>
               <th>Aksi</th>
             </tr>
@@ -406,127 +395,8 @@
     </div>
   </div>
 
-  <!-- ══ MODAL: SETTING ══ -->
-  <div class="modal-overlay" id="modal-setting" onclick="closeModalSetting(event)">
-    <div class="modal-sheet" style="max-width:420px" onclick="event.stopPropagation()">
-      <div class="modal-handle"></div>
-      <div style="padding:20px 24px 0;display:flex;align-items:center;justify-content:space-between">
-        <div>
-          <h2 style="font-family:var(--heading);font-size:16px;font-weight:800;color:var(--text);margin:0">Setting</h2>
-          <p style="font-size:12px;color:var(--text-dim);margin:2px 0 0">Preferensi aplikasi Anda</p>
-        </div>
-        <button class="btn-cancel" onclick="closeModalSetting()"
-          style="width:30px;height:30px;border-radius:50%;border:1px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;flex-shrink:0">
-          <span class="material-symbols-outlined" style="font-size:16px;color:var(--text-muted)">close</span>
-        </button>
-      </div>
-
-      <div style="padding:16px 24px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;max-height:60vh">
-
-        <!-- Tampilan -->
-        <div>
-          <p
-            style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-dim);margin-bottom:10px">
-            Tampilan</p>
-          <div style="display:flex;flex-direction:column;gap:10px">
-            <div style="display:flex;align-items:center;justify-content:space-between">
-              <label style="font-size:13px;font-weight:600;color:var(--text)">Tema</label>
-              <select class="filter-select" id="setting-tema" style="width:140px">
-                <option value="auto">Ikuti sistem</option>
-                <option value="light">Terang</option>
-                <option value="dark">Gelap</option>
-              </select>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between">
-              <label style="font-size:13px;font-weight:600;color:var(--text)">Bahasa</label>
-              <select class="filter-select" id="setting-bahasa" style="width:140px">
-                <option value="id">Indonesia</option>
-                <option value="en">English</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <!-- Data & Refresh -->
-        <div>
-          <p
-            style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-dim);margin-bottom:10px">
-            Data & Refresh</p>
-          <div style="display:flex;flex-direction:column;gap:10px">
-            <div style="display:flex;align-items:center;justify-content:space-between">
-              <label style="font-size:13px;font-weight:600;color:var(--text)">Auto-refresh</label>
-              <select class="filter-select" id="setting-refresh" style="width:140px">
-                <option value="0">Nonaktif</option>
-                <option value="30">30 detik</option>
-                <option value="60">1 menit</option>
-                <option value="300">5 menit</option>
-              </select>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between">
-              <label style="font-size:13px;font-weight:600;color:var(--text)">Baris per halaman</label>
-              <select class="filter-select" id="setting-perpage" style="width:140px">
-                <option value="50">50 baris</option>
-                <option value="100">100 baris</option>
-                <option value="200">200 baris</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <!-- Notifikasi -->
-        <div>
-          <p
-            style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-dim);margin-bottom:10px">
-            Notifikasi</p>
-          <div style="display:flex;flex-direction:column;gap:10px">
-            <div style="display:flex;align-items:center;justify-content:space-between">
-              <div>
-                <p style="font-size:13px;font-weight:600;color:var(--text);margin:0">Pelanggan offline</p>
-                <p style="font-size:11px;color:var(--text-dim);margin:0">Notif saat ada pelanggan putus</p>
-              </div>
-              <label style="position:relative;display:inline-block;width:40px;height:22px;cursor:pointer">
-                <input type="checkbox" id="notif-offline" style="opacity:0;width:0;height:0"
-                  onchange="toggleNotif(this,'notif-offline')">
-                <span id="track-offline"
-                  style="position:absolute;inset:0;background:var(--border);border-radius:11px;transition:background .2s"></span>
-                <span id="thumb-offline"
-                  style="position:absolute;top:3px;left:3px;width:16px;height:16px;background:#fff;border-radius:50%;transition:transform .2s"></span>
-              </label>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between">
-              <div>
-                <p style="font-size:13px;font-weight:600;color:var(--text);margin:0">Sinyal lemah (RX)</p>
-                <p style="font-size:11px;color:var(--text-dim);margin:0">Alert saat sinyal di bawah -30 dBm</p>
-              </div>
-              <label style="position:relative;display:inline-block;width:40px;height:22px;cursor:pointer">
-                <input type="checkbox" id="notif-rx" style="opacity:0;width:0;height:0"
-                  onchange="toggleNotif(this,'notif-rx')">
-                <span id="track-rx"
-                  style="position:absolute;inset:0;background:var(--border);border-radius:11px;transition:background .2s"></span>
-                <span id="thumb-rx"
-                  style="position:absolute;top:3px;left:3px;width:16px;height:16px;background:#fff;border-radius:50%;transition:transform .2s"></span>
-              </label>
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      <div class="form-actions" style="padding:16px 24px;margin-top:0">
-        <button class="btn btn-cancel" onclick="closeModalSetting()">Batal</button>
-        <button class="btn-primary" onclick="simpanSetting()">
-          <span class="material-symbols-outlined">save</span>Simpan setting
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- TOAST -->
+  <!-- ══ TOAST ══ -->
   <div id="toast"></div>
-
-  <!-- global.js WAJIB sebelum pelanggan.js -->
-  <script src="/app/frontend/statis/global.js"></script>
-  <script src="/app/frontend/pelanggan/pelanggan.js"></script>
 
   <script>
     /* ── Deteksi scroll tabel → shadow freeze ── */
@@ -551,8 +421,6 @@
       checkScroll();
     })();
   </script>
-
-
   <!-- ══ PERANGKAT SHEET ══ -->
   <div class="psheet-overlay" id="psheet-overlay" onclick="closePerangkatSheet()"></div>
   <div class="psheet" id="psheet" role="dialog" aria-modal="true" aria-label="Pilih Perangkat">
@@ -566,24 +434,9 @@
         <span class="material-symbols-outlined">close</span>
       </button>
     </div>
-    <!-- 
-  ══════════════════════════════════════════════════════════
-  PASTE INI ke semua file HTML — ganti isi <div class="psheet-list">
-  yang lama dengan blok ini (sudah include ODC baru)
-  ══════════════════════════════════════════════════════════
--->
-    <!-- 
-  ══════════════════════════════════════════════════════════
-  PASTE INI ke semua file HTML — ganti isi <div class="psheet-list">
-  yang lama dengan blok ini (sudah include ODC baru)
-  ══════════════════════════════════════════════════════════
--->
     <div class="psheet-list">
-
       <a href="/app/frontend/input_perangkat/input_mikrotik.html" class="psheet-item psheet-mikrotik">
-        <div class="psheet-item-icon">
-          <span class="material-symbols-outlined">router</span>
-        </div>
+        <div class="psheet-item-icon"><span class="material-symbols-outlined">router</span></div>
         <div class="psheet-item-body">
           <div class="psheet-item-name">MikroTik</div>
           <div class="psheet-item-desc">Router, firewall, dan manajemen bandwidth</div>
@@ -591,11 +444,8 @@
         <div class="psheet-item-badge">Router</div>
         <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
       </a>
-
       <a href="/app/frontend/input_perangkat/input_olt.html" class="psheet-item psheet-olt">
-        <div class="psheet-item-icon">
-          <span class="material-symbols-outlined">settings_input_antenna</span>
-        </div>
+        <div class="psheet-item-icon"><span class="material-symbols-outlined">settings_input_antenna</span></div>
         <div class="psheet-item-body">
           <div class="psheet-item-name">OLT</div>
           <div class="psheet-item-desc">Optical Line Terminal — kontrol jaringan fiber</div>
@@ -603,11 +453,8 @@
         <div class="psheet-item-badge">Fiber</div>
         <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
       </a>
-
       <a href="/app/frontend/input_perangkat/input_odc.html" class="psheet-item psheet-odc">
-        <div class="psheet-item-icon">
-          <span class="material-symbols-outlined">storage</span>
-        </div>
+        <div class="psheet-item-icon"><span class="material-symbols-outlined">storage</span></div>
         <div class="psheet-item-body">
           <div class="psheet-item-name">ODC</div>
           <div class="psheet-item-desc">Optical Distribution Cabinet — kabinet distribusi utama</div>
@@ -615,11 +462,8 @@
         <div class="psheet-item-badge">Cabinet</div>
         <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
       </a>
-
       <a href="/app/frontend/input_perangkat/input_odp.html" class="psheet-item psheet-odp">
-        <div class="psheet-item-icon">
-          <span class="material-symbols-outlined">hub</span>
-        </div>
+        <div class="psheet-item-icon"><span class="material-symbols-outlined">hub</span></div>
         <div class="psheet-item-body">
           <div class="psheet-item-name">ODP</div>
           <div class="psheet-item-desc">Optical Distribution Point — titik distribusi kabel</div>
@@ -627,9 +471,30 @@
         <div class="psheet-item-badge">Distribusi</div>
         <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
       </a>
-
+      <a href="/app/frontend/genieacs/onu.html" class="psheet-item psheet-onu" data-perm="perangkat"><div class="psheet-item-icon"><span class="material-symbols-outlined">wifi</span></div><div class="psheet-item-body"><div class="psheet-item-name">ONU / GenieACS</div><div class="psheet-item-desc">Monitoring & remote TR-069</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
     </div>
+  </div>
+
+  <!-- Scripts -->
+
+  <!-- KEUANGAN SHEET -->
+  <div class="psheet-overlay" id="ksheet-overlay" onclick="closeKeuanganSheet()"></div>
+  <div class="psheet ksheet" id="ksheet" role="dialog" aria-modal="true">
+    <div class="psheet-handle"></div>
+    <div class="psheet-head">
+      <div><p class="psheet-eyebrow">Keuangan & Tagihan</p><h2 class="psheet-title">Pilih Fitur</h2></div>
+      <button class="psheet-close" onclick="closeKeuanganSheet()"><span class="material-symbols-outlined">close</span></button>
+    </div>
+    <div class="psheet-list">
+      <a href="/app/frontend/keuangan/keuangan.html" class="psheet-item psheet-keuangan"><div class="psheet-item-icon"><span class="material-symbols-outlined">payments</span></div><div class="psheet-item-body"><div class="psheet-item-name">Keuangan</div><div class="psheet-item-desc">Pemasukan & pengeluaran</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/tagihan/tagihan.html" class="psheet-item psheet-tagihan" data-perm="keuangan"><div class="psheet-item-icon"><span class="material-symbols-outlined">receipt_long</span></div><div class="psheet-item-body"><div class="psheet-item-name">Tagihan</div><div class="psheet-item-desc">Tagihan bulanan pelanggan</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/loket/loket.html" class="psheet-item psheet-loket" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">point_of_sale</span></div><div class="psheet-item-body"><div class="psheet-item-name">Loket / Kasir</div><div class="psheet-item-desc">Terima bayar + komisi</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/notifikasi/wa.html" class="psheet-item psheet-wa" data-perm="pelanggan"><div class="psheet-item-icon"><span class="material-symbols-outlined">chat</span></div><div class="psheet-item-body"><div class="psheet-item-name">Notifikasi WA</div><div class="psheet-item-desc">Pengingat tagihan WhatsApp</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/pembayaran/payment.html" class="psheet-item psheet-payment" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">credit_card</span></div><div class="psheet-item-body"><div class="psheet-item-name">Bayar Online</div><div class="psheet-item-desc">Midtrans / Xendit</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+    </div>
+  </div>
+  <script src="/app/frontend/statis/global.js?v=21"></script>
+  <script src="/app/frontend/pelanggan/pelanggan.js?v=8"></script>
 
 </body>
-
 </html>

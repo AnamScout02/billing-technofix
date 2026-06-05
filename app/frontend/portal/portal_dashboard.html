@@ -1,0 +1,651 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Portal Pelanggan — TechnoFix</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet"/>
+  <link rel="stylesheet" href="/app/frontend/statis/global.css?v=22"/>
+  <link rel="stylesheet" href="/app/frontend/portal/portal_dashboard.css?v=11"/>
+  <style>
+    /* ── Portal-specific overrides ────────────────────────── */
+    /* Layout spacer dan sticky top dihandle di portal_dashboard.css */
+    .portal-tabs-wrap{background:var(--header-bg);position:sticky;top:calc(var(--header-h) + env(safe-area-inset-top,0px));z-index:49}
+    .portal-tabs{max-width:1000px;margin:0 auto;padding:0 24px;display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+    .portal-tabs::-webkit-scrollbar{display:none}
+    .ptab{display:flex;align-items:center;gap:6px;padding:11px 14px;font-size:13px;font-weight:600;color:rgba(255,255,255,.65);background:none;border:none;cursor:pointer;border-bottom:2.5px solid transparent;transition:color .15s,border-color .15s;white-space:nowrap;font-family:var(--sans);position:relative}
+    .ptab .material-symbols-outlined{font-size:16px}
+    .ptab:hover{color:rgba(255,255,255,.88)}
+    .ptab.active{color:#fff;border-bottom-color:#fff}
+    .tab-badge{background:var(--red);color:#fff;font-size:9px;font-weight:800;width:16px;height:16px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;position:absolute;top:8px;right:4px}
+
+    /* Page max-width handled in portal_dashboard.css */
+    .portal-page{margin-left:auto;margin-right:auto;padding:20px 28px 32px}
+
+    /* Tab panels */
+    .tab-content{display:none}.tab-content.active{display:block}
+
+    /* Welcome card */
+    .welcome-card{background:linear-gradient(135deg,var(--header-bg) 0%,#1a50b8 60%,#5b21b6 100%);border-radius:var(--r-lg);padding:20px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px;box-shadow:0 6px 24px rgba(0,64,161,.25);overflow:hidden;position:relative}
+    .welcome-card::before{content:'';position:absolute;top:-40px;right:-40px;width:160px;height:160px;background:rgba(255,255,255,.06);border-radius:50%}
+    .wc-left{display:flex;align-items:center;gap:14px;z-index:1}
+    .wc-avatar{width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.2);border:2px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;font-family:var(--heading);font-weight:800;font-size:18px;color:#fff;flex-shrink:0}
+    .wc-greeting{font-size:13px;color:rgba(255,255,255,.7);margin-bottom:2px}
+    .wc-name{font-family:var(--heading);font-size:18px;font-weight:800;color:#fff;line-height:1.2}
+    .wc-sub{font-size:12px;color:rgba(255,255,255,.6);margin-top:2px}
+    .wc-right{text-align:right;z-index:1;flex-shrink:0}
+    .wc-paket-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.55);margin-bottom:3px}
+    .wc-paket-name{font-family:var(--heading);font-size:16px;font-weight:800;color:#fff}
+    .wc-paket-price{font-size:12.5px;color:rgba(255,255,255,.75);margin-top:1px}
+
+    /* Status hero */
+    .status-hero{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:18px 20px;display:flex;align-items:center;gap:16px;margin-bottom:20px;box-shadow:var(--shadow-sm)}
+    .status-icon{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .3s}
+    .status-icon .material-symbols-outlined{font-size:26px}
+    .status-icon.online{background:var(--green-bg);color:var(--green)}
+    .status-icon.offline{background:var(--red-bg,#fdecec);color:var(--red)}
+    .status-icon.loading{background:var(--surface);color:var(--text-dim)}
+    .status-text-main{font-family:var(--heading);font-size:16px;font-weight:800;color:var(--text)}
+    .status-text-sub{font-size:12.5px;color:var(--text-muted);margin-top:2px}
+    .status-meta{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+    .status-meta-item{font-size:12px;color:var(--text-dim);display:flex;align-items:center;gap:5px}
+    .status-meta-item .material-symbols-outlined{font-size:14px}
+
+    /* Banner perpanjang */
+    .perp-banner{border-radius:var(--r-md);padding:14px 18px;display:none;align-items:center;gap:12px;margin-bottom:20px;border:1px solid}
+    .perp-banner.warning{background:var(--amber-bg);border-color:var(--amber-border);color:var(--amber)}
+    .perp-banner.expired{background:var(--red-bg,#fdecec);border-color:var(--red-border,#f3b4b4);color:var(--red)}
+    .perp-banner .material-symbols-outlined{font-size:20px;flex-shrink:0}
+    .pb-texts{flex:1}
+    .pb-title{font-weight:700;font-size:13.5px}
+    .pb-sub{font-size:12px;margin-top:1px;opacity:.85}
+
+    /* Info card (dp-card style) */
+    .p-card{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;box-shadow:var(--shadow-sm);margin-bottom:16px}
+    .p-card-head{background:var(--header-bg);color:#fff;padding:13px 18px;display:flex;align-items:center;gap:8px;font-family:var(--heading);font-size:13.5px;font-weight:800}
+    .p-card-head .material-symbols-outlined{font-size:18px;color:rgba(255,255,255,.8)}
+    .p-card-head .hd-right{margin-left:auto}
+    .p-card-body{padding:16px 18px}
+
+    /* Info rows */
+    .p-info-list{padding:0}
+    .p-info-row{display:flex;align-items:center;justify-content:space-between;padding:11px 18px;border-bottom:1px solid var(--border);gap:12px}
+    .p-info-row:last-child{border-bottom:none}
+    .p-info-key{font-size:12.5px;font-weight:600;color:var(--text-muted);flex-shrink:0}
+    .p-info-val{font-size:13px;color:var(--text);font-weight:600;text-align:right;word-break:break-all}
+    .p-info-val.mono{font-family:ui-monospace,'Cascadia Code',Menlo,monospace;font-size:12px}
+
+    /* RX Gauge */
+    .rx-gauge-wrap{position:relative;width:80px;height:80px;flex-shrink:0}
+    .rx-gauge-bg{fill:none;stroke:var(--border);stroke-width:8}
+    .rx-gauge-fill{fill:none;stroke-width:8;stroke-linecap:round;transition:stroke-dashoffset .8s,stroke .4s;transform-origin:center;transform:rotate(-90deg)}
+    .rx-gauge-text{font-family:var(--heading);font-size:13px;font-weight:800;fill:var(--text);text-anchor:middle;dominant-baseline:middle}
+
+    /* Tagihan table */
+    .tagihan-table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px}
+    .tagihan-table th{background:var(--header-bg);color:rgba(255,255,255,.85);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:10px 14px;text-align:left;white-space:nowrap}
+    .tagihan-table td{padding:11px 14px;border-bottom:1px solid var(--border);vertical-align:middle;color:var(--text)}
+    .tagihan-table tr:last-child td{border-bottom:none}
+    .tagihan-table tr:hover td{background:var(--surface)}
+
+    /* Tiket */
+    .tiket-item{display:flex;align-items:flex-start;gap:12px;padding:14px 18px;border-bottom:1px solid var(--border)}
+    .tiket-item:last-child{border-bottom:none}
+    .tiket-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px}
+    .tiket-dot.baru{background:var(--amber)}.tiket-dot.diproses{background:var(--primary)}.tiket-dot.selesai{background:var(--green)}
+    .tiket-body{flex:1;min-width:0}
+    .tiket-judul-txt{font-weight:700;font-size:13.5px;color:var(--text)}
+    .tiket-meta{font-size:11.5px;color:var(--text-dim);margin-top:3px}
+    .tiket-badge{font-size:11px;font-weight:700;padding:2px 9px;border-radius:99px;flex-shrink:0;margin-top:1px}
+    .tb-baru{background:var(--amber-bg);color:var(--amber)}.tb-diproses{background:var(--primary-light);color:var(--primary)}.tb-selesai{background:var(--green-bg);color:var(--green)}
+
+    /* Form */
+    .p-form-group{margin-bottom:14px}
+    .p-form-label{font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:6px;display:block}
+    .p-form-input,.p-form-select,.p-form-textarea{width:100%;border:1.5px solid var(--border);border-radius:var(--r-md);padding:10px 13px;font-size:13.5px;font-family:var(--sans);color:var(--text);background:var(--bg);outline:none;transition:border-color .15s,box-shadow .15s;display:block}
+    .p-form-input:focus,.p-form-select:focus,.p-form-textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring)}
+    .p-form-textarea{resize:vertical;min-height:90px}
+    .p-form-hint{font-size:11.5px;color:var(--text-dim);margin-top:5px}
+    .p-form-actions{padding-top:4px}
+
+    /* Alert inline */
+    .p-alert{border-radius:var(--r-md);padding:11px 14px;font-size:13px;font-weight:600;display:none;align-items:center;gap:8px;margin-bottom:12px}
+    .p-alert .material-symbols-outlined{font-size:16px;flex-shrink:0}
+    .p-alert.err{background:var(--red-bg,#fdecec);color:var(--red);border:1px solid var(--red-border,#f3b4b4)}
+    .p-alert.suc{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+    .p-alert.info{background:var(--primary-light);color:var(--primary);border:1px solid rgba(0,64,161,.15)}
+
+    /* Empty state */
+    .p-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;gap:12px}
+    .p-empty .material-symbols-outlined{font-size:36px;color:var(--text-dim);opacity:.4}
+    .p-empty-txt{font-size:13px;color:var(--text-muted);font-weight:600}
+
+    /* Bottom Nav Mobile */
+    .portal-bnav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:300;background:var(--header-bg);border-top:1px solid rgba(255,255,255,.12);box-shadow:0 -4px 24px rgba(0,0,0,.25);padding-bottom:env(safe-area-inset-bottom,0)}
+    .pbn-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:9px 4px 7px;background:none;border:none;cursor:pointer;font-family:var(--sans);font-size:10px;font-weight:600;color:rgba(255,255,255,.5);transition:color .15s;position:relative;-webkit-tap-highlight-color:transparent}
+    .pbn-item .material-symbols-outlined{font-size:22px}
+    .pbn-item.active{color:#fff}
+    .pbn-item.active::after{content:'';position:absolute;top:0;left:15%;right:15%;height:3px;background:#fff;border-radius:0 0 4px 4px}
+    .pbn-badge{position:absolute;top:6px;right:12px;width:8px;height:8px;border-radius:50%;background:var(--red);border:2px solid #fff;display:none}
+    .pbn-badge.show{display:block}
+
+    @media(min-width:641px){.portal-tabs-wrap{display:block}.portal-bnav{display:none!important}}
+    @media(max-width:640px){.portal-tabs-wrap{display:none!important}.portal-bnav{display:flex!important}.welcome-card{flex-direction:row;align-items:center}.wc-right{display:none!important}.status-meta{display:none}}
+  </style>
+</head>
+<body>
+
+  <!-- ══ HEADER ══ -->
+  <header class="header">
+    <div class="header-inner" style="gap:12px">
+      <!-- Brand -->
+      <a href="#" class="header-brand" style="flex-shrink:0">
+        <div class="brand-logo"><img src="/app/frontend/statis/technofixlogo.png" alt="TechnoFix"/></div>
+        <div>
+          <div class="brand-name">TechnoFix</div>
+          <div class="brand-sub">Portal Pelanggan</div>
+        </div>
+      </a>
+      <!-- User info (desktop) -->
+      <div id="portal-user-text" style="display:none;flex:1;min-width:0;padding:0 8px">
+        <div style="font-size:11.5px;color:rgba(255,255,255,.6);white-space:nowrap" id="portal-greeting">Halo</div>
+        <div style="font-family:var(--heading);font-size:14px;font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px" id="portal-username">—</div>
+      </div>
+      <!-- Actions -->
+      <div style="display:flex;align-items:center;gap:8px;margin-left:auto;flex-shrink:0">
+        <div style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;font-family:var(--heading);font-weight:800;font-size:13px;color:#fff;flex-shrink:0" id="portal-avatar">—</div>
+        <button class="icon-btn" onclick="refreshAll()" title="Refresh"><span class="material-symbols-outlined" id="refresh-icon">refresh</span></button>
+        <button class="btn btn-sm" style="background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);white-space:nowrap" onclick="doLogout()">
+          <span class="material-symbols-outlined" style="font-size:16px">logout</span>
+          <span class="ph-hide-sm">Keluar</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ══ TAB STRIP (Desktop) ══ -->
+  <div class="portal-tabs-wrap">
+    <div class="portal-tabs">
+      <button class="ptab active" data-tab="beranda" onclick="switchTab('beranda')"><span class="material-symbols-outlined">home</span>Beranda</button>
+      <button class="ptab" data-tab="tagihan" onclick="switchTab('tagihan')"><span class="material-symbols-outlined">receipt_long</span>Tagihan</button>
+      <button class="ptab" data-tab="tiket" onclick="switchTab('tiket')"><span class="material-symbols-outlined">support_agent</span>Laporan<span class="tab-badge" id="tab-badge-tiket" style="display:none">!</span></button>
+      <button class="ptab" data-tab="speedtest" onclick="switchTab('speedtest')"><span class="material-symbols-outlined">network_check</span>Speed Test</button>
+      <button class="ptab" data-tab="pengaturan" onclick="switchTab('pengaturan')"><span class="material-symbols-outlined">manage_accounts</span>Pengaturan</button>
+    </div>
+  </div>
+
+  <!-- ══ CONTENT ══ -->
+  <div class="portal-page">
+
+    <!-- ══════ TAB: BERANDA ══════ -->
+    <div class="tab-content active" id="tab-beranda">
+
+      <!-- Welcome card -->
+      <div class="welcome-card">
+        <div class="wc-left">
+          <div class="wc-avatar" id="welcome-avatar">—</div>
+          <div>
+            <div class="wc-greeting" id="welcome-greeting">Halo! 👋</div>
+            <div class="wc-name" id="welcome-name">—</div>
+            <div class="wc-sub" id="welcome-sub">Selamat datang di Portal Pelanggan TechnoFix</div>
+          </div>
+        </div>
+        <div class="wc-right" id="welcome-paket-wrap" style="display:none">
+          <div class="wc-paket-lbl">Paket Aktif</div>
+          <div class="wc-paket-name" id="welcome-paket">—</div>
+          <div class="wc-paket-price" id="welcome-price">—</div>
+        </div>
+      </div>
+
+      <!-- Banner jatuh tempo -->
+      <div class="perp-banner" id="perpanjang-banner">
+        <span class="material-symbols-outlined">warning</span>
+        <div class="pb-texts">
+          <div class="pb-title" id="pb-title">—</div>
+          <div class="pb-sub" id="pb-sub">—</div>
+        </div>
+        <button class="btn btn-sm btn-primary" onclick="openPerpanjang()" style="flex-shrink:0">Perpanjang</button>
+      </div>
+
+      <!-- Stat cards -->
+      <div class="stat-row-4" style="margin-bottom:20px">
+        <!-- Status Koneksi -->
+        <div class="stat-card" id="card-status" style="background:var(--card-1-bg);border-color:rgba(255,255,255,.15);box-shadow:0 4px 18px var(--card-1-shadow)">
+          <div class="stat-icon" style="background:rgba(255,255,255,.18);color:#fff">
+            <span class="material-symbols-outlined" id="hero-status-icon">wifi</span>
+          </div>
+          <div class="stat-body">
+            <div class="stat-num" style="font-size:16px;color:#fff" id="hero-status-label">Mengecek...</div>
+            <div class="stat-label" style="color:rgba(255,255,255,.7)" id="hero-status-sub">Status koneksi</div>
+            <div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:2px" id="hero-uptime-wrap">
+              <span id="hero-uptime">—</span>
+            </div>
+          </div>
+        </div>
+        <!-- Sinyal RX -->
+        <div class="stat-card" id="card-rx" style="background:var(--card-2-bg);border-color:rgba(255,255,255,.15);box-shadow:0 4px 18px var(--card-2-shadow)">
+          <div id="rx-icon-wrap" class="stat-icon" style="background:rgba(255,255,255,.18);color:#fff">
+            <span class="material-symbols-outlined">signal_cellular_alt</span>
+          </div>
+          <div class="stat-body">
+            <div class="stat-num" style="font-size:20px;color:#fff" id="rx-val">—</div>
+            <div class="stat-label" style="color:rgba(255,255,255,.7)">Sinyal RX</div>
+            <div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:2px" id="rx-sub" id="rx-status-badge">—</div>
+          </div>
+          <!-- mini gauge -->
+          <svg class="rx-gauge-wrap" viewBox="0 0 80 80" style="width:52px;height:52px;flex-shrink:0">
+            <circle class="rx-gauge-bg" cx="40" cy="40" r="30" stroke="rgba(255,255,255,.2)" stroke-width="6" fill="none"/>
+            <circle class="rx-gauge-fill" id="rx-gauge-fill" cx="40" cy="40" r="30" stroke="#fff" stroke-width="6" fill="none" stroke-dasharray="188.5" stroke-dashoffset="188.5" stroke-linecap="round" transform="rotate(-90 40 40)"/>
+            <text class="rx-gauge-text" id="rx-gauge-text" x="40" y="40" fill="rgba(255,255,255,.9)" font-size="12" font-weight="800" text-anchor="middle" dominant-baseline="middle">—</text>
+          </svg>
+        </div>
+        <!-- Traffic Sesi -->
+        <div class="stat-card" id="card-paket" style="background:var(--card-3-bg);border-color:rgba(255,255,255,.15);box-shadow:0 4px 18px var(--card-3-shadow)">
+          <div class="stat-icon" style="background:rgba(255,255,255,.18);color:#fff">
+            <span class="material-symbols-outlined">data_usage</span>
+          </div>
+          <div class="stat-body">
+            <div class="stat-num" style="font-size:15px;color:#fff" id="traffic-dl">— MB</div>
+            <div class="stat-label" style="color:rgba(255,255,255,.7)">Traffic Sesi</div>
+            <div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:2px" id="traffic-ul">↑ — MB</div>
+          </div>
+        </div>
+        <!-- Jatuh Tempo -->
+        <div class="stat-card" id="card-jatuh" style="background:var(--card-4-bg);border-color:rgba(255,255,255,.15);box-shadow:0 4px 18px var(--card-4-shadow)">
+          <div id="jatuh-icon-wrap" class="stat-icon" style="background:rgba(255,255,255,.18);color:#fff">
+            <span class="material-symbols-outlined">event</span>
+          </div>
+          <div class="stat-body">
+            <div class="stat-num" style="font-size:18px;color:#fff" id="jatuh-val">—</div>
+            <div class="stat-label" style="color:rgba(255,255,255,.7)">Jatuh Tempo</div>
+            <div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:2px" id="jatuh-sub" id="pinfo-sisa-hari">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Info Koneksi + Info Langganan (2 kolom) -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px" class="p-grid-2">
+        <!-- Info Koneksi -->
+        <div class="p-card">
+          <div class="p-card-head">
+            <span class="material-symbols-outlined">router</span>
+            Info Koneksi
+          </div>
+          <div class="p-info-list">
+            <div class="p-info-row"><span class="p-info-key">Status</span><span class="p-info-val" id="pinfo-status">—</span></div>
+            <div class="p-info-row"><span class="p-info-key">IP Address</span><span class="p-info-val mono" id="pinfo-ip">—</span></div>
+            <div class="p-info-row"><span class="p-info-key">MAC Address</span><span class="p-info-val mono" id="pinfo-mac">—</span></div>
+            <div class="p-info-row"><span class="p-info-key">Uptime</span><span class="p-info-val" id="pinfo-uptime">—</span></div>
+            <div class="p-info-row"><span class="p-info-key">Router</span><span class="p-info-val" id="pinfo-router">—</span></div>
+          </div>
+        </div>
+        <!-- Info Langganan -->
+        <div class="p-card">
+          <div class="p-card-head">
+            <span class="material-symbols-outlined">person</span>
+            Info Langganan
+          </div>
+          <div class="p-info-list">
+            <div class="p-info-row"><span class="p-info-key">Username</span><span class="p-info-val mono" id="pinfo-username">—</span></div>
+            <div class="p-info-row"><span class="p-info-key">No. Telepon</span><span class="p-info-val" id="pinfo-hp">—</span></div>
+            <div class="p-info-row"><span class="p-info-key">Profil Paket</span><span class="p-info-val" id="pinfo-profil">—</span></div>
+            <div class="p-info-row"><span class="p-info-key">Kecepatan</span><span class="p-info-val" id="pinfo-speed">—</span></div>
+            <div class="p-info-row"><span class="p-info-key">Tagihan/Bulan</span><span class="p-info-val" id="pinfo-harga">—</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Info ONU / Sinyal -->
+      <div class="p-card">
+        <div class="p-card-head">
+          <span class="material-symbols-outlined">settings_input_antenna</span>
+          Data Modem / ONU
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr)" class="p-grid-onu">
+          <div class="p-info-list" style="border-right:1px solid var(--border)">
+            <div class="p-info-row" style="flex-direction:column;align-items:flex-start;gap:3px">
+              <span class="p-info-key">Serial Number (SN)</span>
+              <span class="p-info-val mono" id="pinfo-sn">—</span>
+            </div>
+            <div class="p-info-row" style="flex-direction:column;align-items:flex-start;gap:3px">
+              <span class="p-info-key">Slot / Port</span>
+              <span class="p-info-val mono" id="pinfo-slot">—</span>
+            </div>
+          </div>
+          <div class="p-info-list" style="border-right:1px solid var(--border)">
+            <div class="p-info-row" style="flex-direction:column;align-items:flex-start;gap:3px">
+              <span class="p-info-key">VLAN</span>
+              <span class="p-info-val mono" id="pinfo-vlan">—</span>
+            </div>
+            <div class="p-info-row" style="flex-direction:column;align-items:flex-start;gap:3px">
+              <span class="p-info-key">Tgl. Pasang</span>
+              <span class="p-info-val" id="pinfo-tgl-pasang">—</span>
+            </div>
+          </div>
+          <div class="p-info-list">
+            <div class="p-info-row" style="flex-direction:column;align-items:flex-start;gap:3px">
+              <span class="p-info-key">RX Power</span>
+              <span class="p-info-val" id="pinfo-rx">—</span>
+            </div>
+            <div class="p-info-row" style="flex-direction:column;align-items:flex-start;gap:3px">
+              <span class="p-info-key">TX Power</span>
+              <span class="p-info-val" id="pinfo-tx">—</span>
+            </div>
+          </div>
+        </div>
+        <div class="p-info-row" style="border-top:1px solid var(--border)">
+          <span class="p-info-key">Tgl. Jatuh Tempo</span>
+          <span class="p-info-val" id="pinfo-tgl-jatuh">—</span>
+        </div>
+      </div>
+
+      <!-- Perpanjang Paket -->
+      <div class="p-card" id="card-perpanjang" style="display:none">
+        <div class="p-card-head">
+          <span class="material-symbols-outlined">autorenew</span>
+          Request Perpanjangan Paket
+        </div>
+        <div class="p-card-body">
+          <div class="p-alert info" style="display:flex"><span class="material-symbols-outlined">info</span>Setelah request dikirim, admin akan memproses pembayaran Anda.</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+            <div class="p-info-row" style="background:var(--surface);border-radius:var(--r-md);border:1px solid var(--border)"><span class="p-info-key">Paket</span><span class="p-info-val" id="perp-paket">—</span></div>
+            <div class="p-info-row" style="background:var(--surface);border-radius:var(--r-md);border:1px solid var(--border)"><span class="p-info-key">Nominal</span><span class="p-info-val" style="color:var(--primary);font-weight:800" id="perp-harga">—</span></div>
+          </div>
+          <div class="p-form-group">
+            <label class="p-form-label">Metode Pembayaran</label>
+            <select class="p-form-select" id="perp-metode">
+              <option value="Transfer">Transfer Bank</option>
+              <option value="Cash">Cash (langsung ke admin)</option>
+              <option value="QRIS">QRIS</option>
+            </select>
+          </div>
+          <div class="p-form-group">
+            <label class="p-form-label">Catatan (opsional)</label>
+            <input class="p-form-input" type="text" id="perp-catatan" placeholder="Bukti transfer, keterangan lain..." />
+          </div>
+          <div class="p-form-actions" style="display:flex;gap:10px">
+            <button class="btn btn-primary btn-sm" onclick="submitPerpanjang()" id="btn-perpanjang"><span class="material-symbols-outlined">send</span>Kirim Request</button>
+            <button class="btn btn-sm" onclick="closePerpanjang()"><span class="material-symbols-outlined">close</span>Batal</button>
+          </div>
+        </div>
+        <!-- Info Bayar -->
+        <div id="card-info-bayar" style="display:none;padding:16px 18px;border-top:1px solid var(--border);background:var(--green-bg)">
+          <div style="font-size:12px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">✓ Request Diterima — Info Pembayaran</div>
+          <div id="info-bayar-list"></div>
+        </div>
+      </div>
+
+    </div><!-- /tab-beranda -->
+
+    <!-- ══════ TAB: TAGIHAN ══════ -->
+    <div class="tab-content" id="tab-tagihan">
+      <!-- Ringkasan -->
+      <div class="stat-row" style="margin-bottom:20px">
+        <div class="stat-card stat-c-green">
+          <div class="stat-icon"><span class="material-symbols-outlined">check_circle</span></div>
+          <div class="stat-body">
+            <div class="stat-num" id="stat-lunas-nominal">Rp 0</div>
+            <div class="stat-label">Total Lunas</div>
+            <div class="stat-sub-val" id="stat-lunas-count">0 tagihan</div>
+          </div>
+        </div>
+        <div class="stat-card stat-c-amber">
+          <div class="stat-icon"><span class="material-symbols-outlined">pending</span></div>
+          <div class="stat-body">
+            <div class="stat-num" id="stat-pending-nominal">Rp 0</div>
+            <div class="stat-label">Belum Bayar</div>
+            <div class="stat-sub-val" id="stat-pending-count">0 tagihan</div>
+          </div>
+        </div>
+      </div>
+      <!-- Tabel -->
+      <div class="p-card">
+        <div class="p-card-head">
+          <span class="material-symbols-outlined">receipt_long</span>
+          Riwayat Tagihan
+          <button class="icon-btn" style="color:rgba(255,255,255,.7);margin-left:auto" onclick="loadTagihan()"><span class="material-symbols-outlined" id="tagihan-refresh-icon" style="font-size:16px">refresh</span></button>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="tagihan-table">
+            <thead><tr>
+              <th>Periode</th><th>Profil</th><th>Nominal</th><th>Jatuh Tempo</th><th>Dibayar</th><th>Metode</th><th>Status</th>
+            </tr></thead>
+            <tbody id="tagihan-list">
+              <tr><td colspan="7"><div class="p-empty"><div class="spinner"></div><div class="p-empty-txt">Memuat tagihan...</div></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div><!-- /tab-tagihan -->
+
+    <!-- ══════ TAB: TIKET ══════ -->
+    <div class="tab-content" id="tab-tiket">
+      <!-- Form buat tiket -->
+      <div class="p-card" style="margin-bottom:16px">
+        <div class="p-card-head">
+          <span class="material-symbols-outlined">add_circle</span>
+          Buat Laporan Gangguan
+        </div>
+        <div class="p-card-body">
+          <div class="p-alert err" id="tiket-error-inline"><span class="material-symbols-outlined">error</span><span></span></div>
+          <div class="p-form-group">
+            <label class="p-form-label">Kategori</label>
+            <select class="p-form-select" id="tiket-kategori">
+              <option value="Gangguan">Gangguan Internet</option>
+              <option value="Kecepatan">Kecepatan Lambat</option>
+              <option value="Tagihan">Pertanyaan Tagihan</option>
+              <option value="Lainnya">Lainnya</option>
+            </select>
+          </div>
+          <div class="p-form-group">
+            <label class="p-form-label">Judul Laporan <span style="color:var(--red)">*</span></label>
+            <input class="p-form-input" type="text" id="tiket-judul" placeholder="cth: Internet tidak bisa konek sejak pagi" />
+          </div>
+          <div class="p-form-group">
+            <label class="p-form-label">Deskripsi (opsional)</label>
+            <textarea class="p-form-textarea" id="tiket-deskripsi" placeholder="Jelaskan masalah lebih detail..."></textarea>
+          </div>
+          <div class="p-form-actions">
+            <button class="btn btn-primary btn-sm" onclick="submitTiket()" id="btn-tiket">
+              <span class="material-symbols-outlined">send</span>Kirim Laporan
+            </button>
+          </div>
+        </div>
+      </div>
+      <!-- Daftar tiket -->
+      <div class="p-card">
+        <div class="p-card-head">
+          <span class="material-symbols-outlined">support_agent</span>
+          Riwayat Laporan
+          <button class="icon-btn" style="color:rgba(255,255,255,.7);margin-left:auto" onclick="loadTiket()"><span class="material-symbols-outlined" id="tiket-refresh-icon" style="font-size:16px">refresh</span></button>
+        </div>
+        <div id="tiket-list">
+          <div class="p-empty"><div class="spinner"></div><div class="p-empty-txt">Memuat laporan...</div></div>
+        </div>
+      </div>
+    </div><!-- /tab-tiket -->
+
+    <!-- ══════ TAB: SPEED TEST ══════ -->
+    <div class="tab-content" id="tab-speedtest">
+      <div class="st-wrap">
+
+        <!-- ── Phase steps (top) ── -->
+        <div class="st-pbar">
+          <div class="st-pstep" id="stps-ping">
+            <span class="material-symbols-outlined">network_ping</span>
+            <span>Ping</span>
+            <b id="stps-ping-v"></b>
+          </div>
+          <div class="st-parrow">›</div>
+          <div class="st-pstep" id="stps-dl">
+            <span class="material-symbols-outlined">download</span>
+            <span>Download</span>
+            <b id="stps-dl-v"></b>
+          </div>
+          <div class="st-parrow">›</div>
+          <div class="st-pstep" id="stps-ul">
+            <span class="material-symbols-outlined">upload</span>
+            <span>Upload</span>
+            <b id="stps-ul-v"></b>
+          </div>
+        </div>
+
+        <!-- ── Speedometer SVG (light / speedtest.net style) ── -->
+        <div class="st-meter-outer">
+          <svg id="st-svg" viewBox="0 0 300 260" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="stg" gradientUnits="userSpaceOnUse" x1="72" y1="222" x2="228" y2="50">
+                <stop offset="0%"   stop-color="#1a6dd4"/>
+                <stop offset="100%" stop-color="#0040a1"/>
+              </linearGradient>
+            </defs>
+
+            <!-- Background arc (light gray like speedtest.net) -->
+            <path id="st-bg-arc" fill="none" stroke="#e2e8f0" stroke-width="16" stroke-linecap="round"/>
+
+            <!-- Filled arc -->
+            <path id="st-fill-arc" fill="none" stroke="url(#stg)" stroke-width="16" stroke-linecap="round"/>
+
+            <!-- Tick marks & labels injected by JS -->
+            <g id="st-ticks"></g>
+
+            <!-- Needle -->
+            <g id="st-needle-g">
+              <line x1="150" y1="148" x2="150" y2="57"
+                stroke="#1e293b" stroke-width="2" stroke-linecap="round"/>
+              <line x1="150" y1="148" x2="150" y2="163"
+                stroke="#cbd5e1" stroke-width="2" stroke-linecap="round"/>
+            </g>
+            <!-- Hub -->
+            <circle cx="150" cy="148" r="9" fill="white" stroke="#cbd5e1" stroke-width="2"/>
+            <circle cx="150" cy="148" r="4" fill="#0040a1"/>
+
+            <!-- Center readout -->
+            <text id="st-center-lbl" x="150" y="182"
+              text-anchor="middle" fill="#94a3b8" font-size="10" font-weight="700"
+              letter-spacing="1.2">TAP UNTUK MULAI</text>
+            <text id="st-speed-num" x="150" y="210"
+              text-anchor="middle" fill="#0f172a" font-size="36" font-weight="800"
+              font-family="'Plus Jakarta Sans',sans-serif">0</text>
+            <text id="st-speed-unit" x="150" y="228"
+              text-anchor="middle" fill="#64748b" font-size="12" font-weight="600">Mbps</text>
+          </svg>
+        </div>
+
+        <!-- ── Result cards ── -->
+        <div class="st-cards-row">
+          <div class="stc" id="stc-ping">
+            <span class="stc-ico">⚡</span>
+            <span class="stc-lbl">PING</span>
+            <span class="stc-val" id="st-r-ping">—</span>
+            <span class="stc-unit">ms</span>
+          </div>
+          <div class="stc stc-dl" id="stc-dl">
+            <span class="stc-ico">↓</span>
+            <span class="stc-lbl">DOWNLOAD</span>
+            <span class="stc-val" id="st-r-dl">—</span>
+            <span class="stc-unit">Mbps</span>
+          </div>
+          <div class="stc stc-ul" id="stc-ul">
+            <span class="stc-ico">↑</span>
+            <span class="stc-lbl">UPLOAD</span>
+            <span class="stc-val" id="st-r-ul">—</span>
+            <span class="stc-unit">Mbps</span>
+          </div>
+        </div>
+
+        <!-- ── Button + note ── -->
+        <div style="text-align:center;padding-bottom:28px">
+          <button class="st-action-btn" id="st-action-btn" onclick="startSpeedTest()">
+            <span class="material-symbols-outlined">wifi_tethering</span>
+            Mulai Test
+          </button>
+          <div class="st-note" id="st-r-note" style="display:none"></div>
+        </div>
+
+      </div><!-- /st-wrap -->
+    </div><!-- /tab-speedtest -->
+
+    <!-- ══════ TAB: PENGATURAN ══════ -->
+    <div class="tab-content" id="tab-pengaturan">
+      <!-- Info Akun -->
+      <div class="p-card">
+        <div class="p-card-head">
+          <span class="material-symbols-outlined">account_circle</span>
+          Informasi Akun
+        </div>
+        <div class="p-info-list">
+          <div class="p-info-row"><span class="p-info-key">Username PPPoE</span><span class="p-info-val mono" id="setting-username">—</span></div>
+          <div class="p-info-row"><span class="p-info-key">No. Telepon / HP</span><span class="p-info-val" id="setting-hp">—</span></div>
+          <div class="p-info-row"><span class="p-info-key">Paket Aktif</span><span class="p-info-val" id="setting-paket">—</span></div>
+          <div class="p-info-row"><span class="p-info-key">Serial Modem (SN)</span><span class="p-info-val mono" id="setting-sn">—</span></div>
+        </div>
+        <div style="padding:14px 18px;border-top:1px solid var(--border)">
+          <button class="btn btn-red btn-sm" onclick="doLogout()">
+            <span class="material-symbols-outlined">logout</span>Keluar dari Portal
+          </button>
+        </div>
+      </div>
+      <!-- Ubah WiFi -->
+      <div class="p-card">
+        <div class="p-card-head">
+          <span class="material-symbols-outlined">wifi_password</span>
+          Ubah WiFi Modem
+        </div>
+        <div class="p-card-body">
+          <div class="p-alert info" style="display:flex;margin-bottom:14px"><span class="material-symbols-outlined">info</span><span>Perubahan dikirim ke modem via sistem jaringan. Modem restart otomatis ~30 detik. Reconnect perangkat WiFi Anda setelah itu.</span></div>
+          <div class="p-alert err" id="wifi-error"><span class="material-symbols-outlined">error</span><span></span></div>
+          <div class="p-alert suc" id="wifi-success"><span class="material-symbols-outlined">check_circle</span><span></span></div>
+          <div class="p-form-group">
+            <label class="p-form-label">Nama WiFi (SSID) Baru</label>
+            <input class="p-form-input" type="text" id="wifi-ssid" placeholder="cth: RumahBudi_WiFi" maxlength="32" autocomplete="off"/>
+            <div class="p-form-hint">Kosongkan jika tidak ingin mengubah nama WiFi</div>
+          </div>
+          <div class="p-form-group">
+            <label class="p-form-label">Password WiFi Baru</label>
+            <div style="position:relative">
+              <input class="p-form-input" type="password" id="wifi-pass" placeholder="Minimal 8 karakter" maxlength="63" autocomplete="new-password" style="padding-right:42px"/>
+              <button type="button" onclick="toggleWifiPwd()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-dim);display:flex">
+                <span class="material-symbols-outlined" id="wifi-pwd-eye" style="font-size:18px">visibility</span>
+              </button>
+            </div>
+            <div class="p-form-hint">Kosongkan jika tidak ingin mengubah password WiFi</div>
+          </div>
+          <div class="p-form-actions">
+            <button class="btn btn-primary btn-sm" onclick="submitWifi()" id="btn-wifi">
+              <span class="material-symbols-outlined">wifi</span>Terapkan Perubahan WiFi
+            </button>
+          </div>
+        </div>
+      </div>
+    </div><!-- /tab-pengaturan -->
+
+  </div><!-- /portal-page -->
+
+  <!-- ══ BOTTOM NAV MOBILE ══ -->
+  <nav class="portal-bnav" id="portal-bnav">
+    <button class="pbn-item active" data-tab="beranda" onclick="switchTab('beranda')">
+      <span class="material-symbols-outlined">home</span><span>Beranda</span>
+    </button>
+    <button class="pbn-item" data-tab="tagihan" onclick="switchTab('tagihan')">
+      <span class="material-symbols-outlined">receipt_long</span><span>Tagihan</span>
+    </button>
+    <button class="pbn-item" data-tab="tiket" onclick="switchTab('tiket')">
+      <span class="material-symbols-outlined">support_agent</span><span>Laporan</span>
+      <span class="pbn-badge" id="pbn-badge-tiket"></span>
+    </button>
+    <button class="pbn-item" data-tab="speedtest" onclick="switchTab('speedtest')">
+      <span class="material-symbols-outlined">network_check</span><span>Speed Test</span>
+    </button>
+    <button class="pbn-item" data-tab="pengaturan" onclick="switchTab('pengaturan')">
+      <span class="material-symbols-outlined">manage_accounts</span><span>Pengaturan</span>
+    </button>
+  </nav>
+
+  <div id="toast"></div>
+  <script src="/app/frontend/portal/portal_dashboard.js?v=12"></script>
+</body>
+</html>

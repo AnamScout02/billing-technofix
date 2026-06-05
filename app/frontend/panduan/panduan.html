@@ -1,0 +1,1435 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Panduan Penggunaan TechnoFix — ISP Billing & Monitoring</title>
+<style>
+/* ════════════════════════════════════════
+   RESET & BASE
+════════════════════════════════════════ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:13px}
+body{
+  font-family:'Segoe UI',Arial,sans-serif;
+  color:#1e293b;
+  background:#fff;
+  line-height:1.7;
+}
+
+/* ════════════════════════════════════════
+   PRINT SETUP
+════════════════════════════════════════ */
+@media print{
+  body{font-size:11pt;background:#fff}
+  .no-print{display:none!important}
+  .page-break{page-break-before:always}
+  .avoid-break{page-break-inside:avoid}
+  .cover{page-break-after:always}
+  h2{page-break-before:auto}
+  .section{page-break-inside:avoid}
+  @page{
+    size:A4;
+    margin:20mm 18mm 20mm 18mm;
+    @top-center{
+      content:"TechnoFix — Panduan Penggunaan";
+      font-size:9pt;color:#94a3b8;
+    }
+    @bottom-center{
+      content:"Halaman " counter(page) " dari " counter(pages);
+      font-size:9pt;color:#94a3b8;
+    }
+  }
+}
+
+/* ════════════════════════════════════════
+   SCREEN LAYOUT
+════════════════════════════════════════ */
+.container{max-width:900px;margin:0 auto;padding:32px 24px}
+
+/* Print button */
+.print-bar{
+  position:sticky;top:0;z-index:99;
+  background:#003f88;
+  padding:10px 24px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.print-bar span{color:rgba(255,255,255,.8);font-size:12px}
+.btn-print{
+  background:#fff;color:#003f88;border:none;
+  padding:7px 20px;border-radius:6px;
+  font-size:13px;font-weight:700;cursor:pointer;
+  display:flex;align-items:center;gap:6px;
+}
+.btn-print:hover{background:#e8f0fc}
+
+/* ════════════════════════════════════════
+   COVER PAGE
+════════════════════════════════════════ */
+.cover{
+  min-height:100vh;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  text-align:center;
+  background:linear-gradient(160deg,#001e4a 0%,#003f88 60%,#1a6dd4 100%);
+  color:#fff;
+  padding:60px 40px;
+}
+.cover-logo{
+  width:90px;height:90px;
+  background:rgba(255,255,255,.15);
+  border-radius:22px;
+  display:flex;align-items:center;justify-content:center;
+  margin:0 auto 28px;
+  font-size:40px;font-weight:900;
+  border:2px solid rgba(255,255,255,.3);
+}
+.cover h1{
+  font-size:36px;font-weight:900;
+  letter-spacing:-.02em;margin-bottom:8px;
+}
+.cover .cover-sub{
+  font-size:16px;color:rgba(255,255,255,.75);
+  margin-bottom:40px;
+}
+.cover-divider{
+  width:60px;height:3px;
+  background:rgba(255,255,255,.4);
+  border-radius:2px;margin:0 auto 32px;
+}
+.cover-info{
+  background:rgba(255,255,255,.1);
+  border-radius:12px;padding:20px 32px;
+  font-size:13px;color:rgba(255,255,255,.8);
+  border:1px solid rgba(255,255,255,.2);
+  max-width:480px;
+}
+.cover-info p{margin:4px 0}
+.cover-info strong{color:#fff}
+.cover-ver{
+  margin-top:40px;
+  font-size:11px;color:rgba(255,255,255,.45);
+}
+
+/* ════════════════════════════════════════
+   TABLE OF CONTENTS
+════════════════════════════════════════ */
+.toc{background:#f8faff;border:1px solid #e2e8f0;border-radius:12px;padding:28px 32px;margin:32px 0}
+.toc h2{font-size:14px;font-weight:800;color:#003f88;text-transform:uppercase;letter-spacing:.08em;margin-bottom:16px}
+.toc-list{list-style:none;counter-reset:toc}
+.toc-list li{
+  counter-increment:toc;
+  padding:6px 0;
+  border-bottom:1px dashed #e2e8f0;
+  display:flex;align-items:baseline;gap:8px;
+}
+.toc-list li:last-child{border-bottom:none}
+.toc-list li::before{
+  content:counter(toc)".";
+  font-weight:800;color:#003f88;
+  min-width:22px;flex-shrink:0;
+}
+.toc-list a{color:#1e293b;text-decoration:none;flex:1}
+.toc-list a:hover{color:#003f88}
+.toc-dots{flex:1;border-bottom:1px dotted #cbd5e1;margin:0 6px;align-self:flex-end;margin-bottom:3px}
+.toc-pg{color:#64748b;font-size:11px;flex-shrink:0}
+
+/* ════════════════════════════════════════
+   SECTIONS
+════════════════════════════════════════ */
+.section{margin:0 0 48px}
+
+/* Section header */
+.sec-head{
+  display:flex;align-items:center;gap:14px;
+  padding:14px 20px;
+  background:linear-gradient(135deg,#003f88,#1a6dd4);
+  border-radius:10px 10px 0 0;
+  color:#fff;
+  margin-bottom:0;
+}
+.sec-num{
+  width:32px;height:32px;
+  background:rgba(255,255,255,.2);
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;font-weight:800;
+  flex-shrink:0;
+}
+.sec-head h2{font-size:16px;font-weight:800;letter-spacing:-.01em}
+.sec-head .sec-sub{font-size:11.5px;color:rgba(255,255,255,.7);margin-top:1px}
+
+/* Section body */
+.sec-body{
+  border:1px solid #e2e8f0;
+  border-top:none;
+  border-radius:0 0 10px 10px;
+  padding:24px;
+}
+
+/* Subsections */
+.subsec{margin-bottom:24px}
+.subsec:last-child{margin-bottom:0}
+.subsec h3{
+  font-size:13.5px;font-weight:800;
+  color:#003f88;
+  padding-bottom:6px;
+  border-bottom:2px solid #e2e8f0;
+  margin-bottom:12px;
+  display:flex;align-items:center;gap:8px;
+}
+.subsec h3 .ico{
+  width:22px;height:22px;
+  background:#e8f0fc;border-radius:5px;
+  display:inline-flex;align-items:center;justify-content:center;
+  font-size:12px;
+}
+.subsec h4{
+  font-size:12.5px;font-weight:700;
+  color:#334155;margin:14px 0 8px;
+}
+
+/* Steps */
+.steps{list-style:none;counter-reset:step}
+.steps li{
+  counter-increment:step;
+  display:flex;gap:12px;
+  margin-bottom:10px;
+  align-items:flex-start;
+}
+.steps li::before{
+  content:counter(step);
+  min-width:22px;height:22px;
+  background:#003f88;color:#fff;
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:800;
+  flex-shrink:0;margin-top:1px;
+}
+
+/* Note / tip / warning */
+.note,.tip,.warn{
+  border-radius:8px;padding:10px 14px;
+  font-size:12px;margin:12px 0;
+  display:flex;gap:10px;align-items:flex-start;
+}
+.note{background:#eff6ff;border-left:3px solid #3b82f6;color:#1e40af}
+.tip {background:#f0fdf4;border-left:3px solid #16a34a;color:#15803d}
+.warn{background:#fffbeb;border-left:3px solid #f59e0b;color:#92400e}
+.note .ico,.tip .ico,.warn .ico{font-size:15px;flex-shrink:0;margin-top:1px}
+
+/* Table */
+.guide-table{width:100%;border-collapse:collapse;font-size:12px;margin:12px 0}
+.guide-table th{
+  background:#003f88;color:#fff;
+  padding:8px 12px;text-align:left;
+  font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
+}
+.guide-table td{
+  padding:8px 12px;border-bottom:1px solid #e2e8f0;
+  vertical-align:top;
+}
+.guide-table tr:last-child td{border-bottom:none}
+.guide-table tr:nth-child(even) td{background:#f8faff}
+
+/* Field description */
+.field-list{list-style:none}
+.field-list li{
+  display:flex;gap:10px;padding:7px 0;
+  border-bottom:1px solid #f1f5f9;
+  font-size:12.5px;
+}
+.field-list li:last-child{border-bottom:none}
+.field-name{
+  min-width:140px;font-weight:700;color:#003f88;flex-shrink:0;
+}
+.req{color:#dc2626;font-size:10px;vertical-align:super}
+
+/* Badge */
+.badge{
+  display:inline-flex;align-items:center;gap:4px;
+  font-size:11px;font-weight:700;
+  padding:2px 9px;border-radius:99px;
+}
+.badge-blue{background:#e8f0fc;color:#003f88}
+.badge-green{background:#f0fdf4;color:#15803d}
+.badge-amber{background:#fffbeb;color:#92400e}
+.badge-red{background:#fef2f2;color:#dc2626}
+.badge-gray{background:#f1f5f9;color:#475569}
+
+/* Screen mockup box */
+.screen-box{
+  background:#f8faff;border:1px solid #e2e8f0;
+  border-radius:8px;padding:14px 16px;
+  margin:10px 0;font-size:12px;
+}
+.screen-box .screen-title{
+  font-weight:700;color:#003f88;margin-bottom:8px;
+  font-size:11px;text-transform:uppercase;letter-spacing:.06em;
+}
+
+/* Inline code */
+code{
+  background:#f1f5f9;border-radius:4px;
+  padding:1px 6px;font-size:11.5px;
+  font-family:'Courier New',monospace;color:#334155;
+}
+
+/* Feature grid */
+.feat-grid{
+  display:grid;grid-template-columns:repeat(2,1fr);
+  gap:10px;margin:12px 0;
+}
+.feat-item{
+  background:#f8faff;border:1px solid #e2e8f0;
+  border-radius:8px;padding:10px 12px;
+}
+.feat-item .fi-icon{font-size:18px;margin-bottom:4px}
+.feat-item .fi-name{font-size:12px;font-weight:700;color:#1e293b}
+.feat-item .fi-desc{font-size:11px;color:#64748b;margin-top:2px}
+
+/* Numbered heading */
+.num-head{
+  display:flex;align-items:center;gap:10px;
+  margin:16px 0 8px;
+}
+.num-circle{
+  width:24px;height:24px;
+  background:#003f88;color:#fff;
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:800;flex-shrink:0;
+}
+
+/* ════════════════════════════════════════
+   FOOTER
+════════════════════════════════════════ */
+.doc-footer{
+  text-align:center;padding:32px;
+  border-top:1px solid #e2e8f0;
+  color:#94a3b8;font-size:11.5px;
+  margin-top:32px;
+}
+</style>
+</head>
+<body>
+
+<!-- Print Bar (tidak ikut cetak) -->
+<div class="print-bar no-print">
+  <span>📄 Panduan Penggunaan TechnoFix — Buka di Chrome untuk hasil terbaik</span>
+  <button class="btn-print" onclick="window.print()">🖨️ Cetak / Simpan PDF</button>
+</div>
+
+<div class="container">
+
+<!-- ══════════════════════════════════════
+     COVER
+══════════════════════════════════════ -->
+<div class="cover avoid-break">
+  <div class="cover-logo">TF</div>
+  <h1>TechnoFix</h1>
+  <div class="cover-sub">Panduan Lengkap Penggunaan Sistem</div>
+  <div class="cover-divider"></div>
+  <div class="cover-info">
+    <p><strong>ISP Billing &amp; Monitoring System</strong></p>
+    <p>Multi-tenant · MikroTik · OLT · Maps · Portal Pelanggan</p>
+    <p style="margin-top:10px">Versi Dokumen: 1.0 &nbsp;|&nbsp; 2026</p>
+  </div>
+  <div class="cover-ver">Dokumen ini bersifat internal. Digunakan sebagai pedoman operasional.</div>
+</div>
+
+<!-- ══════════════════════════════════════
+     DAFTAR ISI
+══════════════════════════════════════ -->
+<div class="toc avoid-break page-break">
+  <h2>📋 Daftar Isi</h2>
+  <ul class="toc-list">
+    <li><a href="#bab1">Pendahuluan &amp; Fitur Sistem</a><span class="toc-dots"></span></li>
+    <li><a href="#bab2">Login &amp; Navigasi Awal</a><span class="toc-dots"></span></li>
+    <li><a href="#bab3">Setup Perangkat: MikroTik</a><span class="toc-dots"></span></li>
+    <li><a href="#bab4">Setup Perangkat: OLT</a><span class="toc-dots"></span></li>
+    <li><a href="#bab5">Manajemen ODC (Optical Distribution Cabinet)</a><span class="toc-dots"></span></li>
+    <li><a href="#bab6">Manajemen ODP (Optical Distribution Point)</a><span class="toc-dots"></span></li>
+    <li><a href="#bab7">Profile PPPoE &amp; Paket Kecepatan</a><span class="toc-dots"></span></li>
+    <li><a href="#bab8">Manajemen Pelanggan</a><span class="toc-dots"></span></li>
+    <li><a href="#bab9">Keuangan, Tagihan &amp; Loket</a><span class="toc-dots"></span></li>
+    <li><a href="#bab10">Notifikasi WhatsApp</a><span class="toc-dots"></span></li>
+    <li><a href="#bab11">Maps Topologi Jaringan</a><span class="toc-dots"></span></li>
+    <li><a href="#bab12">Portal Pelanggan</a><span class="toc-dots"></span></li>
+    <li><a href="#bab13">Manajemen User &amp; Tim</a><span class="toc-dots"></span></li>
+    <li><a href="#bab14">Langganan &amp; Paket TechnoFix</a><span class="toc-dots"></span></li>
+  </ul>
+</div>
+
+
+<!-- ══════════════════════════════════════
+     BAB 1 — PENDAHULUAN
+══════════════════════════════════════ -->
+<div class="section page-break" id="bab1">
+  <div class="sec-head">
+    <div class="sec-num">1</div>
+    <div>
+      <h2>Pendahuluan &amp; Fitur Sistem</h2>
+      <div class="sec-sub">Apa itu TechnoFix dan apa yang bisa dilakukan</div>
+    </div>
+  </div>
+  <div class="sec-body">
+
+    <div class="subsec">
+      <h3><span class="ico">ℹ️</span> Tentang TechnoFix</h3>
+      <p>TechnoFix adalah sistem <strong>ISP Billing &amp; Monitoring</strong> berbasis web yang dirancang untuk membantu operator internet skala kecil hingga menengah mengelola seluruh operasional jaringan dari satu platform terpadu.</p>
+      <p style="margin-top:8px">Sistem ini bersifat <strong>multi-tenant</strong> — artinya banyak ISP dapat menggunakan satu server bersama, namun data masing-masing ISP sepenuhnya terisolasi satu sama lain.</p>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">⭐</span> Fitur Utama</h3>
+      <div class="feat-grid">
+        <div class="feat-item">
+          <div class="fi-icon">🌐</div>
+          <div class="fi-name">Manajemen Pelanggan</div>
+          <div class="fi-desc">Tambah, edit, monitor status online/offline pelanggan PPPoE secara realtime</div>
+        </div>
+        <div class="feat-item">
+          <div class="fi-icon">⚙️</div>
+          <div class="fi-name">Integrasi MikroTik</div>
+          <div class="fi-desc">Koneksi langsung ke RouterOS via API, sinkronisasi profile dan pelanggan</div>
+        </div>
+        <div class="feat-item">
+          <div class="fi-icon">📡</div>
+          <div class="fi-name">Monitoring OLT/ONU</div>
+          <div class="fi-desc">Pantau sinyal RX/TX ONU, deteksi SN baru, manajemen slot GPON</div>
+        </div>
+        <div class="feat-item">
+          <div class="fi-icon">🗺️</div>
+          <div class="fi-name">Maps Topologi</div>
+          <div class="fi-desc">Visualisasi jaringan OLT→ODC→ODP→Pelanggan di peta interaktif</div>
+        </div>
+        <div class="feat-item">
+          <div class="fi-icon">💰</div>
+          <div class="fi-name">Keuangan &amp; Tagihan</div>
+          <div class="fi-desc">Catat tagihan, terima pembayaran, laporan keuangan bulanan</div>
+        </div>
+        <div class="feat-item">
+          <div class="fi-icon">📱</div>
+          <div class="fi-name">Notifikasi WhatsApp</div>
+          <div class="fi-desc">Pengingat tagihan otomatis via WA, blast ke pelanggan belum bayar</div>
+        </div>
+        <div class="feat-item">
+          <div class="fi-icon">👤</div>
+          <div class="fi-name">Portal Pelanggan</div>
+          <div class="fi-desc">Pelanggan cek status koneksi, tagihan, speed test, ubah password WiFi</div>
+        </div>
+        <div class="feat-item">
+          <div class="fi-icon">👥</div>
+          <div class="fi-name">Manajemen Tim</div>
+          <div class="fi-desc">Kelola akun admin, teknisi, kolektor dengan hak akses berbeda</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">🔑</span> Peran Pengguna (Role)</h3>
+      <table class="guide-table">
+        <thead>
+          <tr><th>Peran</th><th>Deskripsi</th><th>Akses Utama</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="badge badge-blue">Owner</span></td><td>Pemilik ISP — akses penuh ke semua fitur</td><td>Semua menu</td></tr>
+          <tr><td><span class="badge badge-green">Admin</span></td><td>Administrator jaringan</td><td>Pelanggan, Perangkat, Maps, Keuangan</td></tr>
+          <tr><td><span class="badge badge-amber">Teknisi</span></td><td>Teknisi lapangan</td><td>Pelanggan, Perangkat, Maps</td></tr>
+          <tr><td><span class="badge badge-gray">Kolektor</span></td><td>Petugas penagihan</td><td>Pelanggan (bayar), Tagihan/Loket</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════
+     BAB 2 — LOGIN
+══════════════════════════════════════ -->
+<div class="section page-break" id="bab2">
+  <div class="sec-head">
+    <div class="sec-num">2</div>
+    <div>
+      <h2>Login &amp; Navigasi Awal</h2>
+      <div class="sec-sub">Cara masuk ke sistem dan mengenal tampilan dashboard</div>
+    </div>
+  </div>
+  <div class="sec-body">
+
+    <div class="subsec">
+      <h3><span class="ico">🔐</span> Login ke Sistem</h3>
+      <ol class="steps">
+        <li>Buka browser (Chrome/Firefox) dan masukkan alamat: <code>http://[alamat-server]/app/frontend/auth/auth.html</code></li>
+        <li>Masukkan <strong>Username</strong> dan <strong>Password</strong> yang diberikan admin</li>
+        <li>Klik tombol <strong>Masuk</strong></li>
+        <li>Sistem akan otomatis mengarahkan ke halaman <strong>Dashboard</strong></li>
+      </ol>
+      <div class="tip">
+        <span class="ico">💡</span>
+        <span>Login pertama menggunakan akun Owner. Username default biasanya <strong>admin</strong> atau sesuai yang didaftarkan saat setup awal. Hubungi pengelola platform jika lupa akun.</span>
+      </div>
+      <div class="warn">
+        <span class="ico">⚠️</span>
+        <span>Jangan bagikan akun Owner kepada sembarang orang. Gunakan fitur <strong>Manajemen User</strong> untuk membuat akun terpisah untuk tim.</span>
+      </div>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">🧭</span> Mengenal Navigasi</h3>
+      <p>Setelah login, Anda akan melihat layout dengan navigasi utama:</p>
+      <table class="guide-table" style="margin-top:10px">
+        <thead><tr><th>Menu</th><th>Fungsi</th></tr></thead>
+        <tbody>
+          <tr><td>📊 <strong>Dashboard</strong></td><td>Ringkasan statistik — total pelanggan, status koneksi, pendapatan</td></tr>
+          <tr><td>👥 <strong>Pelanggan</strong></td><td>Daftar lengkap pelanggan, tambah/edit, monitor status online</td></tr>
+          <tr><td>🔧 <strong>Perangkat</strong></td><td>Kelola MikroTik, OLT, ODC, ODP, ONU via bottom sheet</td></tr>
+          <tr><td>💰 <strong>Keuangan</strong></td><td>Tagihan, loket, notifikasi WA, bayar online</td></tr>
+          <tr><td>🗺️ <strong>Maps</strong></td><td>Topologi jaringan visual</td></tr>
+          <tr><td>👤 <strong>Profil</strong></td><td>Pengaturan akun, ganti password, manajemen tim, langganan</td></tr>
+        </tbody>
+      </table>
+      <div class="note">
+        <span class="ico">📌</span>
+        <span>Di perangkat mobile, navigasi menggunakan <strong>bottom bar</strong> di bagian bawah layar. Di desktop, navigasi ada di bagian atas (header).</span>
+      </div>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">🏠</span> Dashboard Utama</h3>
+      <p>Dashboard menampilkan ringkasan operasional:</p>
+      <ul class="field-list">
+        <li><span class="field-name">Stat Cards</span><span>Total pelanggan, pelanggan online, pendapatan bulan ini</span></li>
+        <li><span class="field-name">Pilih Perangkat</span><span>Dropdown untuk memilih MikroTik aktif — wajib dipilih agar data muncul</span></li>
+        <li><span class="field-name">Status Realtime</span><span>Daftar pelanggan beserta status online/offline langsung dari MikroTik</span></li>
+        <li><span class="field-name">Tombol Refresh</span><span>Ikon refresh di header untuk memperbarui data terbaru</span></li>
+      </ul>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════
+     BAB 3 — MIKROTIK
+══════════════════════════════════════ -->
+<div class="section page-break" id="bab3">
+  <div class="sec-head">
+    <div class="sec-num">3</div>
+    <div>
+      <h2>Setup Perangkat: MikroTik</h2>
+      <div class="sec-sub">Menambahkan dan menghubungkan router MikroTik ke sistem</div>
+    </div>
+  </div>
+  <div class="sec-body">
+
+    <div class="subsec">
+      <h3><span class="ico">🔌</span> Persiapan MikroTik</h3>
+      <p>Sebelum menambahkan MikroTik ke sistem, pastikan:</p>
+      <ol class="steps">
+        <li>MikroTik sudah terhubung ke jaringan yang sama dengan server TechnoFix</li>
+        <li>Fitur <strong>API</strong> di MikroTik sudah diaktifkan: <code>IP → Services → api</code> (port 8728)</li>
+        <li>Catat IP address, username, dan password login MikroTik</li>
+        <li>Pastikan tidak ada firewall yang memblokir port 8728</li>
+      </ol>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">➕</span> Menambahkan MikroTik</h3>
+      <ol class="steps">
+        <li>Klik menu <strong>Perangkat</strong> → pilih <strong>MikroTik</strong> dari bottom sheet</li>
+        <li>Klik tombol <strong>Tambah MikroTik</strong></li>
+        <li>Isi form berikut:</li>
+      </ol>
+      <ul class="field-list" style="margin-top:10px">
+        <li><span class="field-name">Nama Perangkat <span class="req">*</span></span><span>Nama pengenal, contoh: <em>MikroTik Sangkur</em></span></li>
+        <li><span class="field-name">IP Address <span class="req">*</span></span><span>IP lokal MikroTik, contoh: <em>192.168.1.1</em></span></li>
+        <li><span class="field-name">Port API</span><span>Default: <em>8728</em> (biarkan jika tidak diubah)</span></li>
+        <li><span class="field-name">Username <span class="req">*</span></span><span>Username login MikroTik (biasanya <em>admin</em>)</span></li>
+        <li><span class="field-name">Password <span class="req">*</span></span><span>Password MikroTik (bisa kosong jika tidak ada password)</span></li>
+        <li><span class="field-name">Koordinat</span><span>Latitude, Longitude untuk tampil di Maps (opsional)</span></li>
+      </ul>
+      <ol class="steps" start="4">
+        <li>Klik <strong>Simpan &amp; Tes Koneksi</strong></li>
+        <li>Jika berhasil, status berubah menjadi <span class="badge badge-green">● Connected</span></li>
+      </ol>
+      <div class="warn">
+        <span class="ico">⚠️</span>
+        <span>Jika muncul pesan <em>"Gagal terhubung"</em>, periksa: IP address benar, API service aktif di MikroTik, dan tidak ada firewall/ACL yang memblokir.</span>
+      </div>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">🔄</span> Sinkronisasi Data</h3>
+      <p>Setelah MikroTik terhubung, Anda bisa sinkronisasi data:</p>
+      <ul class="field-list">
+        <li><span class="field-name">Sync PPPoE Secret</span><span>Ambil daftar pelanggan dari MikroTik ke database lokal</span></li>
+        <li><span class="field-name">Sync Profile</span><span>Ambil daftar profile PPPoE (paket kecepatan) dari MikroTik</span></li>
+        <li><span class="field-name">Status Realtime</span><span>Pantau siapa yang sedang online langsung dari dashboard</span></li>
+      </ul>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">✏️</span> Edit &amp; Hapus MikroTik</h3>
+      <p>Di halaman daftar MikroTik, setiap baris memiliki tombol aksi:</p>
+      <table class="guide-table">
+        <thead><tr><th>Tombol</th><th>Fungsi</th></tr></thead>
+        <tbody>
+          <tr><td>✏️ Edit</td><td>Ubah nama, IP, username, atau password</td></tr>
+          <tr><td>🔄 Test Koneksi</td><td>Tes ulang koneksi ke perangkat</td></tr>
+          <tr><td>🗑️ Hapus</td><td>Hapus perangkat dari sistem (data pelanggan tidak ikut terhapus)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════
+     BAB 4 — OLT
+══════════════════════════════════════ -->
+<div class="section page-break" id="bab4">
+  <div class="sec-head">
+    <div class="sec-num">4</div>
+    <div>
+      <h2>Setup Perangkat: OLT</h2>
+      <div class="sec-sub">Optical Line Terminal — monitoring jaringan fiber optik</div>
+    </div>
+  </div>
+  <div class="sec-body">
+
+    <div class="subsec">
+      <h3><span class="ico">📡</span> Menambahkan OLT</h3>
+      <ol class="steps">
+        <li>Klik menu <strong>Perangkat</strong> → pilih <strong>OLT</strong></li>
+        <li>Klik <strong>Tambah OLT</strong></li>
+        <li>Isi data OLT:</li>
+      </ol>
+      <ul class="field-list" style="margin-top:10px">
+        <li><span class="field-name">Nama OLT <span class="req">*</span></span><span>Contoh: <em>OLT ZTE-01 Kantor</em></span></li>
+        <li><span class="field-name">Tipe OLT <span class="req">*</span></span><span>Pilih vendor: ZTE / Huawei / FiberHome / Lainnya</span></li>
+        <li><span class="field-name">IP Address <span class="req">*</span></span><span>IP manajemen OLT</span></li>
+        <li><span class="field-name">Port SSH/Telnet</span><span>Default: 22 untuk SSH</span></li>
+        <li><span class="field-name">Username / Password <span class="req">*</span></span><span>Credential login OLT</span></li>
+        <li><span class="field-name">Jumlah PON Port</span><span>Total port GPON yang tersedia</span></li>
+        <li><span class="field-name">Koordinat</span><span>Lokasi OLT untuk ditampilkan di Maps</span></li>
+      </ul>
+      <div class="tip">
+        <span class="ico">💡</span>
+        <span>Koordinat bisa diisi manual (copy dari Google Maps) atau klik tombol <strong>Deteksi Lokasi</strong> jika Anda sedang berada di lokasi OLT.</span>
+      </div>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">📊</span> Monitoring ONU</h3>
+      <p>Setelah OLT tersambung, sistem dapat membaca data ONU secara realtime:</p>
+      <ul class="field-list">
+        <li><span class="field-name">RX Power</span><span>Kekuatan sinyal yang diterima ONU (normal: -8 s/d -27 dBm)</span></li>
+        <li><span class="field-name">TX Power</span><span>Kekuatan sinyal yang dipancarkan ONU</span></li>
+        <li><span class="field-name">Status ONU</span><span>Online / Offline / Loss of Signal</span></li>
+        <li><span class="field-name">Serial Number</span><span>Identitas unik modem pelanggan</span></li>
+        <li><span class="field-name">Slot/Port</span><span>Posisi fisik ONU di dalam OLT (misal: 1/1/1)</span></li>
+      </ul>
+      <table class="guide-table">
+        <thead><tr><th>Indikator Sinyal</th><th>Nilai</th><th>Keterangan</th></tr></thead>
+        <tbody>
+          <tr><td><span class="badge badge-green">● Normal</span></td><td>&gt; -20 dBm</td><td>Sinyal bagus, koneksi stabil</td></tr>
+          <tr><td><span class="badge badge-amber">● Sedang</span></td><td>-20 s/d -27 dBm</td><td>Perlu diperiksa kabel/konektor</td></tr>
+          <tr><td><span class="badge badge-red">● Lemah</span></td><td>&lt; -27 dBm</td><td>Segera periksa splitter/kabel</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">🔍</span> Scan ONU Baru</h3>
+      <p>Untuk mendeteksi ONU yang baru dipasang namun belum terdaftar:</p>
+      <ol class="steps">
+        <li>Buka halaman OLT → klik <strong>Scan ONU Baru</strong></li>
+        <li>Sistem akan membaca ONU unconfigured dari OLT</li>
+        <li>Serial Number ONU baru akan muncul dalam daftar</li>
+        <li>Gunakan SN ini saat menambahkan data pelanggan baru</li>
+      </ol>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════
+     BAB 5 — ODC
+══════════════════════════════════════ -->
+<div class="section page-break" id="bab5">
+  <div class="sec-head">
+    <div class="sec-num">5</div>
+    <div>
+      <h2>Manajemen ODC</h2>
+      <div class="sec-sub">Optical Distribution Cabinet — titik distribusi fiber ke area</div>
+    </div>
+  </div>
+  <div class="sec-body">
+
+    <div class="subsec">
+      <h3><span class="ico">🗄️</span> Apa itu ODC?</h3>
+      <p>ODC (Optical Distribution Cabinet) adalah kotak distribusi kabel fiber optik yang dipasang di area tertentu. ODC menerima sinyal dari OLT dan mendistribusikannya ke beberapa ODP di sekitarnya. Dalam topologi jaringan: <strong>OLT → ODC → ODP → Pelanggan</strong></p>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">➕</span> Menambahkan ODC</h3>
+      <ol class="steps">
+        <li>Klik menu <strong>Perangkat</strong> → pilih <strong>ODC</strong></li>
+        <li>Klik tombol <strong>Tambah ODC</strong></li>
+        <li>Isi form berikut:</li>
+      </ol>
+      <ul class="field-list" style="margin-top:10px">
+        <li><span class="field-name">Nama ODC <span class="req">*</span></span><span>Contoh: <em>ODC-A Perumahan Griya</em></span></li>
+        <li><span class="field-name">OLT Induk <span class="req">*</span></span><span>Pilih OLT yang terhubung ke ODC ini</span></li>
+        <li><span class="field-name">Jumlah Port</span><span>Total port output ODC (biasanya 8 atau 16)</span></li>
+        <li><span class="field-name">Lokasi / Alamat</span><span>Deskripsi lokasi fisik ODC</span></li>
+        <li><span class="field-name">Koordinat</span><span>Latitude, Longitude untuk tampil di Maps</span></li>
+        <li><span class="field-name">Keterangan</span><span>Catatan tambahan (opsional)</span></li>
+      </ul>
+      <ol class="steps" start="4">
+        <li>Klik <strong>Simpan</strong></li>
+      </ol>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">✏️</span> Edit ODC</h3>
+      <ol class="steps">
+        <li>Di daftar ODC, klik ikon <strong>Edit (✏️)</strong> pada baris ODC yang ingin diubah</li>
+        <li>Ubah data yang diperlukan</li>
+        <li>Klik <strong>Simpan Perubahan</strong></li>
+      </ol>
+      <div class="note">
+        <span class="ico">📌</span>
+        <span>Mengubah OLT induk atau jumlah port pada ODC yang sudah memiliki ODP terhubung dapat mempengaruhi topologi di Maps.</span>
+      </div>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">📋</span> Melihat Port ODC</h3>
+      <p>Klik nama ODC untuk melihat detail penggunaan port:</p>
+      <ul class="field-list">
+        <li><span class="field-name">Port Terpakai</span><span>Port yang sudah terhubung ke ODP</span></li>
+        <li><span class="field-name">Port Kosong</span><span>Port yang masih tersedia</span></li>
+        <li><span class="field-name">ODP Terhubung</span><span>Daftar ODP yang terhubung ke port ODC ini</span></li>
+      </ul>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════
+     BAB 6 — ODP
+══════════════════════════════════════ -->
+<div class="section page-break" id="bab6">
+  <div class="sec-head">
+    <div class="sec-num">6</div>
+    <div>
+      <h2>Manajemen ODP</h2>
+      <div class="sec-sub">Optical Distribution Point — titik distribusi ke rumah pelanggan</div>
+    </div>
+  </div>
+  <div class="sec-body">
+
+    <div class="subsec">
+      <h3><span class="ico">🔆</span> Apa itu ODP?</h3>
+      <p>ODP (Optical Distribution Point) adalah titik akhir distribusi fiber sebelum ke rumah pelanggan. Biasanya dipasang di tiang atau kotak di dekat cluster perumahan. Setiap ODP memiliki beberapa port (4, 8, atau 16 port) untuk menghubungkan pelanggan.</p>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">➕</span> Menambahkan ODP</h3>
+      <ol class="steps">
+        <li>Klik menu <strong>Perangkat</strong> → pilih <strong>ODP</strong></li>
+        <li>Klik tombol <strong>Tambah ODP</strong></li>
+        <li>Isi form:</li>
+      </ol>
+      <ul class="field-list" style="margin-top:10px">
+        <li><span class="field-name">Nama ODP <span class="req">*</span></span><span>Contoh: <em>ODP-01 Jl. Merdeka</em></span></li>
+        <li><span class="field-name">ODC Induk <span class="req">*</span></span><span>Pilih ODC yang terhubung</span></li>
+        <li><span class="field-name">Port ODC</span><span>Nomor port di ODC yang digunakan ODP ini</span></li>
+        <li><span class="field-name">Jumlah Port ODP</span><span>Kapasitas port untuk pelanggan (4/8/16)</span></li>
+        <li><span class="field-name">Lokasi / Alamat <span class="req">*</span></span><span>Alamat fisik ODP di lapangan</span></li>
+        <li><span class="field-name">Koordinat</span><span>Latitude, Longitude untuk Maps</span></li>
+      </ul>
+      <ol class="steps" start="4">
+        <li>Klik <strong>Simpan</strong></li>
+      </ol>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">👁️</span> Monitoring Port ODP</h3>
+      <p>Di halaman detail ODP, Anda bisa melihat:</p>
+      <table class="guide-table">
+        <thead><tr><th>Info</th><th>Keterangan</th></tr></thead>
+        <tbody>
+          <tr><td>Port Terisi</td><td>Port yang sudah ada pelanggan</td></tr>
+          <tr><td>Port Kosong</td><td>Port tersedia untuk pelanggan baru</td></tr>
+          <tr><td>Pelanggan per Port</td><td>Nama pelanggan yang terhubung di masing-masing port</td></tr>
+          <tr><td>Status ONU</td><td>Sinyal modem pelanggan (dari data OLT)</td></tr>
+        </tbody>
+      </table>
+      <div class="tip">
+        <span class="ico">💡</span>
+        <span>Saat menambah pelanggan baru, pilih ODP terlebih dahulu — sistem akan otomatis menampilkan port yang masih kosong.</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════
+     BAB 7 — PROFILE PPPOE
+══════════════════════════════════════ -->
+<div class="section page-break" id="bab7">
+  <div class="sec-head">
+    <div class="sec-num">7</div>
+    <div>
+      <h2>Profile PPPoE &amp; Paket Kecepatan</h2>
+      <div class="sec-sub">Kelola paket internet dan harga langsung dari MikroTik</div>
+    </div>
+  </div>
+  <div class="sec-body">
+
+    <div class="subsec">
+      <h3><span class="ico">⚡</span> Apa itu Profile PPPoE?</h3>
+      <p>Profile PPPoE adalah <strong>paket kecepatan internet</strong> yang tersimpan di MikroTik. Setiap profile mendefinisikan batas download dan upload untuk pelanggan yang menggunakannya. Contoh: Profile <em>10M/5M</em> = download 10 Mbps, upload 5 Mbps.</p>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">🔎</span> Membuka Halaman Profile PPPoE</h3>
+      <ol class="steps">
+        <li>Klik menu <strong>Perangkat</strong> → pilih <strong>Profile PPPoE</strong></li>
+        <li>Pilih <strong>perangkat MikroTik</strong> dari dropdown di bagian atas</li>
+        <li>Daftar profile akan muncul secara otomatis</li>
+      </ol>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">➕</span> Menambah Profile Baru</h3>
+      <ol class="steps">
+        <li>Klik tombol <strong>Tambah Profile</strong></li>
+        <li>Isi form:</li>
+      </ol>
+      <ul class="field-list" style="margin-top:10px">
+        <li><span class="field-name">Nama Profile <span class="req">*</span></span><span>Nama unik, contoh: <em>10M</em> atau <em>PAKET-RUMAHAN</em></span></li>
+        <li><span class="field-name">Download <span class="req">*</span></span><span>Kecepatan download + satuan (K/M/G)</span></li>
+        <li><span class="field-name">Upload <span class="req">*</span></span><span>Kecepatan upload + satuan (K/M/G)</span></li>
+        <li><span class="field-name">Harga/Bulan</span><span>Harga tagihan per bulan untuk pelanggan paket ini</span></li>
+        <li><span class="field-name">Catatan Bandwidth</span><span>Keterangan tambahan misal: <em>Bonus 20M jam 00-06</em></span></li>
+      </ul>
+      <ol class="steps" start="3">
+        <li>Klik <strong>Tambah Profile</strong> — sistem otomatis membuat profile di MikroTik</li>
+      </ol>
+      <div class="tip">
+        <span class="ico">💡</span>
+        <span>Profile langsung tersimpan ke MikroTik secara realtime. Tidak perlu login ke Winbox untuk membuat profile baru.</span>
+      </div>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">💲</span> Mengatur Harga Profile</h3>
+      <p>Harga bisa diatur langsung di tabel tanpa membuka form edit:</p>
+      <ol class="steps">
+        <li>Di kolom <strong>Harga/Bulan</strong>, klik pada nilai harga yang ada</li>
+        <li>Nilai berubah menjadi input — ketik harga baru</li>
+        <li>Tekan <strong>Enter</strong> atau klik di luar kolom untuk menyimpan</li>
+      </ol>
+      <div class="note">
+        <span class="ico">📌</span>
+        <span>Harga profile digunakan sebagai default saat menambah pelanggan baru dengan paket tersebut.</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════
+     BAB 8 — PELANGGAN
+══════════════════════════════════════ -->
+<div class="section page-break" id="bab8">
+  <div class="sec-head">
+    <div class="sec-num">8</div>
+    <div>
+      <h2>Manajemen Pelanggan</h2>
+      <div class="sec-sub">Tambah, edit, monitor, dan kelola seluruh pelanggan ISP</div>
+    </div>
+  </div>
+  <div class="sec-body">
+
+    <div class="subsec">
+      <h3><span class="ico">➕</span> Menambah Pelanggan Baru</h3>
+      <ol class="steps">
+        <li>Buka menu <strong>Pelanggan</strong></li>
+        <li>Pilih <strong>MikroTik</strong> dari dropdown perangkat</li>
+        <li>Klik tombol <strong>Tambah Pelanggan</strong></li>
+        <li>Isi form data pelanggan:</li>
+      </ol>
+      <ul class="field-list" style="margin-top:10px">
+        <li><span class="field-name">Nama Lengkap <span class="req">*</span></span><span>Nama pelanggan sesuai KTP</span></li>
+        <li><span class="field-name">Username PPPoE <span class="req">*</span></span><span>Username untuk koneksi internet (unik, huruf kecil)</span></li>
+        <li><span class="field-name">Password PPPoE <span class="req">*</span></span><span>Password koneksi internet</span></li>
+        <li><span class="field-name">No. Telepon <span class="req">*</span></span><span>Digunakan untuk login portal dan notifikasi WA</span></li>
+        <li><span class="field-name">Profil Paket <span class="req">*</span></span><span>Pilih profile PPPoE yang akan digunakan</span></li>
+        <li><span class="field-name">Alamat</span><span>Alamat lengkap pelanggan</span></li>
+        <li><span class="field-name">ODP <span class="req">*</span></span><span>Pilih ODP tempat pelanggan terhubung</span></li>
+        <li><span class="field-name">Port ODP</span><span>Nomor port ODP yang digunakan (otomatis tampil port kosong)</span></li>
+        <li><span class="field-name">Serial Number</span><span>SN modem/ONU pelanggan</span></li>
+        <li><span class="field-name">Tanggal Pasang</span><span>Tanggal aktivasi layanan</span></li>
+        <li><span class="field-name">Tanggal Jatuh Tempo</span><span>Tanggal tagihan berakhir tiap bulan</span></li>
+        <li><span class="field-name">Kolektor</span><span>Pilih kolektor yang bertanggung jawab menagih pelanggan ini</span></li>
+      </ul>
+      <ol class="steps" start="5">
+        <li>Klik <strong>Simpan</strong> — pelanggan otomatis ditambahkan ke MikroTik</li>
+      </ol>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">👁️</span> Monitor Status Pelanggan</h3>
+      <p>Di daftar pelanggan, setiap baris menampilkan status realtime:</p>
+      <table class="guide-table">
+        <thead><tr><th>Status</th><th>Keterangan</th><th>Warna</th></tr></thead>
+        <tbody>
+          <tr><td>Online</td><td>Pelanggan sedang terhubung ke internet</td><td><span class="badge badge-green">● Online</span></td></tr>
+          <tr><td>Offline</td><td>Tidak ada koneksi aktif saat ini</td><td><span class="badge badge-red">● Offline</span></td></tr>
+          <tr><td>Terisolir</td><td>Akun dinonaktifkan (belum bayar)</td><td><span class="badge badge-amber">● Terisolir</span></td></tr>
+        </tbody>
+      </table>
+      <div class="tip">
+        <span class="ico">💡</span>
+        <span>Klik tombol <strong>Refresh (🔄)</strong> di header untuk memperbarui status semua pelanggan dari MikroTik.</span>
+      </div>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">✏️</span> Edit Data Pelanggan</h3>
+      <ol class="steps">
+        <li>Klik ikon <strong>Edit (✏️)</strong> atau klik nama pelanggan untuk buka detail</li>
+        <li>Di halaman detail, klik tombol <strong>Edit</strong></li>
+        <li>Ubah data yang perlu diperbarui</li>
+        <li>Klik <strong>Simpan Perubahan</strong></li>
+      </ol>
+      <div class="warn">
+        <span class="ico">⚠️</span>
+        <span>Mengubah <strong>Username PPPoE</strong> akan otomatis mengupdate di MikroTik. Pastikan pelanggan memasukkan ulang username baru di router/modem mereka.</span>
+      </div>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">🔍</span> Filter &amp; Pencarian</h3>
+      <ul class="field-list">
+        <li><span class="field-name">Cari Nama/Username</span><span>Ketik di kolom pencarian untuk filter pelanggan</span></li>
+        <li><span class="field-name">Filter Status</span><span>Tampilkan semua / online saja / offline saja / terisolir</span></li>
+        <li><span class="field-name">Filter Jatuh Tempo</span><span>Tampilkan pelanggan yang jatuh tempo bulan ini</span></li>
+        <li><span class="field-name">Filter Kolektor</span><span>Tampilkan pelanggan milik kolektor tertentu</span></li>
+      </ul>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">⛔</span> Isolir &amp; Aktifkan Kembali</h3>
+      <p>Isolir digunakan untuk menangguhkan koneksi pelanggan yang belum membayar:</p>
+      <ol class="steps">
+        <li>Buka detail pelanggan atau cari di daftar</li>
+        <li>Klik tombol <strong>Isolir</strong> — koneksi pelanggan langsung diputus di MikroTik</li>
+        <li>Setelah pelanggan membayar, klik <strong>Aktifkan</strong> untuk memulihkan koneksi</li>
+      </ol>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">📋</span> Riwayat Transaksi Pelanggan</h3>
+      <p>Di halaman detail pelanggan, scroll ke bawah untuk melihat:</p>
+      <ul class="field-list">
+        <li><span class="field-name">Riwayat Bayar</span><span>Daftar pembayaran yang pernah dilakukan</span></li>
+        <li><span class="field-name">Status Tagihan</span><span>Tagihan bulan berjalan dan bulan sebelumnya</span></li>
+        <li><span class="field-name">Data ONU/Modem</span><span>Sinyal RX/TX dari OLT (jika menggunakan fiber)</span></li>
+      </ul>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════
+     BAB 9 — KEUANGAN
+══════════════════════════════════════ -->
+<div class="section page-break" id="bab9">
+  <div class="sec-head">
+    <div class="sec-num">9</div>
+    <div>
+      <h2>Keuangan, Tagihan &amp; Loket</h2>
+      <div class="sec-sub">Catat pembayaran, kelola tagihan, dan terima bayar di loket</div>
+    </div>
+  </div>
+  <div class="sec-body">
+
+    <div class="subsec">
+      <h3><span class="ico">🧾</span> Tagihan Pelanggan</h3>
+      <p>Tagihan dibuat otomatis berdasarkan tanggal jatuh tempo pelanggan. Untuk mengakses:</p>
+      <ol class="steps">
+        <li>Klik menu <strong>Keuangan</strong> → pilih <strong>Tagihan</strong></li>
+        <li>Daftar tagihan semua pelanggan akan tampil</li>
+        <li>Filter berdasarkan: status (Lunas/Belum Lunas), bulan, atau nama pelanggan</li>
+      </ol>
+      <table class="guide-table">
+        <thead><tr><th>Status Tagihan</th><th>Keterangan</th></tr></thead>
+        <tbody>
+          <tr><td><span class="badge badge-green">Lunas</span></td><td>Tagihan sudah dibayar</td></tr>
+          <tr><td><span class="badge badge-red">Belum Lunas</span></td><td>Tagihan belum dibayar, mungkin perlu diisolir</td></tr>
+          <tr><td><span class="badge badge-amber">Sebagian</span></td><td>Baru dibayar sebagian</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">💵</span> Mencatat Pembayaran</h3>
+      <ol class="steps">
+        <li>Di daftar tagihan atau detail pelanggan, klik <strong>Bayar</strong></li>
+        <li>Isi jumlah yang dibayar</li>
+        <li>Pilih metode pembayaran (Tunai / Transfer / QRIS)</li>
+        <li>Tambahkan catatan jika perlu</li>
+        <li>Klik <strong>Simpan Pembayaran</strong></li>
+        <li>Sistem otomatis memperbarui status tagihan dan mencatat ke laporan keuangan</li>
+      </ol>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">🏪</span> Loket / Kasir</h3>
+      <p>Fitur Loket dirancang untuk penerimaan pembayaran cepat:</p>
+      <ol class="steps">
+        <li>Klik menu <strong>Keuangan</strong> → pilih <strong>Loket</strong></li>
+        <li>Cari nama atau username pelanggan di kolom pencarian</li>
+        <li>Klik pelanggan yang akan membayar</li>
+        <li>Pilih bulan yang dibayarkan (bisa lebih dari 1 bulan)</li>
+        <li>Sistem menghitung total otomatis</li>
+        <li>Klik <strong>Proses Pembayaran</strong></li>
+        <li>Struk/tanda terima bisa dicetak atau di-screenshot</li>
+      </ol>
+      <div class="tip">
+        <span class="ico">💡</span>
+        <span>Kolektor dapat mengakses Loket untuk mencatat pembayaran yang diterima di lapangan dan otomatis terupdate ke sistem pusat.</span>
+      </div>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">📊</span> Laporan Keuangan</h3>
+      <ol class="steps">
+        <li>Klik menu <strong>Keuangan</strong> → pilih <strong>Keuangan</strong></li>
+        <li>Pilih rentang bulan untuk melihat laporan</li>
+      </ol>
+      <p>Laporan mencakup:</p>
+      <ul class="field-list">
+        <li><span class="field-name">Total Pemasukan</span><span>Jumlah pembayaran yang diterima dalam periode</span></li>
+        <li><span class="field-name">Tagihan Lunas</span><span>Jumlah pelanggan yang sudah membayar</span></li>
+        <li><span class="field-name">Tagihan Belum Lunas</span><span>Jumlah piutang yang belum diterima</span></li>
+        <li><span class="field-name">Detail Transaksi</span><span>Daftar semua pembayaran dengan nama kasir/kolektor</span></li>
+      </ul>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">💳</span> Bayar Online (Midtrans/Xendit)</h3>
+      <p>Jika sudah diintegrasikan dengan payment gateway:</p>
+      <ol class="steps">
+        <li>Klik menu <strong>Keuangan</strong> → pilih <strong>Bayar Online</strong></li>
+        <li>Pelanggan akan mendapatkan link pembayaran</li>
+        <li>Pembayaran via QRIS, transfer bank, kartu kredit</li>
+        <li>Status tagihan terupdate otomatis setelah pembayaran berhasil</li>
+      </ol>
+      <div class="note">
+        <span class="ico">📌</span>
+        <span>Fitur bayar online membutuhkan konfigurasi API key dari Midtrans atau Xendit di menu <strong>Setting</strong>.</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════
+     BAB 10 — NOTIFIKASI WA
+══════════════════════════════════════ -->
+<div class="section page-break" id="bab10">
+  <div class="sec-head">
+    <div class="sec-num">10</div>
+    <div>
+      <h2>Notifikasi WhatsApp</h2>
+      <div class="sec-sub">Kirim pengingat tagihan otomatis ke pelanggan via WhatsApp</div>
+    </div>
+  </div>
+  <div class="sec-body">
+
+    <div class="subsec">
+      <h3><span class="ico">📲</span> Cara Menggunakan Notifikasi WA</h3>
+      <ol class="steps">
+        <li>Klik menu <strong>Keuangan</strong> → pilih <strong>Notifikasi WA</strong></li>
+        <li>Pilih pelanggan yang akan dikirimi notifikasi (bisa pilih semua atau per-pelanggan)</li>
+        <li>Pilih template pesan yang akan digunakan</li>
+        <li>Klik <strong>Kirim Notifikasi</strong></li>
+      </ol>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">📝</span> Template Pesan</h3>
+      <p>Sistem menyediakan template pesan yang dapat dikustomisasi:</p>
+      <table class="guide-table">
+        <thead><tr><th>Template</th><th>Digunakan Untuk</th></tr></thead>
+        <tbody>
+          <tr><td>Pengingat Tagihan</td><td>Kirim H-3 atau H-7 sebelum jatuh tempo</td></tr>
+          <tr><td>Tagihan Jatuh Tempo</td><td>Kirim pada tanggal jatuh tempo</td></tr>
+          <tr><td>Sudah Terlambat</td><td>Kirim untuk tagihan yang sudah lewat jatuh tempo</td></tr>
+          <tr><td>Konfirmasi Bayar</td><td>Kirim otomatis setelah pembayaran berhasil dicatat</td></tr>
+        </tbody>
+      </table>
+      <div class="note">
+        <span class="ico">📌</span>
+        <span>Pesan menggunakan nomor telepon yang tersimpan di data pelanggan. Pastikan nomor WA pelanggan sudah benar dan aktif.</span>
+      </div>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">⚙️</span> Konfigurasi WA Gateway</h3>
+      <p>Notifikasi WA membutuhkan koneksi ke WhatsApp Gateway. Konfigurasi di menu <strong>Setting → WhatsApp</strong>:</p>
+      <ul class="field-list">
+        <li><span class="field-name">API URL</span><span>Endpoint WA Gateway (Fonnte, WA Business, dll)</span></li>
+        <li><span class="field-name">API Token/Key</span><span>Token autentikasi dari provider WA</span></li>
+        <li><span class="field-name">Nomor Pengirim</span><span>Nomor WA yang akan mengirim pesan</span></li>
+      </ul>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════
+     BAB 11 — MAPS
+══════════════════════════════════════ -->
+<div class="section page-break" id="bab11">
+  <div class="sec-head">
+    <div class="sec-num">11</div>
+    <div>
+      <h2>Maps Topologi Jaringan</h2>
+      <div class="sec-sub">Visualisasi peta jaringan fiber dari OLT hingga pelanggan</div>
+    </div>
+  </div>
+  <div class="sec-body">
+
+    <div class="subsec">
+      <h3><span class="ico">🗺️</span> Membuka Maps</h3>
+      <ol class="steps">
+        <li>Klik menu <strong>Maps</strong> di navigasi</li>
+        <li>Peta akan memuat dan menampilkan semua perangkat yang sudah ada koordinatnya</li>
+        <li>Gunakan scroll mouse untuk zoom in/out, klik-tahan untuk geser peta</li>
+      </ol>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">📍</span> Marker di Peta</h3>
+      <table class="guide-table">
+        <thead><tr><th>Marker</th><th>Perangkat</th><th>Warna</th></tr></thead>
+        <tbody>
+          <tr><td>📡 Antena Besar</td><td>OLT</td><td>Biru tua</td></tr>
+          <tr><td>🗄️ Kotak</td><td>ODC</td><td>Biru muda</td></tr>
+          <tr><td>🔆 Titik Kecil</td><td>ODP</td><td>Hijau</td></tr>
+          <tr><td>🏠 Rumah</td><td>Pelanggan</td><td>Hijau (online) / Merah (offline)</td></tr>
+        </tbody>
+      </table>
+      <p style="margin-top:8px">Garis yang menghubungkan antar marker menunjukkan kabel fiber optik:</p>
+      <ul class="field-list">
+        <li><span class="field-name">Garis Tebal Biru</span><span>Koneksi OLT → ODC (backbone)</span></li>
+        <li><span class="field-name">Garis Tipis Biru</span><span>Koneksi ODC → ODP (distribusi)</span></li>
+        <li><span class="field-name">Garis Tipis Hijau</span><span>Koneksi ODP → Pelanggan (last mile)</span></li>
+      </ul>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">🖱️</span> Interaksi dengan Peta</h3>
+      <ul class="field-list">
+        <li><span class="field-name">Klik Marker</span><span>Tampilkan popup informasi perangkat (nama, IP, status, sinyal)</span></li>
+        <li><span class="field-name">Klik Pelanggan</span><span>Tampilkan nama, status online, sinyal ONU, dan tombol aksi cepat</span></li>
+        <li><span class="field-name">Filter Panel</span><span>Tampilkan/sembunyikan layer: OLT, ODC, ODP, atau Pelanggan</span></li>
+        <li><span class="field-name">Fullscreen</span><span>Klik ikon fullscreen untuk tampilan lebih luas</span></li>
+      </ul>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">📌</span> Menambahkan Koordinat Perangkat</h3>
+      <p>Agar perangkat muncul di Maps, koordinat harus diisi saat tambah/edit data:</p>
+      <ol class="steps">
+        <li>Buka edit perangkat (OLT/ODC/ODP/Pelanggan)</li>
+        <li>Di kolom <strong>Koordinat</strong>, masukkan nilai <code>latitude,longitude</code></li>
+        <li>Contoh: <code>-8.123456,114.234567</code></li>
+        <li>Atau klik <strong>Deteksi Lokasi</strong> untuk mengisi otomatis dari GPS perangkat (hanya bekerja di HTTPS atau localhost)</li>
+      </ol>
+      <div class="tip">
+        <span class="ico">💡</span>
+        <span>Cara mudah ambil koordinat: buka Google Maps → klik kanan di lokasi → salin koordinat yang muncul.</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════
+     BAB 12 — PORTAL PELANGGAN
+══════════════════════════════════════ -->
+<div class="section page-break" id="bab12">
+  <div class="sec-head">
+    <div class="sec-num">12</div>
+    <div>
+      <h2>Portal Pelanggan</h2>
+      <div class="sec-sub">Halaman khusus pelanggan untuk cek status, tagihan, dan speed test</div>
+    </div>
+  </div>
+  <div class="sec-body">
+
+    <div class="subsec">
+      <h3><span class="ico">🌐</span> Akses Portal Pelanggan</h3>
+      <p>Portal pelanggan dapat diakses di:</p>
+      <div class="screen-box">
+        <div class="screen-title">Alamat Portal</div>
+        <code>http://[alamat-server]/app/frontend/portal/portal_login.html</code>
+      </div>
+      <p style="margin-top:8px">Portal ini terpisah dari sistem admin — khusus untuk pelanggan akhir.</p>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">🔑</span> Login Portal Pelanggan</h3>
+      <ol class="steps">
+        <li>Buka alamat portal di browser atau bagikan link ke pelanggan</li>
+        <li>Masukkan <strong>Username PPPoE</strong> (sama dengan username koneksi internet)</li>
+        <li>Masukkan <strong>Nomor Telepon</strong> yang terdaftar (digunakan sebagai password)</li>
+        <li>Klik <strong>Masuk</strong></li>
+      </ol>
+      <div class="note">
+        <span class="ico">📌</span>
+        <span>Password portal = nomor telepon pelanggan yang tersimpan di data admin. Jika pelanggan lupa, minta admin memperbarui nomor di data pelanggan.</span>
+      </div>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">📱</span> Fitur di Portal Pelanggan</h3>
+      <table class="guide-table">
+        <thead><tr><th>Tab</th><th>Isi / Fungsi</th></tr></thead>
+        <tbody>
+          <tr><td>🏠 Beranda</td><td>Status koneksi (online/offline), sinyal RX, jatuh tempo, traffic sesi, info modem (SN, VLAN, slot)</td></tr>
+          <tr><td>🧾 Tagihan</td><td>Riwayat tagihan, status lunas/belum, rekening tujuan transfer</td></tr>
+          <tr><td>📋 Laporan</td><td>Kirim tiket keluhan ke admin/teknisi, pantau status tiket</td></tr>
+          <tr><td>⚡ Speed Test</td><td>Uji kecepatan internet langsung dari browser (Ping, Download, Upload)</td></tr>
+          <tr><td>⚙️ Pengaturan</td><td>Lihat info akun, ubah nama/password WiFi modem</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">🛜</span> Cara Ubah Password WiFi</h3>
+      <ol class="steps">
+        <li>Login ke portal pelanggan</li>
+        <li>Klik tab <strong>Pengaturan</strong></li>
+        <li>Di bagian <em>Ubah WiFi Modem</em>, isi <strong>Nama WiFi (SSID) Baru</strong> dan/atau <strong>Password WiFi Baru</strong></li>
+        <li>Klik <strong>Kirim Perubahan</strong></li>
+        <li>Modem akan restart otomatis dalam ~30 detik</li>
+        <li>Hubungkan ulang perangkat WiFi dengan password baru</li>
+      </ol>
+      <div class="warn">
+        <span class="ico">⚠️</span>
+        <span>Setelah klik simpan, semua perangkat yang terhubung ke WiFi akan terputus sementara karena modem restart. Ini normal.</span>
+      </div>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">📤</span> Kirim Tiket Laporan</h3>
+      <ol class="steps">
+        <li>Buka tab <strong>Laporan</strong> di portal</li>
+        <li>Klik <strong>Buat Laporan Baru</strong></li>
+        <li>Pilih <strong>Kategori</strong>: Gangguan Jaringan / Kecepatan Lambat / Tagihan / Lainnya</li>
+        <li>Tulis deskripsi masalah dengan jelas</li>
+        <li>Klik <strong>Kirim</strong></li>
+        <li>Tiket akan muncul di dashboard admin untuk ditangani teknisi</li>
+      </ol>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════
+     BAB 13 — MANAJEMEN USER
+══════════════════════════════════════ -->
+<div class="section page-break" id="bab13">
+  <div class="sec-head">
+    <div class="sec-num">13</div>
+    <div>
+      <h2>Manajemen User &amp; Tim</h2>
+      <div class="sec-sub">Kelola akun pengguna sistem dengan hak akses berbeda-beda</div>
+    </div>
+  </div>
+  <div class="sec-body">
+
+    <div class="subsec">
+      <h3><span class="ico">👥</span> Membuka Manajemen User</h3>
+      <ol class="steps">
+        <li>Klik ikon profil di sudut kanan atas</li>
+        <li>Pilih <strong>Manajemen User</strong> dari dropdown</li>
+        <li>Daftar semua user dalam workspace Anda akan muncul</li>
+      </ol>
+      <div class="note">
+        <span class="ico">📌</span>
+        <span>Hanya <strong>Owner</strong> yang bisa mengakses dan mengelola user lain.</span>
+      </div>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">➕</span> Menambah User Baru (Invite)</h3>
+      <ol class="steps">
+        <li>Di halaman Manajemen User, klik <strong>Tambah User</strong></li>
+        <li>Isi data user:</li>
+      </ol>
+      <ul class="field-list" style="margin-top:10px">
+        <li><span class="field-name">Username <span class="req">*</span></span><span>Username untuk login (unik, tidak bisa diubah setelah dibuat)</span></li>
+        <li><span class="field-name">Password <span class="req">*</span></span><span>Password awal, user bisa ganti sendiri nanti</span></li>
+        <li><span class="field-name">Nama Lengkap <span class="req">*</span></span><span>Nama tampilan di sistem</span></li>
+        <li><span class="field-name">Peran (Role) <span class="req">*</span></span><span>Admin / Teknisi / Kolektor</span></li>
+        <li><span class="field-name">Izin Akses</span><span>Centang fitur yang boleh diakses (hak akses detail per fitur)</span></li>
+      </ul>
+      <ol class="steps" start="3">
+        <li>Klik <strong>Buat User</strong></li>
+        <li>Berikan username dan password kepada anggota tim yang bersangkutan</li>
+      </ol>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">🔒</span> Hak Akses Per Peran</h3>
+      <table class="guide-table">
+        <thead><tr><th>Izin Akses</th><th>Admin</th><th>Teknisi</th><th>Kolektor</th></tr></thead>
+        <tbody>
+          <tr><td>Lihat Pelanggan</td><td>✅</td><td>✅</td><td>✅</td></tr>
+          <tr><td>Kelola Pelanggan (tambah/edit)</td><td>✅</td><td>✅</td><td>❌</td></tr>
+          <tr><td>Kelola Perangkat</td><td>✅</td><td>✅</td><td>❌</td></tr>
+          <tr><td>Lihat Maps</td><td>✅</td><td>✅</td><td>✅</td></tr>
+          <tr><td>Keuangan &amp; Tagihan</td><td>✅</td><td>❌</td><td>✅</td></tr>
+          <tr><td>Terima Pembayaran</td><td>✅</td><td>❌</td><td>✅</td></tr>
+          <tr><td>Manajemen User</td><td>❌</td><td>❌</td><td>❌</td></tr>
+          <tr><td>Kelola Langganan</td><td>❌</td><td>❌</td><td>❌</td></tr>
+        </tbody>
+      </table>
+      <div class="tip">
+        <span class="ico">💡</span>
+        <span>Owner bisa mengkustomisasi izin akses per user melebihi standar peran. Centang/uncentang izin individual di form edit user.</span>
+      </div>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">🔄</span> Reset Password User</h3>
+      <ol class="steps">
+        <li>Di daftar user, klik <strong>Edit</strong> pada user yang bersangkutan</li>
+        <li>Klik <strong>Reset Password</strong></li>
+        <li>Masukkan password baru</li>
+        <li>Klik <strong>Simpan</strong></li>
+        <li>Informasikan password baru kepada user tersebut</li>
+      </ol>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">⛔</span> Nonaktifkan / Aktifkan User</h3>
+      <p>Jika ada karyawan yang keluar atau cuti panjang, nonaktifkan akun tanpa menghapus:</p>
+      <ol class="steps">
+        <li>Di daftar user, klik toggle <strong>Aktif/Nonaktif</strong></li>
+        <li>User yang dinonaktifkan tidak bisa login tapi data historisnya tetap tersimpan</li>
+      </ol>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════
+     BAB 14 — LANGGANAN
+══════════════════════════════════════ -->
+<div class="section page-break" id="bab14">
+  <div class="sec-head">
+    <div class="sec-num">14</div>
+    <div>
+      <h2>Langganan &amp; Paket TechnoFix</h2>
+      <div class="sec-sub">Kelola paket berlangganan platform TechnoFix untuk ISP Anda</div>
+    </div>
+  </div>
+  <div class="sec-body">
+
+    <div class="subsec">
+      <h3><span class="ico">📦</span> Paket yang Tersedia</h3>
+      <table class="guide-table">
+        <thead><tr><th>Paket</th><th>Harga/Bulan</th><th>Maks. Pelanggan</th><th>Maks. Tim</th></tr></thead>
+        <tbody>
+          <tr><td><span class="badge badge-gray">Trial</span></td><td>Gratis 7 hari</td><td>50</td><td>3</td></tr>
+          <tr><td><span class="badge badge-blue">Pemula</span></td><td>Rp 150.000</td><td>100</td><td>5</td></tr>
+          <tr><td><span class="badge badge-blue">Esensial</span></td><td>Rp 200.000</td><td>300</td><td>7</td></tr>
+          <tr><td><span class="badge badge-green">Standar</span></td><td>Rp 300.000</td><td>500</td><td>10</td></tr>
+          <tr><td><span class="badge badge-green">Pro</span></td><td>Rp 600.000</td><td>1.000</td><td>15</td></tr>
+          <tr><td><span class="badge badge-blue">Lanjutan</span></td><td>Rp 900.000</td><td>2.000</td><td>20</td></tr>
+          <tr><td><span class="badge badge-amber">Bisnis</span></td><td>Rp 1.500.000</td><td>5.000</td><td>30</td></tr>
+          <tr><td><span class="badge badge-red">Enterprise</span></td><td>Rp 3.000.000</td><td>Tidak terbatas</td><td>Tidak terbatas</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">⏱️</span> Masa Trial</h3>
+      <p>Setiap ISP yang mendaftar mendapatkan <strong>masa trial 7 hari gratis</strong>. Selama trial:</p>
+      <ul class="field-list">
+        <li><span class="field-name">Akses Penuh</span><span>Semua fitur bisa digunakan tanpa batasan selama 7 hari</span></li>
+        <li><span class="field-name">Notifikasi</span><span>Banner peringatan muncul H-1 sebelum trial berakhir</span></li>
+        <li><span class="field-name">Setelah Trial</span><span>Sistem terkunci (locked) — hanya bisa akses halaman langganan</span></li>
+      </ul>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">🔄</span> Upgrade Paket</h3>
+      <ol class="steps">
+        <li>Klik ikon profil → pilih <strong>Langganan</strong></li>
+        <li>Pilih paket yang diinginkan</li>
+        <li>Klik <strong>Ajukan Upgrade</strong></li>
+        <li>Isi informasi pembayaran atau bukti transfer</li>
+        <li>Tunggu konfirmasi dari admin TechnoFix (biasanya dalam 1x24 jam)</li>
+        <li>Setelah dikonfirmasi, paket aktif dan sistem terbuka kembali</li>
+      </ol>
+      <div class="tip">
+        <span class="ico">💡</span>
+        <span>Hubungi tim TechnoFix via WhatsApp untuk proses upgrade lebih cepat: <strong>083135851605</strong></span>
+      </div>
+    </div>
+
+    <div class="subsec">
+      <h3><span class="ico">📊</span> Cek Penggunaan</h3>
+      <p>Di halaman Langganan, Anda bisa melihat penggunaan saat ini:</p>
+      <ul class="field-list">
+        <li><span class="field-name">Jumlah Pelanggan</span><span>Pelanggan aktif vs batas paket</span></li>
+        <li><span class="field-name">Jumlah Anggota Tim</span><span>User aktif vs batas paket</span></li>
+        <li><span class="field-name">Status Langganan</span><span>Active / Trial / Locked / Suspended</span></li>
+        <li><span class="field-name">Tanggal Kedaluwarsa</span><span>Kapan langganan berakhir</span></li>
+      </ul>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════
+     FOOTER DOKUMEN
+══════════════════════════════════════ -->
+<div class="doc-footer avoid-break">
+  <p><strong>TechnoFix</strong> — ISP Billing &amp; Monitoring System</p>
+  <p style="margin-top:4px">JL. KH. Hasyim Asy'ari - Krajan, Sragi, Songgon, Banyuwangi</p>
+  <p>WhatsApp: <strong>083135851605</strong> &nbsp;|&nbsp; Email: texnofixhub@gmail.com</p>
+  <p style="margin-top:12px;font-size:10.5px">Dokumen ini dibuat untuk keperluan internal. Harap tidak disebarkan kepada pihak luar tanpa izin. © 2026 TechnoFix.</p>
+</div>
+
+</div><!-- /container -->
+
+</body>
+</html>

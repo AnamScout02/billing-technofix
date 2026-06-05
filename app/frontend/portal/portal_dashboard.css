@@ -1,0 +1,247 @@
+/* portal_dashboard.css v=6 */
+
+/* ══ LAYOUT SPACER (offset fixed header) ══════════════════ */
+
+/* Desktop: tab-wrap sebagai first in-flow element */
+.portal-tabs-wrap {
+  margin-top: calc(var(--header-h) + env(safe-area-inset-top, 0px));
+}
+
+/* Mobile: tabs-wrap hidden, portal-page yang perlu offset */
+@media(max-width:640px) {
+  .portal-page {
+    margin-top: calc(var(--header-h) + env(safe-area-inset-top, 0px));
+  }
+}
+
+/* ══ PORTAL PAGE — FULL WIDTH RESPONSIVE ══════════════════ */
+.portal-page {
+  max-width: 100% !important;
+  padding: 20px 28px 32px !important;
+  box-sizing: border-box;
+}
+@media(min-width:1280px) { .portal-page { padding: 24px 40px 40px !important; } }
+@media(max-width:900px)  { .portal-page { padding: 16px 20px 28px !important; } }
+@media(max-width:640px)  { .portal-page { padding: 14px 14px calc(76px + env(safe-area-inset-bottom,0)) !important; } }
+@media(max-width:400px)  { .portal-page { padding: 12px 10px calc(76px + env(safe-area-inset-bottom,0)) !important; } }
+
+/* ══ PORTAL TABS — max-width full ═════════════════════════ */
+.portal-tabs {
+  max-width: 100% !important;
+}
+
+/* ══ STAT CARDS — desktop adaptif ════════════════════════ */
+/* Di desktop lebar: 4 kolom normal, cukup space */
+@media(min-width:1100px) {
+  #tab-beranda .stat-row-4 { gap: 16px; }
+  #tab-beranda .stat-row-4 .stat-card { padding: 18px 20px; }
+}
+
+/* Desktop medium (900-1100px): tetap 4 kolom tapi compact */
+@media(max-width:1100px) and (min-width:641px) {
+  #tab-beranda .stat-row-4 .stat-card { padding: 14px 14px; gap: 10px; }
+  #tab-beranda .stat-row-4 .stat-icon { width: 40px; height: 40px; }
+  #tab-beranda .stat-row-4 .stat-num  { font-size: 15px !important; }
+  #tab-beranda .stat-row-4 .stat-label{ font-size: 11px !important; }
+  #card-rx .rx-gauge-wrap              { width: 46px !important; height: 46px !important; }
+}
+
+/* Mobile: 2 kolom compact */
+@media(max-width:640px) {
+  .stat-row-4 { grid-template-columns: repeat(2,1fr) !important; gap: 10px !important; }
+  .p-grid-2   { grid-template-columns: 1fr !important; }
+  .p-grid-onu { grid-template-columns: 1fr !important; }
+  .p-grid-onu > div { border-right:none !important; border-bottom:1px solid var(--border); }
+  .p-grid-onu > div:last-child { border-bottom:none; }
+
+  #tab-beranda .stat-row-4 .stat-card {
+    padding: 11px 9px !important;
+    gap: 7px !important;
+  }
+  #tab-beranda .stat-row-4 .stat-icon {
+    width: 34px !important;
+    height: 34px !important;
+    border-radius: 8px !important;
+    flex-shrink: 0 !important;
+  }
+  #tab-beranda .stat-row-4 .stat-icon .material-symbols-outlined { font-size: 17px !important; }
+  #tab-beranda .stat-row-4 .stat-num   { font-size: 13px !important; letter-spacing:-.01em !important; }
+  #tab-beranda .stat-row-4 .stat-label { font-size: 10px !important; margin-top:1px !important; }
+  #tab-beranda .stat-row-4 .stat-body > div:last-child { font-size: 10px !important; }
+  #card-rx .rx-gauge-wrap { width: 38px !important; height: 38px !important; }
+}
+@media(max-width:360px) { .stat-row-4 { grid-template-columns: 1fr !important; } }
+
+/* Sembunyikan tombol refresh di card Koneksi Aktif (desktop & mobile) */
+#card-status > .icon-btn { display: none !important; }
+
+/* ══ FONT — hapus mono/courier dari info values ══════════ */
+.p-info-val,
+.p-info-val.mono {
+  font-family: var(--sans) !important;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  word-break: break-word;
+}
+
+/* ══ HEADER inner — portal ════════════════════════════════ */
+.header-inner {
+  max-width: 100%;
+  padding: 0 20px;
+  gap: 10px;
+}
+.header-brand { flex-shrink: 0; }
+#portal-user-text { flex: 1; min-width: 0; overflow: hidden; }
+@media(min-width:641px) { #portal-user-text { display: flex !important; flex-direction: column; } }
+@media(max-width:480px) { .ph-hide-sm { display: none !important; } }
+
+/* ══ TIKET ════════════════════════════════════════════════ */
+.tiket-item { display:flex; align-items:flex-start; gap:12px; padding:14px 18px; border-bottom:1px solid var(--border); }
+.tiket-item:last-child { border-bottom:none; }
+.tiket-dot  { width:8px; height:8px; border-radius:50%; flex-shrink:0; margin-top:5px; }
+.tiket-dot.baru     { background:var(--amber); }
+.tiket-dot.diproses { background:var(--primary); }
+.tiket-dot.selesai  { background:var(--green); }
+.tiket-body { flex:1; min-width:0; }
+.tiket-judul-txt { font-weight:700; font-size:13.5px; color:var(--text); }
+.tiket-meta      { font-size:11.5px; color:var(--text-dim); margin-top:3px; }
+.tiket-badge     { font-size:11px; font-weight:700; padding:2px 9px; border-radius:99px; flex-shrink:0; white-space:nowrap; }
+.tb-baru     { background:var(--amber-bg); color:var(--amber); }
+.tb-diproses { background:var(--primary-light); color:var(--primary); }
+.tb-selesai  { background:var(--green-bg); color:var(--green); }
+
+/* ══ BADGE ALIAS ══════════════════════════════════════════ */
+.badge-on  { background:var(--green-bg); color:var(--green); border:1px solid var(--green-border); display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:99px; font-size:11.5px; font-weight:700; }
+.badge-off { background:var(--red-bg,#fdecec); color:var(--red); border:1px solid var(--red-border,#f3b4b4); display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:99px; font-size:11.5px; font-weight:700; }
+.badge-iso { background:var(--amber-bg); color:var(--amber); border:1px solid var(--amber-border); display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:99px; font-size:11.5px; font-weight:700; }
+.badge-on  .badge-dot { width:6px; height:6px; border-radius:50%; background:var(--green); flex-shrink:0; }
+.badge-off .badge-dot { width:6px; height:6px; border-radius:50%; background:var(--red); flex-shrink:0; }
+.badge-iso .badge-dot { width:6px; height:6px; border-radius:50%; background:var(--amber); flex-shrink:0; }
+
+/* ══ SPEED TEST — speedtest.net style, white theme ════════ */
+.st-wrap {
+  background: #fff;
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  padding: 20px 16px 0;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ── Phase bar ── */
+.st-pbar {
+  display:flex; align-items:center; justify-content:center;
+  gap:6px; margin-bottom:8px; flex-wrap:wrap;
+}
+.st-pstep {
+  display:flex; align-items:center; gap:5px;
+  font-size:11px; font-weight:700;
+  color:var(--text-dim);
+  padding:5px 10px; border-radius:99px;
+  transition: color .2s, background .2s;
+}
+.st-pstep .material-symbols-outlined { font-size:14px; }
+.st-pstep b { font-size:10.5px; font-weight:800; color:inherit; }
+.st-pstep.active {
+  color:var(--primary);
+  background:var(--primary-light);
+}
+.st-pstep.done {
+  color:var(--green);
+  background:var(--green-bg);
+}
+.st-parrow { color:var(--border); font-size:16px; font-weight:300; line-height:1; }
+
+/* ── SVG gauge container ── */
+.st-meter-outer {
+  width:100%; max-width:300px;
+  margin:0 auto;
+}
+#st-svg { width:100%; display:block; }
+
+/* Needle rotation — default to start angle 225° */
+#st-needle-g {
+  transform-origin: 150px 148px;
+  transform: rotate(225deg);
+  transition: transform .28s cubic-bezier(.4,0,.2,1);
+}
+
+/* ── Result cards (bottom) ── */
+.st-cards-row {
+  display:flex; gap:0;
+  border-top:1px solid var(--border);
+  margin-top:4px;
+}
+.stc {
+  flex:1; padding:14px 8px 12px;
+  text-align:center;
+  display:flex; flex-direction:column; align-items:center; gap:3px;
+  border-right:1px solid var(--border);
+  transition: background .25s;
+}
+.stc:last-child { border-right:none; }
+
+.stc.active  { background:var(--primary-light); }
+.stc.done    { background:#fafbff; }
+.stc-dl.active { background:#eff6ff; }
+.stc-ul.active { background:#f0f9ff; }
+
+.stc-ico {
+  font-size:16px; font-weight:800;
+  color:var(--text-dim);
+  width:28px; height:28px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  background:var(--surface);
+  transition: background .25s, color .25s;
+}
+.stc.active  .stc-ico { background:var(--primary); color:#fff; }
+.stc.done    .stc-ico { background:var(--primary-light); color:var(--primary); }
+
+.stc-lbl {
+  font-size:9px; font-weight:800; letter-spacing:.07em;
+  color:var(--text-dim); text-transform:uppercase;
+}
+.stc.active .stc-lbl { color:var(--primary); }
+.stc.done   .stc-lbl { color:var(--text-muted); }
+
+.stc-val {
+  font-family:var(--heading);
+  font-size:22px; font-weight:800;
+  color:var(--text-dim); line-height:1;
+  transition: color .25s;
+}
+.stc.active .stc-val { color:var(--primary); }
+.stc.done   .stc-val { color:var(--text); }
+
+.stc-unit { font-size:10px; color:var(--text-dim); font-weight:600; }
+.stc.done .stc-unit { color:var(--text-muted); }
+
+/* ── Start / Retry button ── */
+.st-action-btn {
+  background: var(--primary);
+  color:#fff; border:none; border-radius:99px;
+  padding:12px 36px; font-size:14px; font-weight:700;
+  font-family:var(--heading); cursor:pointer;
+  display:inline-flex; align-items:center; gap:8px;
+  transition: background .15s, transform .1s, box-shadow .15s;
+  box-shadow: 0 4px 16px rgba(0,64,161,.3);
+}
+.st-action-btn:hover  { background:#0052cc; box-shadow:0 6px 20px rgba(0,64,161,.4); }
+.st-action-btn:active { transform:scale(.97); }
+.st-action-btn:disabled { opacity:.5; cursor:not-allowed; transform:none; box-shadow:none; }
+.st-action-btn .material-symbols-outlined { font-size:18px; }
+
+.st-note {
+  margin-top:10px; padding-bottom:4px;
+  font-size:12.5px; color:var(--text-muted);
+  font-style:italic; text-align:center;
+}
+
+@media(max-width:480px) {
+  .st-wrap        { padding:14px 10px 0; border-radius:0; border-left:none; border-right:none; }
+  .st-pstep b, .st-pstep > span:not(.material-symbols-outlined) { display:none; }
+  .st-pstep       { padding:4px 8px; }
+  .st-meter-outer { max-width:270px; }
+  .stc-val        { font-size:18px; }
+}

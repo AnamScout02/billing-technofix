@@ -15,7 +15,7 @@ Menggunakan utils.py untuk fungsi helper terpusat:
    - Tambahkan migrasi kolom 'service' di tabel pelanggan.
 """
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, g
 from flask_cors import CORS
 import logging
 import os
@@ -24,14 +24,46 @@ import os
 from utils import get_db, device_to_dict, try_connect_mikrotik
 
 # ── Blueprints ─────────────────────────────────────────────────
-from api  import api_bp
-from olt  import olt_bp
-# [DITAMBAHKAN] auth_bp sebelumnya tidak pernah diregistrasi
-from auth import auth_bp
+from api    import api_bp
+from olt    import olt_bp
+from auth   import auth_bp
+from odc    import odc_bp
+from odp    import odp_bp
+from portal import portal_bp
+from maps   import maps_bp
+from tagihan import tagihan_bp
+from genieacs import genieacs_bp
+from loket import loket_bp
+from wa import wa_bp
+from payment import payment_bp
+from setting import setting_bp
 
 # ── Setup ──────────────────────────────────────────────────────
 app = Flask(__name__)
-CORS(app, supports_credentials=True, origins="*")
+
+# CORS — wajib supports_credentials=True agar session cookie terkirim
+# dari frontend di domain berbeda.
+# Origins "*" tidak boleh dipakai bersamaan dengan credentials=True
+# (browser akan tolak), jadi kita pakai list eksplisit.
+ALLOWED_ORIGINS = [
+    'http://localhost',
+    'http://localhost:5000',
+    'http://127.0.0.1',
+    'http://127.0.0.1:5000',
+    'http://192.168.70.7',
+    'http://192.168.70.7:5000',
+    # ── Akses dari IP publik ──
+    'http://103.194.175.54',
+    'http://103.194.175.54:5000',
+    'https://103.194.175.54',
+]
+CORS(
+    app,
+    supports_credentials=True,
+    origins=ALLOWED_ORIGINS,
+    allow_headers=['Content-Type', 'Authorization', 'X-Network-Id'],
+    expose_headers=['Content-Type', 'Authorization'],
+)
 # [DITAMBAHKAN] Secret key wajib ada agar Flask session berfungsi
 # Gunakan environment variable di produksi; fallback ke nilai statis
 # untuk development agar session tidak reset tiap restart.
@@ -42,12 +74,40 @@ from datetime import timedelta
 app.permanent_session_lifetime = timedelta(days=7)
 
 # ── Register Blueprints ────────────────────────────────────────
-app.register_blueprint(api_bp,  url_prefix='/api')
-app.register_blueprint(olt_bp,  url_prefix='/olt')
-# [DITAMBAHKAN] Endpoint auth tersedia di /api/auth/*
-app.register_blueprint(auth_bp, url_prefix='/api/auth')
+app.register_blueprint(api_bp,    url_prefix='/api')
+app.register_blueprint(olt_bp,    url_prefix='/olt')
+app.register_blueprint(auth_bp,   url_prefix='/api/auth')
+app.register_blueprint(odc_bp,    url_prefix='/api/odc')
+app.register_blueprint(odp_bp,    url_prefix='/api/odp')
+app.register_blueprint(portal_bp, url_prefix='/api/portal')
+app.register_blueprint(maps_bp,   url_prefix='/api/maps')
+app.register_blueprint(tagihan_bp, url_prefix='/api/tagihan')
+app.register_blueprint(genieacs_bp, url_prefix='/api/genieacs')
+app.register_blueprint(loket_bp, url_prefix='/api/loket')
+app.register_blueprint(wa_bp, url_prefix='/api/wa')
+app.register_blueprint(payment_bp, url_prefix='/api/payment')
+app.register_blueprint(setting_bp, url_prefix='/api/setting')
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
+
+
+# ── Guard multi-tenant untuk endpoint /devices (level app) ─────
+# Endpoint /devices* memakai get_db() owner-aware, jadi wajib login
+# agar g.network_id ter-set → mengarah ke file DB owner yang benar.
+@app.before_request
+def _devices_guard():
+    if request.method == 'OPTIONS':
+        return
+    if request.path.startswith('/devices'):
+        from auth import guard_request
+        # GET /devices (list) + GET /devices/<id>/profile-count → kolektor boleh
+        # PUT/POST/DELETE + sync → butuh perm 'perangkat'
+        if request.method == 'GET':
+            if 'profile-count' in request.path or '/sync' in request.path:
+                return guard_request(perm='perangkat')
+            return guard_request(perm='pelanggan')
+        # Mutasi perangkat: butuh perangkat_manage (owner/admin saja)
+        return guard_request(perm='perangkat_manage')
 
 
 # ══════════════════════════════════════════════════════════════
@@ -64,13 +124,14 @@ def init_db():
     # ── Tabel perangkat MikroTik ──────────────────────────────
     conn.execute('''
         CREATE TABLE IF NOT EXISTS devices (
-            id       INTEGER PRIMARY KEY AUTOINCREMENT,
-            name     TEXT    NOT NULL,
-            ip       TEXT    NOT NULL,
-            port     INTEGER NOT NULL DEFAULT 8728,
-            username TEXT    NOT NULL,
-            password TEXT    NOT NULL,
-            status   TEXT    NOT NULL DEFAULT 'pending'
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            name       TEXT    NOT NULL,
+            ip         TEXT    NOT NULL,
+            port       INTEGER NOT NULL DEFAULT 8728,
+            username   TEXT    NOT NULL,
+            password   TEXT    NOT NULL,
+            status     TEXT    NOT NULL DEFAULT 'pending',
+            koordinat  TEXT    DEFAULT ''
         )
     ''')
 
@@ -133,11 +194,43 @@ def init_db():
         'ALTER TABLE onu_mapping ADD COLUMN rx_power  REAL',
         'ALTER TABLE onu_mapping ADD COLUMN tx_power  REAL',
         'ALTER TABLE onu_mapping ADD COLUMN synced_at TEXT DEFAULT ""',
+        # ✅ v2.5: TCONT/bandwidth profile di OLT (beda dengan profil PPPoE MikroTik)
+        "ALTER TABLE onu_mapping ADD COLUMN tcont_profile TEXT DEFAULT ''",
         # olt
         'ALTER TABLE olt ADD COLUMN epon_ports INTEGER DEFAULT 4',
-        # [DITAMBAHKAN] kolom service di pelanggan — sebelumnya hilang
-        # sehingga INSERT dari api.py crash dengan OperationalError
+        # kolom service di pelanggan
         "ALTER TABLE pelanggan ADD COLUMN service TEXT DEFAULT 'pppoe'",
+        # ✅ v2.0: kolom bandwidth_note di profil_harga (untuk catatan kustom lokal)
+        "ALTER TABLE profil_harga ADD COLUMN bandwidth_note TEXT DEFAULT ''",
+        # ✅ v2.1: kolom koordinat di devices (untuk halaman Maps)
+        "ALTER TABLE devices ADD COLUMN koordinat TEXT DEFAULT ''",
+        # ✅ v2.4: IP Publik MikroTik — dipakai fitur Remote Modem (NAT forwarding)
+        # Diisi di halaman input mikrotik, dipakai detail_pelanggan saat Remote Modem
+        "ALTER TABLE devices ADD COLUMN public_ip TEXT DEFAULT ''",
+        # ✅ v2.4: WAN interface — agar NAT rule remote hanya nangkap trafik dari internet
+        "ALTER TABLE devices ADD COLUMN wan_interface TEXT DEFAULT ''",
+
+        # ✅ v2.2: kolom koordinat di OLT, ODC, ODP (untuk halaman Maps)
+        # Tabel OLT sudah ada sejak awal — tinggal tambah kolom koordinat
+        "ALTER TABLE olt ADD COLUMN koordinat TEXT DEFAULT ''",
+        # ODC & ODP — graceful: jika tabel belum ada, ALTER TABLE gagal diam-diam
+        "ALTER TABLE odc ADD COLUMN koordinat TEXT DEFAULT ''",
+        "ALTER TABLE odp ADD COLUMN koordinat TEXT DEFAULT ''",
+        # ✅ v2.3: kolom profil_sebelum — simpan profil sebelum isolir agar bisa dikembalikan
+        "ALTER TABLE pelanggan ADD COLUMN profil_sebelum TEXT DEFAULT ''",
+        # ✅ v2.3: kolom nama di pelanggan
+        "ALTER TABLE pelanggan ADD COLUMN nama TEXT DEFAULT ''",
+        # ✅ v2.3: kolom aktif di pelanggan
+        "ALTER TABLE pelanggan ADD COLUMN aktif INTEGER DEFAULT 1",
+
+        # ✅ v3.0: TOPOLOGI JARINGAN — relasi antar perangkat untuk garis di Maps
+        # OLT → Router: OLT mana terhubung ke router mana, via interface apa
+        "ALTER TABLE olt ADD COLUMN router_id INTEGER DEFAULT NULL",
+        "ALTER TABLE olt ADD COLUMN router_interface TEXT DEFAULT ''",  # misal: ether1, sfp1
+        "ALTER TABLE olt ADD COLUMN olt_uplink_port TEXT DEFAULT ''",   # misal: ge-0/0/1
+
+        # Pelanggan/ONU → ODP: ONU ini terhubung ke ODP mana
+        "ALTER TABLE pelanggan ADD COLUMN odp_id INTEGER DEFAULT NULL",
     ]
 
     for sql in migrasi:
@@ -171,11 +264,14 @@ def add_device():
     lalu simpan ke database.
     """
     data     = request.json or {}
-    name     = data.get('name', '').strip()
-    ip       = data.get('ip', '').strip()
-    port     = data.get('port', '8728')
-    username = data.get('username', '').strip()
-    password = data.get('password', '').strip()
+    name      = data.get('name', '').strip()
+    ip        = data.get('ip', '').strip()
+    port      = data.get('port', '8728')
+    username  = data.get('username', '').strip()
+    password  = data.get('password', '').strip()
+    koordinat = data.get('koordinat', '').strip()
+    public_ip = data.get('public_ip', '').strip()
+    wan_interface = data.get('wan_interface', '').strip()
 
     if not all([name, ip, username, password]):
         return jsonify({'status': 'error', 'message': 'Semua field wajib diisi.'}), 400
@@ -185,10 +281,29 @@ def add_device():
     ok, msg = try_connect_mikrotik(ip, port, username, password)
     status  = 'connected' if ok else 'failed'
 
-    conn   = get_db()
+    conn = get_db()
+
+    # Cek apakah ip+port sudah ada (hindari duplikat)
+    existing = conn.execute('SELECT id FROM devices WHERE ip=? AND port=?', (ip, port)).fetchone()
+    if existing:
+        row = conn.execute('SELECT * FROM devices WHERE id=?', (existing['id'],)).fetchone()
+        # Update data yang mungkin berubah (nama, kredensial, status)
+        conn.execute(
+            'UPDATE devices SET name=?, username=?, password=?, status=?, koordinat=?, public_ip=?, wan_interface=? WHERE id=?',
+            (name, username, password, status, koordinat, public_ip, wan_interface, existing['id'])
+        )
+        conn.commit()
+        row = conn.execute('SELECT * FROM devices WHERE id=?', (existing['id'],)).fetchone()
+        conn.close()
+        return jsonify({
+            'status':  'success' if ok else 'warning',
+            'message': msg + ' (perangkat sudah ada, data diperbarui)',
+            'device':  device_to_dict(row)
+        }), 200
+
     cursor = conn.execute(
-        'INSERT INTO devices (name, ip, port, username, password, status) VALUES (?, ?, ?, ?, ?, ?)',
-        (name, ip, port, username, password, status)
+        'INSERT INTO devices (name, ip, port, username, password, status, koordinat, public_ip, wan_interface) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        (name, ip, port, username, password, status, koordinat, public_ip, wan_interface)
     )
     new_id = cursor.lastrowid
     conn.commit()
@@ -210,11 +325,14 @@ def update_device(device_id):
     Password boleh kosong (tidak berubah).
     """
     data     = request.json or {}
-    name     = data.get('name', '').strip()
-    ip       = data.get('ip', '').strip()
-    port     = data.get('port', '8728')
-    username = data.get('username', '').strip()
-    password = data.get('password', '').strip()
+    name      = data.get('name', '').strip()
+    ip        = data.get('ip', '').strip()
+    port      = data.get('port', '8728')
+    username  = data.get('username', '').strip()
+    password  = data.get('password', '').strip()
+    koordinat = data.get('koordinat', '').strip()
+    public_ip = data.get('public_ip', '').strip()
+    wan_interface = data.get('wan_interface', '').strip()
 
     if not all([name, ip, username]):
         return jsonify({'status': 'error', 'message': 'Name, IP, dan username wajib diisi.'}), 400
@@ -231,8 +349,8 @@ def update_device(device_id):
     final_password = password if password else current['password']
 
     conn.execute(
-        'UPDATE devices SET name=?, ip=?, port=?, username=?, password=?, status=? WHERE id=?',
-        (name, ip, port, username, final_password, 'pending', device_id)
+        'UPDATE devices SET name=?, ip=?, port=?, username=?, password=?, status=?, koordinat=?, public_ip=?, wan_interface=? WHERE id=?',
+        (name, ip, port, username, final_password, 'pending', koordinat, public_ip, wan_interface, device_id)
     )
     conn.commit()
 
@@ -283,7 +401,96 @@ def sync_device(device_id):
     }), 200
 
 
+
+
+# ══════════════════════════════════════════════════════════════
+# ENDPOINT — GET /devices/<id>/profile-count
+# Badge jumlah PPPoE Profile di halaman input_mikrotik.
+# Ringan: hanya count, tidak fetch detail profile.
+# ✅ v2.0: endpoint baru untuk integrasi dengan profile_pppoe.html
+# ══════════════════════════════════════════════════════════════
+
+@app.route('/devices/<int:device_id>/profile-count', methods=['GET'])
+def profile_count(device_id):
+    """
+    Mengembalikan jumlah PPPoE Profile untuk badge di input_mikrotik.
+
+    Strategi:
+      - Coba ambil realtime dari MikroTik via RouterOS API.
+      - Jika gagal konek → fallback ke COUNT(*) dari profil_harga DB lokal.
+
+    Response: { "count": 12, "source": "mikrotik" | "local" }
+    """
+    conn = get_db()
+    device = conn.execute(
+        'SELECT id, ip, port, username, password, status FROM devices WHERE id = ?',
+        (device_id,)
+    ).fetchone()
+    conn.close()
+
+    if not device:
+        return jsonify({'error': 'Perangkat tidak ditemukan'}), 404
+
+    # Coba realtime dari MikroTik
+    if device['status'] == 'connected':
+        try:
+            from mikrotik import MikroTikClient, MikroTikError
+            with MikroTikClient(dict(device)) as mt:
+                profiles = mt.get_ppp_profiles()
+                count    = len(profiles)
+            return jsonify({'count': count, 'source': 'mikrotik'}), 200
+        except Exception as e:
+            logging.warning(f'[profile-count] Device {device_id} gagal konek MikroTik: {e}')
+
+    # Fallback: hitung dari DB lokal
+    conn  = get_db()
+    row   = conn.execute(
+        'SELECT COUNT(*) as cnt FROM profil_harga WHERE device_id = ?',
+        (device_id,)
+    ).fetchone()
+    conn.close()
+    count = row['cnt'] if row else 0
+
+    return jsonify({'count': count, 'source': 'local'}), 200
+
 # ── JALANKAN SERVER ───────────────────────────────────────────
+# host='0.0.0.0' → server listen di semua interface,
+#   bisa diakses dari LAN maupun dari IP publik (jika port 5000
+#   sudah di-forward di router).
+# Akses dari luar: http://103.194.175.54:5000
+#
+# Persiapan agar bisa diakses dari IP publik 103.194.175.54:
+#   1. Di router/modem: port forwarding TCP 5000 → IP server lokal
+#   2. Di Windows Firewall: izinkan inbound port 5000
+#   3. Pastikan ISP tidak block port 5000 (kalau block, ganti ke 80/8080)
+def _start_olt_sync_worker():
+    """
+    Background thread: sinkronisasi OLT semua owner setiap 5 menit.
+    Mulai setelah 30 detik delay agar Flask sudah siap sepenuhnya.
+    """
+    import time, threading
+    try:
+        from olt_sync import sync_all_olts
+    except ImportError as e:
+        logging.warning('[OLT Worker] olt_sync tidak tersedia: %s', e)
+        return
+
+    def _loop():
+        time.sleep(30)  # tunggu Flask siap
+        logging.info('[OLT Worker] Sinkronisasi ONU otomatis dimulai (interval 5 menit).')
+        while True:
+            try:
+                sync_all_olts()  # iterasi semua owner
+            except Exception as e:
+                logging.error('[OLT Worker] Error: %s', e)
+            time.sleep(5 * 60)  # 5 menit
+
+    t = threading.Thread(target=_loop, daemon=True, name='olt-sync-worker')
+    t.start()
+    logging.info('[OLT Worker] Thread sinkronisasi ONU berjalan di background.')
+
+
 if __name__ == '__main__':
     init_db()
+    _start_olt_sync_worker()
     app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)

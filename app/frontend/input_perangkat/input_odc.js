@@ -1,110 +1,109 @@
 /* ============================================================
    input_odc.js — Manajemen ODC (Optical Distribution Cabinet)
-   Requires: global.js (API_BASE, escHtml, val, animNum, toast,
-             openModalForm, closeModalForm)
+   v2.0 — Migrasi dari localStorage ke backend API
+   Requires: global.js (API_BASE, escHtml, val, animNum,
+             toast, openModalForm, closeModalForm)
 
-   Posisi di topologi jaringan fiber:
-   OLT  →  ODC  →  ODP  →  Pelanggan
-
-   Perbedaan ODC vs ODP:
-   - ODC kapasitas lebih besar (8–64 port ke ODP)
-   - ODC punya rasio splitter (1:8, 1:16, 1:32, 1:64)
-   - ODC upstream ke OLT, downstream ke ODP
-   - ODP upstream ke ODC, downstream ke pelanggan
-
-   Fields ODC:
-   - nama        : nama kabinet ODC (wajib)
-   - kode        : kode unik, cth: ODC-BWI-001
-   - olt_id      : OLT induk upstream
-   - port_olt    : port OLT yang terhubung ke ODC
-   - rasio_split : rasio splitter (8, 16, 32, 64)
-   - kapasitas   : jumlah port downstream ke ODP (8, 16, 32, 64)
-   - terpakai    : jumlah port ke ODP yang terpakai
-   - odp_count   : jumlah ODP aktif terhubung ke ODC ini
-   - lokasi      : alamat / koordinat
-   - keterangan  : catatan tambahan
+   Endpoint backend (odc.py):
+   GET    /api/odc          → daftar semua ODC
+   POST   /api/odc          → tambah ODC
+   PUT    /api/odc/<id>     → edit ODC
+   DELETE /api/odc/<id>     → hapus ODC
    ============================================================ */
 
 'use strict';
 
-// ── STATE ──────────────────────────────────────────────────────
-let odcs      = [];
-let editingId = null;
-const STORE_KEY = 'technofix_odc_data';
+let _allData      = [];
+let _editingId = null;
 
 
-// ── STORAGE HELPERS ─────────────────────────────────────────────
-function _saveLocal() {
-  try { localStorage.setItem(STORE_KEY, JSON.stringify(odcs)); } catch (_) {}
-}
+// ── INIT ──────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  loadOdc();
+});
 
-function _loadLocal() {
+
+// ── LOAD ─────────────────────────────────────────────────────
+async function loadOdc() {
+  showLoading();
   try {
-    const raw = localStorage.getItem(STORE_KEY);
-    odcs = raw ? JSON.parse(raw) : [];
-  } catch (_) { odcs = []; }
+    const res  = await fetch(`${API_BASE}/api/odc`, { credentials: 'include', headers: getAuthHeaders() });
+    const data = await res.json();
+    _allData = Array.isArray(data) ? data : [];
+    renderOdc();
+  } catch (e) {
+    document.getElementById('odc-list').innerHTML = `
+      <div class="empty-state">
+        <span class="material-symbols-outlined" style="font-size:40px;color:var(--red)">wifi_off</span>
+        <p style="font-weight:600;color:var(--text)">Tidak bisa terhubung ke server</p>
+        <p style="font-size:12px;color:var(--text-muted)">Pastikan backend Flask sudah berjalan.</p>
+      </div>`;
+    updateStats();
+  }
 }
 
-function _nextId() {
-  return odcs.length ? Math.max(...odcs.map(x => x.id)) + 1 : 1;
+function syncAll() { loadOdc(); }
+
+function showLoading() {
+  document.getElementById('odc-list').innerHTML = `
+    <div class="empty-state">
+      <span class="material-symbols-outlined spin" style="font-size:32px">refresh</span>
+      <p>Memuat data ODC...</p>
+    </div>`;
 }
 
 
-// ── STATS ──────────────────────────────────────────────────────
+// ── STATS ─────────────────────────────────────────────────────
 function updateStats() {
-  const total      = odcs.length;
-  const terpakai   = odcs.reduce((s, o) => s + (Number(o.terpakai)  || 0), 0);
-  const kapasitas  = odcs.reduce((s, o) => s + (Number(o.kapasitas) || 0), 0);
-  const sisa       = Math.max(0, kapasitas - terpakai);
-  const totalOdp   = odcs.reduce((s, o) => s + (Number(o.odp_count) || 0), 0);
+  const totalPort   = _allData.reduce((s, o) => s + (Number(o.jumlah_port) || 0), 0);
+  const totalOdp    = _allData.reduce((s, o) => s + (Number(o.jumlah_odp)  || 0), 0);
 
-  animNum('stat-total', total);
-  animNum('stat-aktif', terpakai);
-  animNum('stat-sisa',  sisa);
-  animNum('stat-odp',   totalOdp);
+  animNum('stat-total',     _allData.length);
+  animNum('stat-port-total', totalPort);
+  animNum('stat-odp-total',  totalOdp);
 
-  const el = document.getElementById('device-count');
-  if (el) el.textContent = `${total} kabinet ODC`;
+  const cnt = document.getElementById('odc-count');
+  if (cnt) cnt.textContent = `${_allData.length} ODC`;
 }
 
 
-// ── RENDER LIST ─────────────────────────────────────────────────
+// ── RENDER ────────────────────────────────────────────────────
 function renderOdc() {
-  const container = document.getElementById('device-list');
+  const container = document.getElementById('odc-list');
   if (!container) return;
 
-  if (!odcs.length) {
+  if (!_allData.length) {
     container.innerHTML = `
       <div class="empty-state">
-        <span class="material-symbols-outlined" style="font-size:44px;color:var(--text-dim);">account_tree</span>
-        <p style="font-weight:700;color:var(--text);">Belum ada ODC terdaftar</p>
-        <p style="font-size:12px;color:var(--text-muted);">
-          Klik <strong>Tambah ODC</strong> untuk mulai mendaftarkan kabinet distribusi.
+        <span class="material-symbols-outlined" style="font-size:44px;color:var(--text-dim)">account_tree</span>
+        <p style="font-weight:700;color:var(--text)">Belum ada ODC terdaftar</p>
+        <p style="font-size:12px;color:var(--text-muted)">
+          Klik <strong>Tambah</strong> untuk mulai mendaftarkan kabinet distribusi.
         </p>
       </div>`;
     updateStats();
     return;
   }
 
-  container.innerHTML = odcs.map((o, idx) => {
-    const kapasitas = Number(o.kapasitas) || 0;
-    const terpakai  = Number(o.terpakai)  || 0;
-    const sisa      = kapasitas - terpakai;
-    const persen    = kapasitas > 0 ? Math.round((terpakai / kapasitas) * 100) : 0;
+  container.innerHTML = _allData.map((o, idx) => {
+    const kapasitas = Number(o.jumlah_port) || 0;
+    const odp       = Number(o.jumlah_odp)  || 0;
+    const persen    = kapasitas > 0 ? Math.min(100, Math.round((odp / kapasitas) * 100)) : 0;
     const barColor  = persen >= 90 ? 'var(--red)' : persen >= 70 ? 'var(--amber)' : 'var(--green)';
+    const sisa      = kapasitas - odp;
+    const koordinat = o.koordinat || '';
 
     return `
       <div class="device-card" id="card-${o.id}" style="animation-delay:${idx * 40}ms">
 
-        <div class="device-icon" style="background:var(--primary-light);color:var(--primary);">
+        <div class="device-icon" style="background:var(--blue-bg);color:var(--blue)">
           <span class="material-symbols-outlined">account_tree</span>
         </div>
 
         <div class="device-info">
           <div class="device-top">
             <span class="device-name">${escHtml(o.nama)}</span>
-            ${o.kode ? `<span class="device-tipe-badge">${escHtml(o.kode)}</span>` : ''}
-            ${o.rasio_split ? `<span class="device-tipe-badge">1:${escHtml(String(o.rasio_split))}</span>` : ''}
+            ${o.tipe_kabel ? `<span class="device-tipe-badge">${escHtml(o.tipe_kabel)}</span>` : ''}
             <span class="badge ${sisa > 0 ? 'connected' : 'failed'}">
               <span class="badge-dot"></span>
               ${sisa > 0 ? `${sisa} port tersedia` : 'Port penuh'}
@@ -117,35 +116,33 @@ function renderOdc() {
               <span class="material-symbols-outlined">settings_input_antenna</span>
               OLT: ${escHtml(o.olt_nama)}
             </span>` : ''}
-            ${o.port_olt ? `
-            <span class="device-meta-item">
-              <span class="material-symbols-outlined">cable</span>
-              Port OLT: ${escHtml(o.port_olt)}
-            </span>` : ''}
-            <span class="device-meta-item">
-              <span class="material-symbols-outlined">lan</span>
-              ${terpakai}/${kapasitas} port ke ODP
-            </span>
-            ${o.odp_count ? `
             <span class="device-meta-item">
               <span class="material-symbols-outlined">hub</span>
-              ${escHtml(String(o.odp_count))} ODP terhubung
-            </span>` : ''}
+              ${odp}/${kapasitas} port → ${odp} ODP
+            </span>
             ${o.lokasi ? `
             <span class="device-meta-item">
-              <span class="material-symbols-outlined">location_on</span>
+              <span class="material-symbols-outlined">place</span>
               ${escHtml(o.lokasi)}
             </span>` : ''}
           </div>
 
-          <!-- Progress bar penggunaan port -->
-          <div style="margin-top:8px;display:flex;align-items:center;gap:8px;">
-            <div style="flex:1;height:5px;background:var(--border);border-radius:99px;overflow:hidden;">
-              <div style="width:${persen}%;height:100%;background:${barColor};border-radius:99px;
-                   transition:width .4s ease;"></div>
+          <!-- Progress bar -->
+          <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+            <div style="flex:1;height:5px;background:var(--border);border-radius:99px;overflow:hidden">
+              <div style="width:${persen}%;height:100%;background:${barColor};border-radius:99px;transition:width .4s"></div>
             </div>
-            <span style="font-size:11px;font-weight:700;color:${barColor};flex-shrink:0;">${persen}%</span>
+            <span style="font-size:11px;font-weight:700;color:${barColor};flex-shrink:0">${persen}%</span>
           </div>
+
+          ${koordinat ? `
+          <div class="device-profile-row" style="margin-top:6px">
+            <a href="https://www.google.com/maps?q=${encodeURIComponent(koordinat)}"
+               target="_blank" class="koordinat-badge">
+              <span class="material-symbols-outlined">location_on</span>
+              ${escHtml(koordinat)}
+            </a>
+          </div>` : ''}
 
           ${o.keterangan ? `<p class="device-keterangan">${escHtml(o.keterangan)}</p>` : ''}
         </div>
@@ -154,7 +151,7 @@ function renderOdc() {
           <button class="btn btn-amber btn-sm" onclick="editOdc(${o.id})">
             <span class="material-symbols-outlined">edit</span> Edit
           </button>
-          <button class="btn btn-red btn-sm" onclick="confirmDeleteOdc(${o.id})" title="Hapus ODC">
+          <button class="btn btn-red btn-sm" onclick="confirmDelete(${o.id})" title="Hapus ODC">
             <span class="material-symbols-outlined">delete</span>
           </button>
         </div>
@@ -166,129 +163,90 @@ function renderOdc() {
 }
 
 
-// ── LOAD OLT OPTIONS ─────────────────────────────────────────────
-async function loadOltOptions(selectedId) {
-  const sel = document.getElementById('f-olt');
-  if (!sel) return;
-  sel.innerHTML = '<option value="">— Pilih OLT Induk —</option>';
-  try {
-    const res  = await fetch(`${API_BASE}/olt`);
-    if (!res.ok) return;
-    const data = await res.json();
-    data.forEach(olt => {
-      const opt = new Option(`${olt.name} (${olt.ip})`, olt.id);
-      if (String(olt.id) === String(selectedId)) opt.selected = true;
-      sel.appendChild(opt);
-    });
-  } catch (_) {}
-}
-
-
-// ── FORM MODAL ───────────────────────────────────────────────────
-function showForm(prefill = null) {
-  editingId    = prefill ? prefill.id : null;
+// ── FORM MODAL ────────────────────────────────────────────────
+async function showForm(prefill = null) {
+  _editingId    = prefill ? prefill.id : null;
   const isEdit = !!prefill;
   const v      = k => prefill ? escHtml(String(prefill[k] || '')) : '';
 
-  const html = `
-    <div class="form-modal" style="width:560px;">
+  // Load opsi OLT
+  let oltOptions = '<option value="">— Tidak terhubung —</option>';
+  try {
+    const res  = await fetch(`${API_BASE}/olt`, { credentials: 'include', headers: getAuthHeaders() });
+    const data = await res.json();
+    oltOptions += data.map(o =>
+      `<option value="${o.id}" ${prefill?.olt_id == o.id ? 'selected' : ''}>
+        ${escHtml(o.name)} (${escHtml(o.ip)})
+      </option>`
+    ).join('');
+  } catch (_) {}
 
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+  const html = `
+    <div class="form-modal" style="width:560px">
+
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
         <div style="width:40px;height:40px;border-radius:var(--r-md);flex-shrink:0;
-             background:var(--primary-light);color:var(--primary);
-             display:flex;align-items:center;justify-content:center;">
-          <span class="material-symbols-outlined" style="font-size:20px;">
+             background:var(--blue-bg);color:var(--blue);
+             display:flex;align-items:center;justify-content:center">
+          <span class="material-symbols-outlined" style="font-size:20px">
             ${isEdit ? 'edit' : 'add_circle'}
           </span>
         </div>
-        <div style="flex:1;">
-          <div style="font-family:var(--heading);font-size:16px;font-weight:800;color:var(--text);">
-            ${isEdit ? 'Edit ODC' : 'Tambah ODC Baru'}
+        <div style="flex:1">
+          <div style="font-family:var(--heading);font-size:16px;font-weight:800;color:var(--text)">
+            ${isEdit ? 'Edit ODC' : 'Tambah ODC'}
           </div>
-          <div style="font-size:12px;color:var(--text-muted);margin-top:1px;">
-            ${isEdit
-              ? 'Perbarui data Optical Distribution Cabinet'
-              : 'Daftarkan kabinet distribusi fiber baru ke sistem'}
+          <div style="font-size:12px;color:var(--text-muted);margin-top:1px">
+            Optical Distribution Cabinet
           </div>
         </div>
-        <button class="psheet-close" onclick="cancelForm()" title="Tutup">
+        <button class="psheet-close" onclick="cancelForm()">
           <span class="material-symbols-outlined">close</span>
         </button>
       </div>
 
       <div class="form-grid">
 
-        <div class="form-group">
+        <div class="form-group full">
           <label class="form-label">Nama ODC <span class="req">*</span></label>
           <input class="form-input" type="text" id="f-nama"
-                 placeholder="cth: ODC-Jl-Merdeka-01" value="${v('nama')}">
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Kode ODC</label>
-          <input class="form-input" type="text" id="f-kode"
-                 placeholder="cth: ODC-BWI-001" value="${v('kode')}">
+                 placeholder="Contoh: ODC-Pusat-01" value="${v('nama')}">
         </div>
 
         <div class="form-group full">
-          <label class="form-label">OLT Induk (Upstream)</label>
-          <select class="form-input" id="f-olt">
-            <option value="">— Pilih OLT Induk —</option>
+          <label class="form-label">Jumlah Port (Kapasitas) <span class="req">*</span></label>
+          <select class="form-input" id="f-jumlah-port">
+            ${[4, 8, 12, 16, 24, 32, 48, 64, 96, 128, 144, 288].map(n =>
+              `<option value="${n}" ${(prefill?.jumlah_port ?? 8) == n ? 'selected' : ''}>${n} port</option>`
+            ).join('')}
           </select>
-          <span class="form-hint">OLT yang menjadi sumber sinyal untuk ODC ini</span>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Port OLT</label>
-          <input class="form-input" type="text" id="f-port-olt"
-                 placeholder="cth: 0/1/1" value="${v('port_olt')}">
-          <span class="form-hint">Port pada OLT yang terhubung ke ODC ini</span>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Rasio Splitter</label>
-          <select class="form-input" id="f-rasio">
-            <option value=""  ${!v('rasio_split')         ? 'selected' : ''}>— Pilih rasio —</option>
-            <option value="8" ${v('rasio_split') === '8'  ? 'selected' : ''}>1 : 8</option>
-            <option value="16"${v('rasio_split') === '16' ? 'selected' : ''}>1 : 16</option>
-            <option value="32"${v('rasio_split') === '32' ? 'selected' : ''}>1 : 32</option>
-            <option value="64"${v('rasio_split') === '64' ? 'selected' : ''}>1 : 64</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Kapasitas Port ke ODP <span class="req">*</span></label>
-          <select class="form-input" id="f-kapasitas">
-            <option value="8"  ${!prefill || v('kapasitas') === '8'  ? 'selected' : ''}>8 port</option>
-            <option value="16" ${v('kapasitas') === '16' ? 'selected' : ''}>16 port</option>
-            <option value="32" ${v('kapasitas') === '32' ? 'selected' : ''}>32 port</option>
-            <option value="64" ${v('kapasitas') === '64' ? 'selected' : ''}>64 port</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Port Terpakai (ke ODP)</label>
-          <input class="form-input" type="number" id="f-terpakai"
-                 placeholder="0" min="0" value="${v('terpakai') || '0'}">
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Jumlah ODP Terhubung</label>
-          <input class="form-input" type="number" id="f-odp-count"
-                 placeholder="0" min="0" value="${v('odp_count') || '0'}">
         </div>
 
         <div class="form-group full">
-          <label class="form-label">Lokasi / Koordinat</label>
-          <input class="form-input" type="text" id="f-lokasi"
-                 placeholder="cth: Jl. Merdeka No.12, Banyuwangi / -8.2678, 114.3692"
-                 value="${v('lokasi')}">
+          <label class="form-label">Relasi ke OLT</label>
+          <select class="form-input" id="f-olt-id">${oltOptions}</select>
         </div>
 
         <div class="form-group full">
-          <label class="form-label">Keterangan</label>
-          <textarea class="form-input" id="f-keterangan" rows="2"
-                    placeholder="Catatan tambahan tentang ODC ini...">${prefill ? escHtml(prefill.keterangan || '') : ''}</textarea>
+          <label class="form-label">
+            <span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;color:var(--primary)">location_on</span>
+            Titik Koordinat
+            <span style="font-size:10px;font-weight:400;color:var(--text-dim);margin-left:4px">(untuk Maps)</span>
+          </label>
+          <div class="koordinat-row">
+            <input class="form-input" type="text" id="f-koordinat"
+                   placeholder="-6.200000, 106.816666"
+                   value="${v('koordinat')}"
+                   oninput="previewKoordinat()">
+            <button type="button" class="koordinat-btn" onclick="deteksiLokasi()">
+              <span class="material-symbols-outlined">my_location</span>
+              Deteksi
+            </button>
+          </div>
+          <span class="form-hint">Format: latitude, longitude</span>
+          <div class="koordinat-preview" id="koordinat-preview">
+            <iframe id="koordinat-iframe" src="" loading="lazy"></iframe>
+          </div>
         </div>
 
       </div>
@@ -303,143 +261,171 @@ function showForm(prefill = null) {
           ${isEdit ? 'Simpan Perubahan' : 'Tambah ODC'}
         </button>
       </div>
-
     </div>`;
 
   openModalForm(html);
-
-  requestAnimationFrame(async () => {
-    await loadOltOptions(prefill?.olt_id || '');
+  requestAnimationFrame(() => {
     document.getElementById('f-nama')?.focus();
+    if (isEdit && prefill?.koordinat) previewKoordinat();
   });
 }
 
-function cancelForm() {
-  editingId = null;
-  closeModalForm();
-}
+function cancelForm() { _editingId = null; closeModalForm(); }
 
 function editOdc(id) {
-  const o = odcs.find(x => x.id === id);
+  const o = _allData.find(x => x.id === id);
   if (o) showForm(o);
 }
 
 
-// ── CRUD ─────────────────────────────────────────────────────────
-function addOdc() {
-  const nama       = val('f-nama');
-  const kode       = val('f-kode');
-  const oltId      = val('f-olt');
-  const portOlt    = val('f-port-olt');
-  const rasio      = val('f-rasio');
-  const kapasitas  = val('f-kapasitas');
-  const terpakai   = val('f-terpakai')   || '0';
-  const odpCount   = val('f-odp-count')  || '0';
-  const lokasi     = val('f-lokasi');
-  const keterangan = val('f-keterangan');
+// ── KOORDINAT HELPERS ─────────────────────────────────────────
+function deteksiLokasi() { geoDetectKoordinat(); }  /* pakai fungsi bersama di global.js */
 
-  if (!nama)      { toast('Nama ODC wajib diisi', 'warning'); return; }
-  if (!kapasitas) { toast('Kapasitas port wajib dipilih', 'warning'); return; }
-  if (Number(terpakai) > Number(kapasitas)) {
-    toast('Port terpakai tidak boleh melebihi kapasitas', 'warning'); return;
+function previewKoordinat() {
+  const raw     = (document.getElementById('f-koordinat')?.value || '').trim();
+  const preview = document.getElementById('koordinat-preview');
+  const iframe  = document.getElementById('koordinat-iframe');
+  if (!preview || !iframe) return;
+  const parts = raw.split(',').map(s => s.trim());
+  if (parts.length === 2 && !isNaN(parseFloat(parts[0])) && !isNaN(parseFloat(parts[1]))) {
+    iframe.src = `https://maps.google.com/maps?q=${parseFloat(parts[0])},${parseFloat(parts[1])}&z=15&output=embed`;
+    preview.classList.add('show');
+  } else {
+    preview.classList.remove('show');
+    iframe.src = '';
   }
-
-  const oltSel  = document.getElementById('f-olt');
-  const oltNama = oltSel?.options[oltSel.selectedIndex]?.text || '';
-
-  odcs.push({
-    id: _nextId(),
-    nama, kode,
-    olt_id: oltId, olt_nama: oltNama,
-    port_olt: portOlt,
-    rasio_split: rasio,
-    kapasitas: Number(kapasitas),
-    terpakai:  Number(terpakai),
-    odp_count: Number(odpCount),
-    lokasi, keterangan,
-    created_at: new Date().toISOString(),
-  });
-
-  _saveLocal();
-  cancelForm();
-  renderOdc();
-  toast(`ODC "${nama}" berhasil ditambahkan`, 'success');
 }
 
-function saveEdit() {
-  const o = odcs.find(x => x.id === editingId);
-  if (!o) return;
 
-  const nama      = val('f-nama');
-  const kapasitas = Number(val('f-kapasitas')) || 0;
-  const terpakai  = Number(val('f-terpakai'))  || 0;
+// ── API CALLS ─────────────────────────────────────────────────
+async function addOdc() {
+  const payload = collectForm();
+  if (!payload) return;
 
-  if (!nama) { toast('Nama ODC wajib diisi', 'warning'); return; }
-  if (terpakai > kapasitas) {
-    toast('Port terpakai tidak boleh melebihi kapasitas', 'warning'); return;
+  const btn = document.getElementById('btn-submit-form');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="material-symbols-outlined spin">refresh</span> Menyimpan...'; }
+
+  try {
+    const res  = await fetch(`${API_BASE}/api/odc`, {
+      method: 'POST', credentials: 'include', headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      cancelForm();
+      toast(`ODC ${payload.nama} berhasil ditambahkan`, 'success');
+      loadOdc();
+    } else {
+      toast(data.error || 'Gagal menyimpan ODC', 'danger');
+      if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-outlined">add</span> Tambah ODC'; }
+    }
+  } catch (e) {
+    toast('Tidak bisa menghubungi server', 'danger');
+    if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-outlined">add</span> Tambah ODC'; }
   }
-
-  const oltSel  = document.getElementById('f-olt');
-  const oltNama = oltSel?.options[oltSel.selectedIndex]?.text || '';
-
-  Object.assign(o, {
-    nama, kode: val('f-kode'),
-    olt_id: val('f-olt'), olt_nama: oltNama,
-    port_olt: val('f-port-olt'),
-    rasio_split: val('f-rasio'),
-    kapasitas, terpakai,
-    odp_count: Number(val('f-odp-count')) || 0,
-    lokasi: val('f-lokasi'),
-    keterangan: val('f-keterangan'),
-    updated_at: new Date().toISOString(),
-  });
-
-  _saveLocal();
-  cancelForm();
-  renderOdc();
-  toast(`ODC "${nama}" berhasil diperbarui`, 'success');
 }
 
-function confirmDeleteOdc(id) {
-  const o = odcs.find(x => x.id === id);
+async function saveEdit() {
+  const payload = collectForm();
+  if (!payload) return;
+
+  const btn = document.getElementById('btn-submit-form');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="material-symbols-outlined spin">refresh</span> Menyimpan...'; }
+
+  try {
+    const res  = await fetch(`${API_BASE}/api/odc/${_editingId}`, {
+      method: 'PUT', credentials: 'include', headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      cancelForm();
+      toast('ODC berhasil diperbarui', 'success');
+      loadOdc();
+    } else {
+      toast(data.error || 'Gagal memperbarui', 'danger');
+      if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-outlined">check</span> Simpan Perubahan'; }
+    }
+  } catch (e) {
+    toast('Tidak bisa menghubungi server', 'danger');
+    if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-outlined">check</span> Simpan Perubahan'; }
+  }
+}
+
+function collectForm() {
+  const nama = val('f-nama');
+  if (!nama) { toast('Nama ODC wajib diisi', 'warning'); return null; }
+  return {
+    nama,
+    lokasi:      val('f-lokasi'),
+    jumlah_port: parseInt(val('f-jumlah-port')) || 0,
+    olt_id:      val('f-olt-id') || null,
+    koordinat:   val('f-koordinat'),
+    keterangan:  val('f-keterangan'),
+  };
+}
+
+function confirmDelete(id) {
+  const o = _allData.find(x => x.id === id);
   if (!o) return;
+
+  const hasOdp    = Number(o.jumlah_odp) > 0;
+
+  // Jika masih ada ODP → blok hapus sepenuhnya, bukan hanya warning
+  const warnBlock = hasOdp
+    ? `<div style="background:var(--red-bg);border:1px solid var(--red-border);
+           border-radius:var(--r-md);padding:12px 14px;margin-top:12px;
+           font-size:12px;color:var(--red);display:flex;align-items:flex-start;gap:8px">
+         <span class="material-symbols-outlined" style="font-size:16px;flex-shrink:0;margin-top:1px">error</span>
+         <span>
+           <strong>Tidak bisa dihapus.</strong><br>
+           ODC ini masih memiliki <strong>${o.jumlah_odp} ODP</strong> yang terhubung.
+           Hapus atau pindahkan semua ODP terlebih dahulu sebelum menghapus ODC ini.
+         </span>
+       </div>` : '';
+
+  // Tombol hapus hanya aktif jika tidak ada ODP
+  const btnHapus = hasOdp
+    ? `<button class="btn btn-red" disabled style="opacity:.45;cursor:not-allowed">
+         <span class="material-symbols-outlined">delete</span> Tidak Bisa Dihapus
+       </button>`
+    : `<button class="btn btn-red" onclick="doDelete(${id})">
+         <span class="material-symbols-outlined">delete</span> Ya, Hapus
+       </button>`;
 
   openModalForm(`
     <div class="modal">
       <div class="hapus-icon-wrap">
-        <span class="material-symbols-outlined hapus-icon">delete</span>
+        <span class="material-symbols-outlined hapus-icon"
+              style="color:${hasOdp ? 'var(--red)' : ''}">
+          ${hasOdp ? 'block' : 'delete'}
+        </span>
       </div>
-      <div class="hapus-title">Hapus ODC?</div>
+      <div class="hapus-title">${hasOdp ? 'Hapus Ditolak' : 'Hapus ODC?'}</div>
       <div class="hapus-sub">
-        Yakin ingin menghapus <strong>${escHtml(o.nama)}</strong>?<br>
-        Semua ODP yang upstream ke ODC ini perlu dikonfigurasi ulang.
-        Data ini tidak dapat dikembalikan.
+        ${hasOdp
+          ? `ODC <strong>${escHtml(o.nama)}</strong> tidak bisa dihapus karena masih memiliki dependency.`
+          : `Yakin hapus <strong>${escHtml(o.nama)}</strong>?<br>Data ODC ini akan dihapus permanen.`
+        }
       </div>
-      <div class="modal-actions" style="margin-top:20px;">
-        <button class="btn btn-cancel" onclick="closeModalForm()">Batal</button>
-        <button class="btn btn-red" onclick="doDeleteOdc(${id})">
-          <span class="material-symbols-outlined">delete</span> Ya, Hapus
+      ${warnBlock}
+      <div class="modal-actions" style="margin-top:20px">
+        <button class="btn" onclick="closeModalForm()">
+          ${hasOdp ? 'Tutup' : 'Batal'}
         </button>
+        ${btnHapus}
       </div>
     </div>`);
 }
 
-function doDeleteOdc(id) {
-  const o = odcs.find(x => x.id === id);
-  odcs = odcs.filter(x => x.id !== id);
-  _saveLocal();
+async function doDelete(id) {
   closeModalForm();
-  renderOdc();
-  toast(`ODC "${o?.nama || ''}" berhasil dihapus`, 'danger');
+  try {
+    const res = await fetch(`${API_BASE}/api/odc/${id}`, { method: 'DELETE', credentials: 'include', headers: getAuthHeaders() });
+    if (res.ok) { loadOdc(); toast('ODC berhasil dihapus', 'danger'); }
+    else toast('Gagal menghapus ODC', 'danger');
+  } catch (e) { toast('Tidak bisa menghubungi server', 'danger'); }
 }
 
-
-// ── SYNC ─────────────────────────────────────────────────────────
-function syncAll() {
-  toast('Sinkronisasi ODC ke backend akan segera tersedia', 'info');
-}
-
-
-// ── INIT ─────────────────────────────────────────────────────────
-_loadLocal();
-renderOdc();
+// ── INIT ──────────────────────────────────────────────────────
+loadOdc();

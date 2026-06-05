@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 
 <head>
@@ -15,8 +15,8 @@
     rel="stylesheet" />
 
   <!-- global.css WAJIB pertama -->
-  <link rel="stylesheet" href="/app/frontend/statis/global.css" />
-  <link rel="stylesheet" href="/app/frontend/pelanggan/detail_pelanggan.css" />
+  <link rel="stylesheet" href="/app/frontend/statis/global.css?v=22" />
+  <link rel="stylesheet" href="/app/frontend/pelanggan/detail_pelanggan.css?v=1" />
 </head>
 
 <body>
@@ -25,32 +25,25 @@
   <header class="header">
     <div class="header-inner">
       <div class="header-brand">
-        <div class="brand-logo">
-          <span class="material-symbols-outlined">router</span>
-        </div>
+        <div class="brand-logo"><img src="/app/frontend/statis/technofixlogo.png" alt="TechnoFix" /></div>
         <div>
           <div class="brand-name">TechnoFix</div>
           <div class="brand-sub">Monitoring status jaringan &amp; pelanggan</div>
         </div>
       </div>
 
-      <nav class="topbar-nav">
+            <nav class="topbar-nav">
         <a href="/app/frontend/dashboard/dashboard.html">
           <span class="material-symbols-outlined">dashboard</span>Dashboard
         </a>
         <a href="/app/frontend/pelanggan/pelanggan.html" class="active">
           <span class="material-symbols-outlined">group</span>Pelanggan
         </a>
-        <a href="/app/frontend/profile_pppoe/profile_pppoe.html">
-          <span class="material-symbols-outlined">person</span>Profile
-        </a>
         <a href="#" onclick="openPerangkatSheet(event)" data-perm="perangkat">
           <span class="material-symbols-outlined">router</span>Perangkat
         </a>
-        <a href="#" data-perm="keuangan">
-          <span class="material-symbols-outlined">payments</span>Keuangan
-        </a>
-        <a href="#" data-perm="maps">
+        <a href="#" onclick="openKeuanganSheet(event)" data-perm="keuangan"><span class="material-symbols-outlined">payments</span>Keuangan</a>
+        <a href="/app/frontend/maps/maps.html" data-perm="maps">
           <span class="material-symbols-outlined">map</span>Maps
         </a>
       </nav>
@@ -60,6 +53,8 @@
         <button class="icon-btn" onclick="location.reload()" title="Refresh halaman">
           <span class="material-symbols-outlined">refresh</span>
         </button>
+                <a href="/app/frontend/panduan/panduan.html" target="_blank" class="icon-btn" title="Panduan Penggunaan" style="text-decoration:none"><span class="material-symbols-outlined">help</span></a>
+        <button class="icon-btn" onclick="toggleDarkMode()" title="Ganti tema gelap/terang" style="margin-right:2px"><span class="material-symbols-outlined" id="dark-mode-icon">dark_mode</span></button>
         <div class="profile-wrap" id="profile-wrap">
           <button class="profile-btn" onclick="toggleProfileMenu()" title="Profil">
             <div class="avatar-circle" id="avatar-initials">AD</div>
@@ -67,80 +62,62 @@
             <span class="material-symbols-outlined profile-chevron">expand_more</span>
           </button>
           <div class="profile-dropdown" id="profile-dropdown">
-            <div class="profile-menu-header">
-              <div class="profile-menu-avatar" id="dd-avatar">AD</div>
-              <div class="profile-menu-identity">
-                <span class="profile-menu-name" id="dd-username">Admin</span>
-                <span class="profile-menu-role" id="dd-role-badge">Owner</span>
-              </div>
+          <div class="profile-menu-header">
+            <div class="profile-menu-avatar" id="dd-avatar">AD</div>
+            <div class="profile-menu-identity">
+              <span class="profile-menu-name" id="dd-username">Admin</span>
+              <span class="profile-menu-role" id="dd-role-badge">Owner</span>
             </div>
-            <div class="profile-menu-divider"></div>
-            <a href="/app/frontend/profil/profil.html" class="profile-menu-item">
-              <span class="material-symbols-outlined">person</span>Profil saya
-            </a>
-            <a href="#" class="profile-menu-item" onclick="showModalGantiPassword(); return false;">
-              <span class="material-symbols-outlined">lock_reset</span>Ganti password
-            </a>
-            <a href="#" class="profile-menu-item" onclick="showModalSetting(); return false;">
-              <span class="material-symbols-outlined">settings</span>Setting
-            </a>
-            <div class="profile-menu-divider"></div>
-            <a href="/app/frontend/manajemen_user/manajemen_user.html" class="profile-menu-item btn-owner-only">
-              <span class="material-symbols-outlined">manage_accounts</span>Manajemen user
-            </a>
-            <a href="/app/frontend/manajemen_tim/manajemen_tim.html" class="profile-menu-item btn-owner-only">
-              <span class="material-symbols-outlined">groups</span>Manajemen tim
-            </a>
-            <div class="profile-menu-divider btn-owner-only"></div>
-            <a href="#" class="profile-menu-item logout" onclick="showModalLogout(); return false;">
-              <span class="material-symbols-outlined">logout</span>Keluar
-            </a>
           </div>
+          <div class="profile-menu-divider"></div>
+          <a href="/app/frontend/profile/profile.html" class="profile-menu-item">
+            <span class="material-symbols-outlined">person</span>Profil saya
+          </a>
+          <a href="/app/frontend/setting/setting.html" class="profile-menu-item">
+            <span class="material-symbols-outlined">settings</span>Setting
+          </a>
+          <a href="/app/frontend/langganan/langganan.html" class="profile-menu-item btn-owner-only">
+            <span class="material-symbols-outlined">workspace_premium</span>Langganan
+          </a>
+          <div class="profile-menu-divider btn-owner-only"></div>
+          <a href="/app/frontend/manajemen_user/manajemen_user.html" class="profile-menu-item btn-owner-only">
+            <span class="material-symbols-outlined">manage_accounts</span>Manajemen user
+          </a>
+          <a href="/app/frontend/panduan/panduan.html" target="_blank" class="profile-menu-item">
+            <span class="material-symbols-outlined">menu_book</span>Panduan Penggunaan
+          </a>
+          <div class="profile-menu-divider"></div>
+          <a href="#" class="profile-menu-item logout" onclick="showModalLogout();return false;">
+            <span class="material-symbols-outlined">logout</span>Keluar
+          </a>
         </div>
-      </div>
+        </div>
     </div>
   </header>
 
 
-  <!-- ══ BOTTOM NAVBAR — MOBILE ONLY ══ -->
+    <!-- ══ BOTTOM NAVBAR — MOBILE ONLY ══ -->
   <nav class="bottom-nav">
     <div class="bottom-nav-inner">
       <div class="bottom-nav-indicator" id="bottom-nav-indicator"></div>
-
-      <a href="/app/frontend/dashboard/dashboard.html" class="bottom-nav-item">
-        <div class="bottom-nav-icon">
-          <span class="material-symbols-outlined">dashboard</span>
-        </div>
+      <a href="/app/frontend/dashboard/dashboard.html" class="bottom-nav-item ">
+        <div class="bottom-nav-icon"><span class="material-symbols-outlined">dashboard</span></div>
         <span class="bottom-nav-label">Dashboard</span>
       </a>
       <a href="/app/frontend/pelanggan/pelanggan.html" class="bottom-nav-item active">
-        <div class="bottom-nav-icon">
-          <span class="material-symbols-outlined">group</span>
-        </div>
+        <div class="bottom-nav-icon"><span class="material-symbols-outlined">group</span></div>
         <span class="bottom-nav-label">Pelanggan</span>
       </a>
-      <a href="/app/frontend/profile_pppoe/profile_pppoe.html" class="bottom-nav-item">
-        <div class="bottom-nav-icon">
-          <span class="material-symbols-outlined">person</span>
-        </div>
-        <span class="bottom-nav-label">Profile</span>
-      </a>
-      <a href="#" class="bottom-nav-item" onclick="openPerangkatSheet(event)" data-perm="perangkat">
-        <div class="bottom-nav-icon">
-          <span class="material-symbols-outlined">router</span>
-        </div>
+      <a href="#" class="bottom-nav-item " onclick="openPerangkatSheet(event)" data-perm="perangkat">
+        <div class="bottom-nav-icon"><span class="material-symbols-outlined">router</span></div>
         <span class="bottom-nav-label">Perangkat</span>
       </a>
-      <a href="#" class="bottom-nav-item" data-perm="keuangan">
-        <div class="bottom-nav-icon">
-          <span class="material-symbols-outlined">payments</span>
-        </div>
+      <a href="#" onclick="openKeuanganSheet(event)" class="bottom-nav-item" data-perm="keuangan">
+        <div class="bottom-nav-icon"><span class="material-symbols-outlined">payments</span></div>
         <span class="bottom-nav-label">Keuangan</span>
       </a>
-      <a href="#" class="bottom-nav-item" data-perm="maps">
-        <div class="bottom-nav-icon">
-          <span class="material-symbols-outlined">map</span>
-        </div>
+      <a href="/app/frontend/maps/maps.html" class="bottom-nav-item " data-perm="maps">
+        <div class="bottom-nav-icon"><span class="material-symbols-outlined">map</span></div>
         <span class="bottom-nav-label">Maps</span>
       </a>
     </div>
@@ -182,7 +159,7 @@
     </div>
 
     <!-- ══ ACTION BUTTONS BAR ══ -->
-    <div class="dp-action-bar">
+    <div class="dp-action-bar" id="dp-action-bar-full">
       <!-- Grup 1: Enable + Disable -->
       <div class="dp-action-group">
         <button class="dp-action-btn green"   onclick="aksiModem('enable')"  title="Enable pelanggan di MikroTik">
@@ -211,6 +188,17 @@
         </button>
       </div>
     </div>
+    <!-- Action bar khusus KOLEKTOR — hanya Hubungi + Rute -->
+    <div class="dp-action-bar" id="dp-action-bar-kolektor" style="display:none">
+      <div class="dp-action-group">
+        <button class="dp-action-btn green" id="btn-hubungi-kolektor" onclick="_dpHubungi()" title="Hubungi via WhatsApp">
+          <span class="material-symbols-outlined">chat</span>Hubungi
+        </button>
+        <button class="dp-action-btn blue" id="btn-rute-kolektor" onclick="_dpRute()" title="Buka rute di Google Maps">
+          <span class="material-symbols-outlined">directions</span>Rute ke Lokasi
+        </button>
+      </div>
+    </div>
 
     <!-- DETAIL GRID -->
     <div class="dp-grid">
@@ -218,8 +206,50 @@
       <!-- ─── KOLOM KIRI ─── -->
       <div class="dp-col">
 
-        <!-- Informasi Pelanggan (gabungan: info dasar + data MikroTik + data OLT/GPON) -->
-        <div class="dp-card">
+        <!-- Info pelanggan ringkas KHUSUS KOLEKTOR -->
+        <div class="dp-card" id="dp-info-kolektor" style="display:none">
+          <div class="dp-card-head">
+            <span class="material-symbols-outlined">person</span>
+            Informasi Pelanggan
+          </div>
+          <div class="dp-info-list">
+            <div class="dp-info-row">
+              <span class="dp-info-key">Nama</span>
+              <span class="dp-info-val" id="kol-info-nama">—</span>
+            </div>
+            <div class="dp-info-row">
+              <span class="dp-info-key">Username</span>
+              <span class="dp-info-val mono" id="kol-info-username">—</span>
+            </div>
+            <div class="dp-info-row">
+              <span class="dp-info-key">No. Telepon</span>
+              <span class="dp-info-val" id="kol-info-hp">—</span>
+            </div>
+            <div class="dp-info-row">
+              <span class="dp-info-key">Profil / Paket</span>
+              <span class="dp-info-val" id="kol-info-profil">—</span>
+            </div>
+            <div class="dp-info-row">
+              <span class="dp-info-key">Tagihan Bulanan</span>
+              <span class="dp-info-val" id="kol-info-harga" style="font-weight:700;color:var(--primary)">—</span>
+            </div>
+            <div class="dp-info-row">
+              <span class="dp-info-key">Tgl. Jatuh Tempo</span>
+              <span class="dp-info-val" id="kol-info-tgl-jatuh">—</span>
+            </div>
+            <div class="dp-info-row">
+              <span class="dp-info-key">Status</span>
+              <span class="dp-info-val" id="kol-info-status">—</span>
+            </div>
+            <div class="dp-info-row">
+              <span class="dp-info-key">Alamat / Koordinat</span>
+              <span class="dp-info-val mono small" id="kol-info-koordinat">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Informasi Pelanggan lengkap (semua role kecuali kolektor) -->
+        <div class="dp-card" id="dp-info-full">
           <div class="dp-card-head">
             <span class="material-symbols-outlined">person</span>
             Informasi Pelanggan
@@ -236,6 +266,10 @@
             <div class="dp-info-row">
               <span class="dp-info-key">Profil / Paket</span>
               <span class="dp-info-val" id="info-profil">—</span>
+            </div>
+            <div class="dp-info-row">
+              <span class="dp-info-key">Tagihan Bulanan</span>
+              <span class="dp-info-val" id="info-harga" style="font-weight:700;color:var(--primary)">—</span>
             </div>
             <div class="dp-info-row">
               <span class="dp-info-key">Tgl. Pasang</span>
@@ -292,7 +326,7 @@
               <span class="dp-info-val" id="info-rx">—</span>
             </div>
           </div>
-        </div>
+        </div><!-- /#dp-info-full -->
 
       </div><!-- /.dp-col kiri -->
 
@@ -345,6 +379,33 @@
       </div><!-- /.dp-col kanan -->
 
     </div><!-- /.dp-grid -->
+
+    <!-- ─── RIWAYAT TRANSAKSI ─── -->
+    <div class="dp-card" id="card-riwayat" style="margin-top:20px;">
+      <div class="dp-card-head">
+        <span class="material-symbols-outlined">receipt_long</span>
+        Riwayat Transaksi
+        <span style="margin-left:auto;font-size:11.5px;font-weight:500;color:rgba(255,255,255,.6);font-family:var(--sans)" id="riwayat-sub">—</span>
+      </div>
+      <div id="riwayat-list" style="overflow-x:auto;">
+        <table class="rw-table">
+          <thead>
+            <tr>
+              <th>Periode</th>
+              <th>Profil</th>
+              <th>Nominal</th>
+              <th>Jatuh Tempo</th>
+              <th>Status</th>
+              <th>Dibayar</th>
+              <th>Metode</th>
+            </tr>
+          </thead>
+          <tbody id="riwayat-tbody">
+            <tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-dim)">Memuat…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
 
   </main>
 
@@ -451,21 +512,33 @@
           Remote Modem
         </h2>
         <p style="font-size:12px;color:var(--text-dim);margin-bottom:20px">
-          Masukkan IP address modem untuk membuka sesi remote / akses ke antarmuka modem.
+          Sistem membuat NAT forwarding otomatis dari IP publik MikroTik ke modem pelanggan.
+          IP modem & IP publik terdeteksi otomatis.
         </p>
         <div class="form-group">
-          <label class="form-label">IP Address Modem <span class="req">*</span></label>
+          <label class="form-label">IP Publik <span style="font-weight:400;color:var(--text-dim)">(opsional)</span></label>
           <input class="form-input" id="remote-ip" type="text"
-            placeholder="cth: 192.168.1.1"
-            oninput="validateRemoteIp()"
+            placeholder="Kosongkan = pakai IP publik MikroTik"
             onkeydown="if(event.key==='Enter') konfirmasiRemote()" />
           <p class="form-hint" id="remote-ip-hint" style="display:none;color:var(--red)">Format IP tidak valid.</p>
+        </div>
+        <div class="form-group" style="margin-top:14px">
+          <label class="form-label">Akses ke Port Modem</label>
+          <select class="form-input" id="remote-port">
+            <option value="80">Web Admin (HTTP :80)</option>
+            <option value="443">Web Admin (HTTPS :443)</option>
+            <option value="8080">Web Alt (:8080)</option>
+            <option value="8728">Winbox (:8728)</option>
+            <option value="22">SSH (:22)</option>
+            <option value="23">Telnet (:23)</option>
+          </select>
+          <span class="form-hint">Layanan di modem yang ingin diakses dari jarak jauh.</span>
         </div>
       </div>
       <div class="form-actions" style="padding:16px 24px;margin-top:0">
         <button class="btn btn-cancel" onclick="_tutupModal('modal-remote')">Batal</button>
-        <button class="btn-primary" id="btn-remote-go" onclick="konfirmasiRemote()">
-          <span class="material-symbols-outlined">open_in_new</span>Remote Sekarang
+        <button class="btn-primary" id="btn-konfirmasi-remote" onclick="konfirmasiRemote()">
+          <span class="material-symbols-outlined">open_in_new</span>Buka Remote
         </button>
       </div>
     </div>
@@ -617,6 +690,75 @@
   <!-- TOAST -->
   <div id="toast"></div>
 
+    <!-- Scripts: global.js WAJIB sebelum detail_pelanggan.js -->
+  <!-- ══ MODAL LOGOUT ══ -->
+  <div class="modal-overlay" id="modal-logout" onclick="closeModalLogout(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Konfirmasi Keluar</h3>
+      </div>
+      <div class="modal-body">
+        <p style="color:var(--text-muted);font-size:14px">Apakah Anda yakin ingin keluar dari sesi ini?</p>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-cancel" onclick="closeModalLogout(event)">Batal</button>
+        <button class="btn-primary" style="background:var(--red)" onclick="doLogout()">
+          <span class="material-symbols-outlined">logout</span>Keluar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ MODAL GANTI PASSWORD ══ -->
+  <div class="modal-overlay" id="modal-ganti-password" onclick="closeModalGantiPassword(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Ganti Password</h3>
+      </div>
+      <div class="modal-body" style="display:flex;flex-direction:column;gap:12px">
+        <div class="form-group">
+          <label class="form-label">Password Lama</label>
+          <div class="pwd-wrap">
+            <input type="password" class="form-input" id="pwd-lama" placeholder="Password saat ini" />
+            <button type="button" class="pwd-eye" onclick="togglePwd('pwd-lama','eye-lama')">
+              <span class="material-symbols-outlined" id="eye-lama">visibility</span>
+            </button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password Baru</label>
+          <div class="pwd-wrap">
+            <input type="password" class="form-input" id="pwd-baru" placeholder="Min. 8 karakter" />
+            <button type="button" class="pwd-eye" onclick="togglePwd('pwd-baru','eye-baru')">
+              <span class="material-symbols-outlined" id="eye-baru">visibility</span>
+            </button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Konfirmasi Password Baru</label>
+          <div class="pwd-wrap">
+            <input type="password" class="form-input" id="pwd-konfirm" placeholder="Ulangi password baru" />
+            <button type="button" class="pwd-eye" onclick="togglePwd('pwd-konfirm','eye-konfirm')">
+              <span class="material-symbols-outlined" id="eye-konfirm">visibility</span>
+            </button>
+          </div>
+        </div>
+        <p class="form-hint" id="pwd-hint" style="display:none"></p>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-cancel" onclick="closeModalGantiPassword(event)">Batal</button>
+        <button class="btn-primary" onclick="submitGantiPassword()">
+          <span class="material-symbols-outlined">save</span>Simpan
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ MODAL SETTING ══ -->
+
+  <!-- ══ TOAST ══ -->
+  <div id="toast"></div>
+
   <!-- ══ PERANGKAT SHEET ══ -->
   <div class="psheet-overlay" id="psheet-overlay" onclick="closePerangkatSheet()"></div>
   <div class="psheet" id="psheet" role="dialog" aria-modal="true" aria-label="Pilih Perangkat">
@@ -653,7 +795,7 @@
         <div class="psheet-item-icon"><span class="material-symbols-outlined">storage</span></div>
         <div class="psheet-item-body">
           <div class="psheet-item-name">ODC</div>
-          <div class="psheet-item-desc">Optical Distribution Cabinet</div>
+          <div class="psheet-item-desc">Optical Distribution Cabinet — kabinet distribusi utama</div>
         </div>
         <div class="psheet-item-badge">Cabinet</div>
         <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
@@ -662,17 +804,35 @@
         <div class="psheet-item-icon"><span class="material-symbols-outlined">hub</span></div>
         <div class="psheet-item-body">
           <div class="psheet-item-name">ODP</div>
-          <div class="psheet-item-desc">Optical Distribution Point</div>
+          <div class="psheet-item-desc">Optical Distribution Point — titik distribusi kabel</div>
         </div>
         <div class="psheet-item-badge">Distribusi</div>
         <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
       </a>
+      <a href="/app/frontend/genieacs/onu.html" class="psheet-item psheet-onu" data-perm="perangkat"><div class="psheet-item-icon"><span class="material-symbols-outlined">wifi</span></div><div class="psheet-item-body"><div class="psheet-item-name">ONU / GenieACS</div><div class="psheet-item-desc">Monitoring & remote TR-069</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
     </div>
   </div>
 
-  <!-- Scripts: global.js WAJIB sebelum detail_pelanggan.js -->
-  <script src="/app/frontend/statis/global.js"></script>
-  <script src="/app/frontend/pelanggan/detail_pelanggan.js"></script>
+  <!-- Scripts -->
+
+  <!-- KEUANGAN SHEET -->
+  <div class="psheet-overlay" id="ksheet-overlay" onclick="closeKeuanganSheet()"></div>
+  <div class="psheet ksheet" id="ksheet" role="dialog" aria-modal="true">
+    <div class="psheet-handle"></div>
+    <div class="psheet-head">
+      <div><p class="psheet-eyebrow">Keuangan & Tagihan</p><h2 class="psheet-title">Pilih Fitur</h2></div>
+      <button class="psheet-close" onclick="closeKeuanganSheet()"><span class="material-symbols-outlined">close</span></button>
+    </div>
+    <div class="psheet-list">
+      <a href="/app/frontend/keuangan/keuangan.html" class="psheet-item psheet-keuangan"><div class="psheet-item-icon"><span class="material-symbols-outlined">payments</span></div><div class="psheet-item-body"><div class="psheet-item-name">Keuangan</div><div class="psheet-item-desc">Pemasukan & pengeluaran</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/tagihan/tagihan.html" class="psheet-item psheet-tagihan" data-perm="keuangan"><div class="psheet-item-icon"><span class="material-symbols-outlined">receipt_long</span></div><div class="psheet-item-body"><div class="psheet-item-name">Tagihan</div><div class="psheet-item-desc">Tagihan bulanan pelanggan</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/loket/loket.html" class="psheet-item psheet-loket" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">point_of_sale</span></div><div class="psheet-item-body"><div class="psheet-item-name">Loket / Kasir</div><div class="psheet-item-desc">Terima bayar + komisi</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/notifikasi/wa.html" class="psheet-item psheet-wa" data-perm="pelanggan"><div class="psheet-item-icon"><span class="material-symbols-outlined">chat</span></div><div class="psheet-item-body"><div class="psheet-item-name">Notifikasi WA</div><div class="psheet-item-desc">Pengingat tagihan WhatsApp</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/pembayaran/payment.html" class="psheet-item psheet-payment" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">credit_card</span></div><div class="psheet-item-body"><div class="psheet-item-name">Bayar Online</div><div class="psheet-item-desc">Midtrans / Xendit</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+    </div>
+  </div>
+  <script src="/app/frontend/statis/global.js?v=21"></script>
+  <script src="/app/frontend/pelanggan/detail_pelanggan.js?v=3"></script>
 
 </body>
 </html>

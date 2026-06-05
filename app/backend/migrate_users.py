@@ -59,6 +59,9 @@ print('Kolom saat ini:', cols_p)
 
 for col, defval in [
     ('nama',  "TEXT DEFAULT ''"),
+    # no_hp: kolom LEGACY alias dari 'hp' (kolom master).
+    # Tetap dipertahankan untuk backward-compat data lama.
+    # Frontend & backend selalu prioritaskan kolom 'hp'.
     ('no_hp', "TEXT DEFAULT ''"),
     ('aktif', 'INTEGER DEFAULT 1'),
 ]:

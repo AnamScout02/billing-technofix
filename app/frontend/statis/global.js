@@ -28,7 +28,13 @@
 /* ══════════════════════════════════════════════════════════
    1. API BASE
 ══════════════════════════════════════════════════════════ */
-const API_BASE = 'http://127.0.0.1:5000';
+const API_BASE = (() => {
+  const h = window.location.hostname;
+  if (h === 'localhost' || h === '127.0.0.1') return 'http://127.0.0.1:5000';
+  if (h === '192.168.70.7')                   return 'http://192.168.70.7:5000';
+  if (h === '103.194.175.54')                 return 'http://103.194.175.54:5000';
+  return '';  // ← production: pakai Apache reverse proxy, same origin
+})();
 
 
 /* ══════════════════════════════════════════════════════════
@@ -226,7 +232,8 @@ function initBottomNav() {
 
 
 /* ══════════════════════════════════════════════════════════
-   11. initHeaderCanvas — animasi partikel jaringan di header
+   11. initHeaderCanvas — Network Topology Animation
+   Node jaringan + flowing edges + paket data + trail
 ══════════════════════════════════════════════════════════ */
 function initHeaderCanvas() {
   const header = document.querySelector('.header');
@@ -240,140 +247,228 @@ function initHeaderCanvas() {
   }
 
   const ctx = canvas.getContext('2d');
-  let W, H;
+  let W, H, CDIST;
 
   function resize() {
     W = canvas.width  = header.offsetWidth;
     H = canvas.height = header.offsetHeight;
+    CDIST = Math.max(110, Math.min(230, W * 0.17));
   }
   resize();
   window.addEventListener('resize', resize);
 
-  /* ── Aurora orbs melayang ── */
-  const ORBS = Array.from({ length: 5 }, function (_, i) {
+  /* ── Node: 5 core (router utama) + 11 edge (switch/endpoint) ── */
+  const N_CORE = 5, N_TOTAL = 16;
+  const nodes = Array.from({ length: N_TOTAL }, function (_, i) {
+    const core = i < N_CORE;
     return {
-      x:     Math.random(),
-      y:     Math.random(),
-      vx:    (Math.random() - .5) * 0.00018,
-      vy:    (Math.random() - .5) * 0.00012,
-      r:     0.28 + Math.random() * 0.22,
-      hue:   [210, 195, 220, 200, 230][i],
-      phase: Math.random() * Math.PI * 2,
+      x:  0.04 + Math.random() * 0.92,
+      y:  0.10 + Math.random() * 0.80,
+      vx: (Math.random() - 0.5) * (core ? 0.00006 : 0.00010),
+      vy: (Math.random() - 0.5) * (core ? 0.00012 : 0.00017),
+      r:  core ? (4.5 + Math.random() * 2.0) : (2.0 + Math.random() * 1.5),
+      a0: core ? 0.92 : (0.50 + Math.random() * 0.35),
+      ph: Math.random() * Math.PI * 2,
+      rph: Math.random() * Math.PI * 2, /* ring pulse phase */
+      core: core,
+      flash: 0,
     };
   });
 
-  /* ── Partikel debu bercahaya mengambang naik ── */
-  const PARTICLES = Array.from({ length: 38 }, function () {
-    return {
-      x:     Math.random(),
-      y:     Math.random(),
-      vx:    (Math.random() - .5) * 0.00035,
-      vy:    -0.00018 - Math.random() * 0.00022,
-      r:     0.6 + Math.random() * 1.2,
-      alpha: 0.15 + Math.random() * 0.35,
-      phase: Math.random() * Math.PI * 2,
-    };
-  });
+  /* ── Activity map: fade saat tidak ada paket ── */
+  const edgeAct = {};
 
-  /* ── Data streams — garis vertikal berjalan ke atas ── */
-  const STREAMS = Array.from({ length: 8 }, function () {
-    return {
-      x:      Math.random(),
-      y:      Math.random(),
-      speed:  0.0006 + Math.random() * 0.001,
-      length: 0.12 + Math.random() * 0.18,
-      alpha:  0.06 + Math.random() * 0.10,
-      width:  0.6 + Math.random() * 0.5,
-    };
-  });
+  /* ── Paket data ── */
+  const pkts = [];
 
-  /* ── Pulse rings sesekali muncul ── */
-  const rings = [];
-  function spawnRing() {
-    rings.push({
-      x: 0.1 + Math.random() * 0.8,
-      y: Math.random(),
-      r: 0,
-      alpha: 0.22,
-      speed: 0.0005 + Math.random() * 0.0004,
-    });
+  function spawnPkt() {
+    if (pkts.length >= 10) return;
+    const edges = [];
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const dx = (nodes[i].x - nodes[j].x) * W;
+        const dy = (nodes[i].y - nodes[j].y) * H;
+        if (Math.sqrt(dx * dx + dy * dy) < CDIST) edges.push([i, j]);
+      }
+    }
+    if (!edges.length) return;
+    const e = edges[Math.floor(Math.random() * edges.length)];
+    const from = Math.random() < 0.5 ? e[0] : e[1];
+    const to   = from === e[0] ? e[1] : e[0];
+    pkts.push({ from: from, to: to, t: 0, spd: 0.007 + Math.random() * 0.011, r: 1.8 + Math.random() * 1.2 });
   }
-  spawnRing();
-  setInterval(spawnRing, 2800);
 
-  function draw() {
+  spawnPkt();
+  setInterval(spawnPkt, 360);
+
+  /* ── Aurora backdrop ── */
+  const orbs = [0.16, 0.51, 0.83].map(function (xi, i) {
+    return {
+      x: xi, y: 0.5,
+      vx: (Math.random() - 0.5) * 0.00009,
+      vy: (Math.random() - 0.5) * 0.00012,
+      r:  0.28 + Math.random() * 0.14,
+      hue: [210, 198, 222][i],
+      ph: Math.random() * Math.PI * 2,
+    };
+  });
+
+  /* ── Render loop ── */
+  function draw(ts) {
+    const time = (ts || 0) / 1000;
     ctx.clearRect(0, 0, W, H);
 
-    /* Aurora orbs */
-    ORBS.forEach(function (o) {
-      o.x += o.vx; o.y += o.vy; o.phase += 0.008;
-      if (o.x < -o.r) o.x = 1 + o.r;
-      if (o.x > 1 + o.r) o.x = -o.r;
-      if (o.y < -o.r) o.y = 1 + o.r;
-      if (o.y > 1 + o.r) o.y = -o.r;
-
-      const pulse = 1 + Math.sin(o.phase) * 0.12;
-      const rx = o.x * W, ry = o.y * H;
-      const rr = o.r * Math.min(W, H) * pulse;
-      const alpha = 0.055 + Math.sin(o.phase * 0.7) * 0.02;
-
-      const g = ctx.createRadialGradient(rx, ry, 0, rx, ry, rr);
-      g.addColorStop(0, 'hsla(' + o.hue + ',80%,70%,' + (alpha * 2.2) + ')');
-      g.addColorStop(0.4, 'hsla(' + o.hue + ',70%,60%,' + alpha + ')');
-      g.addColorStop(1, 'hsla(' + o.hue + ',60%,50%,0)');
-      ctx.beginPath();
-      ctx.arc(rx, ry, rr, 0, Math.PI * 2);
-      ctx.fillStyle = g;
-      ctx.fill();
+    /* — Aurora backdrop — */
+    orbs.forEach(function (o) {
+      o.x += o.vx; o.y += o.vy; o.ph += 0.005;
+      o.x = ((o.x % 1) + 1) % 1;
+      if (o.y <= 0.05 || o.y >= 0.95) o.vy = -o.vy;
+      o.y = Math.max(0.05, Math.min(0.95, o.y));
+      const a  = 0.018 + Math.sin(o.ph * 0.6) * 0.006;
+      const rx = o.x * W, ry = o.y * H, rr = o.r * Math.min(W, H);
+      const g  = ctx.createRadialGradient(rx, ry, 0, rx, ry, rr);
+      g.addColorStop(0, 'hsla(' + o.hue + ',80%,72%,' + (a * 3.0) + ')');
+      g.addColorStop(0.55, 'hsla(' + o.hue + ',68%,60%,' + a + ')');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.beginPath(); ctx.arc(rx, ry, rr, 0, Math.PI * 2);
+      ctx.fillStyle = g; ctx.fill();
     });
 
-    /* Data streams */
-    STREAMS.forEach(function (s) {
-      s.y -= s.speed;
-      if (s.y + s.length < 0) { s.y = 1 + s.length; s.x = Math.random(); }
-      const x = s.x * W;
-      const g = ctx.createLinearGradient(x, s.y * H, x, (s.y + s.length) * H);
-      g.addColorStop(0, 'rgba(255,255,255,0)');
-      g.addColorStop(0.4, 'rgba(120,200,255,' + s.alpha + ')');
-      g.addColorStop(1, 'rgba(255,255,255,0)');
-      ctx.beginPath();
-      ctx.moveTo(x, s.y * H);
-      ctx.lineTo(x, (s.y + s.length) * H);
-      ctx.strokeStyle = g;
-      ctx.lineWidth = s.width;
-      ctx.stroke();
+    /* — Update edge activity: decay semua, mark yang ada paket — */
+    for (const k in edgeAct) edgeAct[k] = Math.max(0, edgeAct[k] - 0.055);
+    pkts.forEach(function (pk) {
+      const k = Math.min(pk.from, pk.to) + ',' + Math.max(pk.from, pk.to);
+      edgeAct[k] = 1.0;
     });
 
-    /* Partikel mengambang */
-    PARTICLES.forEach(function (p) {
-      p.x += p.vx; p.y += p.vy; p.phase += 0.022;
-      if (p.y < -0.02) p.y = 1.02;
-      if (p.x < 0) p.x = 1;
-      if (p.x > 1) p.x = 0;
-      const a = p.alpha * (0.7 + Math.sin(p.phase) * 0.3);
-      ctx.beginPath();
-      ctx.arc(p.x * W, p.y * H, p.r, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(180,220,255,' + a + ')';
-      ctx.fill();
-    });
+    /* — Edges — */
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const ni = nodes[i], nj = nodes[j];
+        const dx = (ni.x - nj.x) * W, dy = (ni.y - nj.y) * H;
+        const d  = Math.sqrt(dx * dx + dy * dy);
+        if (d >= CDIST) continue;
 
-    /* Pulse rings */
-    for (let i = rings.length - 1; i >= 0; i--) {
-      const ring = rings[i];
-      ring.r += ring.speed;
-      ring.alpha -= ring.speed * 2.2;
-      if (ring.alpha <= 0) { rings.splice(i, 1); continue; }
-      ctx.beginPath();
-      ctx.arc(ring.x * W, ring.y * H, ring.r * Math.min(W, H), 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(150,210,255,' + ring.alpha + ')';
-      ctx.lineWidth = 1;
-      ctx.stroke();
+        const fade = Math.pow(1 - d / CDIST, 1.5);
+        const act  = edgeAct[i + ',' + j] || 0;
+
+        /* Garis dasar */
+        ctx.beginPath();
+        ctx.moveTo(ni.x * W, ni.y * H);
+        ctx.lineTo(nj.x * W, nj.y * H);
+        ctx.strokeStyle = act > 0.05
+          ? 'rgba(96,208,255,' + (fade * (0.14 + act * 0.20)) + ')'
+          : 'rgba(118,186,255,' + (fade * 0.13) + ')';
+        ctx.lineWidth = (ni.core || nj.core) ? 0.90 : 0.60;
+        ctx.setLineDash([]);
+        ctx.stroke();
+
+        /* Flowing dashes saat edge aktif — memberi kesan arus data */
+        if (act > 0.15) {
+          ctx.beginPath();
+          ctx.moveTo(ni.x * W, ni.y * H);
+          ctx.lineTo(nj.x * W, nj.y * H);
+          ctx.strokeStyle = 'rgba(180,232,255,' + (act * 0.28) + ')';
+          ctx.lineWidth   = 1.0;
+          ctx.setLineDash([4, 8]);
+          ctx.lineDashOffset = -(time * 42);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+      }
     }
+    ctx.setLineDash([]);
+
+    /* — Paket data + trail — */
+    for (let i = pkts.length - 1; i >= 0; i--) {
+      const pk = pkts[i];
+      pk.t += pk.spd;
+      if (pk.t >= 1) { nodes[pk.to].flash = 1.0; pkts.splice(i, 1); continue; }
+
+      const fr = nodes[pk.from], to = nodes[pk.to];
+      const edDx = (fr.x - to.x) * W, edDy = (fr.y - to.y) * H;
+      if (Math.sqrt(edDx * edDx + edDy * edDy) > CDIST * 1.1) { pkts.splice(i, 1); continue; }
+
+      const px = (fr.x + (to.x - fr.x) * pk.t) * W;
+      const py = (fr.y + (to.y - fr.y) * pk.t) * H;
+      const ea = Math.sin(pk.t * Math.PI); /* fade in/out */
+
+      /* Trail — 3 titik memudar di belakang */
+      for (let ti = 1; ti <= 3; ti++) {
+        const tt = Math.max(0, pk.t - ti * 0.045);
+        if (tt <= 0) continue;
+        const trx = (fr.x + (to.x - fr.x) * tt) * W;
+        const try_ = (fr.y + (to.y - fr.y) * tt) * H;
+        ctx.beginPath();
+        ctx.arc(trx, try_, pk.r * (0.55 - ti * 0.13), 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(155,228,255,' + (ea * 0.28 / ti) + ')';
+        ctx.fill();
+      }
+
+      /* Glow aura */
+      const g = ctx.createRadialGradient(px, py, 0, px, py, pk.r * 5.2);
+      g.addColorStop(0, 'rgba(138,214,255,' + (ea * 0.62) + ')');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.beginPath(); ctx.arc(px, py, pk.r * 5.2, 0, Math.PI * 2);
+      ctx.fillStyle = g; ctx.fill();
+
+      /* Titik inti */
+      ctx.beginPath(); ctx.arc(px, py, pk.r, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(218,244,255,' + (ea * 0.94) + ')';
+      ctx.fill();
+    }
+
+    /* — Node jaringan — */
+    nodes.forEach(function (n) {
+      n.x += n.vx; n.y += n.vy; n.ph += 0.013; n.rph += 0.019;
+      if (n.x < 0.04) { n.x = 0.04; n.vx =  Math.abs(n.vx); }
+      if (n.x > 0.96) { n.x = 0.96; n.vx = -Math.abs(n.vx); }
+      if (n.y < 0.08) { n.y = 0.08; n.vy =  Math.abs(n.vy); }
+      if (n.y > 0.92) { n.y = 0.92; n.vy = -Math.abs(n.vy); }
+      if (n.flash > 0) n.flash = Math.max(0, n.flash - 0.07);
+
+      const pulse = 1 + Math.sin(n.ph) * (n.core ? 0.18 : 0.10);
+      const a     = Math.min(1, n.a0 + n.flash * 0.28);
+      const nr    = n.r * pulse;
+      const nx    = n.x * W, ny = n.y * H;
+      const glowR = nr * (n.core ? 5.5 : 3.8);
+
+      /* Outer glow halo */
+      const glow = ctx.createRadialGradient(nx, ny, 0, nx, ny, glowR);
+      glow.addColorStop(0, 'rgba(106,200,255,' + (a * (n.core ? 0.46 : 0.24)) + ')');
+      glow.addColorStop(0.5, 'rgba(56,158,240,' + (a * (n.core ? 0.13 : 0.05)) + ')');
+      glow.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.beginPath(); ctx.arc(nx, ny, glowR, 0, Math.PI * 2);
+      ctx.fillStyle = glow; ctx.fill();
+
+      /* Cincin berdenyut untuk core node — tanda router utama */
+      if (n.core) {
+        const ringA = 0.10 + Math.sin(n.rph) * 0.06;
+        ctx.beginPath(); ctx.arc(nx, ny, nr * 2.2, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(118,212,255,' + (a * ringA) + ')';
+        ctx.lineWidth = 0.75;
+        ctx.stroke();
+      }
+
+      /* Badan node */
+      ctx.beginPath(); ctx.arc(nx, ny, nr, 0, Math.PI * 2);
+      ctx.fillStyle = n.core
+        ? 'rgba(164,226,255,' + a + ')'
+        : 'rgba(100,174,242,' + (a * 0.76) + ')';
+      ctx.fill();
+
+      /* Titik pusat terang — core node lebih jelas */
+      if (n.core) {
+        ctx.beginPath(); ctx.arc(nx, ny, nr * 0.38, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(232,250,255,' + (a * 0.84) + ')';
+        ctx.fill();
+      }
+    });
 
     requestAnimationFrame(draw);
   }
 
-  draw();
+  requestAnimationFrame(draw);
 }
 
 
@@ -446,16 +541,61 @@ function closePerangkatSheet() {
   document.body.style.overflow = '';
 }
 
+/* ══ Keuangan sheet (Tagihan / Loket / Notifikasi / Bayar Online) ══
+   Mekanisme identik dengan perangkat sheet, hanya beda id 'ksheet'. */
+function openKeuanganSheet(e) {
+  if (e) e.preventDefault();
+  const overlay = document.getElementById('ksheet-overlay');
+  const sheet   = document.getElementById('ksheet');
+  if (!sheet) return;
+
+  if (window.innerWidth >= 769) {
+    const trigger = e && e.currentTarget ? e.currentTarget : null;
+    if (trigger) {
+      const rect   = trigger.getBoundingClientRect();
+      const sheetW = 320;
+      let leftPos  = rect.left;
+      if (leftPos + sheetW > window.innerWidth - 12) {
+        leftPos = window.innerWidth - sheetW - 12;
+      }
+      sheet.style.left  = leftPos + 'px';
+      sheet.style.right = 'auto';
+    } else {
+      sheet.style.right = '32px';
+      sheet.style.left  = 'auto';
+    }
+    if (overlay) overlay.classList.remove('open');
+    document.body.style.overflow = '';
+  } else {
+    if (overlay) overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    sheet.style.left  = '';
+    sheet.style.right = '';
+  }
+  sheet.classList.add('open');
+}
+
+function closeKeuanganSheet() {
+  const overlay = document.getElementById('ksheet-overlay');
+  const sheet   = document.getElementById('ksheet');
+  if (overlay) overlay.classList.remove('open');
+  if (sheet)   sheet.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
 /* ── Tutup dropdown saat klik di luar (desktop) ── */
 document.addEventListener('click', function (e) {
-  const sheet = document.getElementById('psheet');
-  if (!sheet || !sheet.classList.contains('open')) return;
   if (window.innerWidth < 769) return; /* Mobile: overlay sudah handle */
-  /* Jika klik bukan di dalam sheet dan bukan di trigger Perangkat → tutup */
-  const trigger = e.target.closest('[onclick*="openPerangkatSheet"]');
-  if (!trigger && !sheet.contains(e.target)) {
-    closePerangkatSheet();
-  }
+  var sheets = [
+    { id: 'psheet', close: closePerangkatSheet, trig: 'openPerangkatSheet' },
+    { id: 'ksheet', close: closeKeuanganSheet, trig: 'openKeuanganSheet' },
+  ];
+  sheets.forEach(function (s) {
+    var sheet = document.getElementById(s.id);
+    if (!sheet || !sheet.classList.contains('open')) return;
+    var trigger = e.target.closest('[onclick*="' + s.trig + '"]');
+    if (!trigger && !sheet.contains(e.target)) s.close();
+  });
 });
 
 document.addEventListener('keydown', function (e) {
@@ -519,17 +659,19 @@ function parseRxTx(p) {
   const rxFormatted = rxVal !== null ? `${rxVal.toFixed(1)} dBm` : '—';
   const txFormatted = txVal !== null ? `${txVal.toFixed(1)} dBm` : '—';
 
-  /* ── 4. Tentukan class warna RX berdasarkan threshold OLT standar ──
-     null          : tidak ada data → rx-none (abu)
-     > -27 dBm     : sinyal bagus  → rx-ok   (hijau)
-     -27 ~ -30 dBm : peringatan    → rx-warn  (kuning)
-     < -30 dBm     : sinyal lemah  → rx-bad   (merah)
+  /* ── 4. Tentukan class warna RX berdasarkan klasifikasi redaman ──
+     null               : tidak ada data → rx-none   (abu)
+     > -8 dBm           : redaman buruk  → rx-buruk  (merah)   sinyal terlalu kuat
+     -8 dBm s/d -20 dBm : redaman bagus  → rx-bagus  (hijau)   inklusif keduanya
+     < -20 dBm s/d -26  : redaman sedang → rx-sedang (kuning)  inklusif -26
+     < -26 dBm          : redaman buruk  → rx-buruk  (merah)
   ── */
   let rxClass = 'rx-none';
   if (rxVal !== null) {
-    if      (rxVal < -30) rxClass = 'rx-bad';
-    else if (rxVal < -27) rxClass = 'rx-warn';
-    else                  rxClass = 'rx-ok';
+    if      (rxVal > -8)   rxClass = 'rx-buruk';   // terlalu kuat
+    else if (rxVal >= -20) rxClass = 'rx-bagus';   // -8 s/d -20 inklusif
+    else if (rxVal >= -26) rxClass = 'rx-sedang';  // -20 s/d -26 inklusif
+    else                   rxClass = 'rx-buruk';   // < -26
   }
 
   return { rx: rxVal, tx: txVal, rxFormatted, txFormatted, rxClass };
@@ -540,10 +682,11 @@ function parseRxTx(p) {
    15. getRxTxClass — alias ringkas
 ══════════════════════════════════════════════════════════ */
 function getRxTxClass(rxVal) {
-  if (rxVal === null) return '';
-  if (rxVal < -30)    return 'rx-bad';
-  if (rxVal < -27)    return 'rx-warn';
-  return 'rx-ok';
+  if (rxVal === null || rxVal === undefined) return 'rx-none';
+  if (rxVal > -8)   return 'rx-buruk';   // terlalu kuat
+  if (rxVal >= -20) return 'rx-bagus';   // -8 s/d -20 inklusif
+  if (rxVal >= -26) return 'rx-sedang';  // -20 s/d -26 inklusif
+  return 'rx-buruk';                     // < -26
 }
 
 
@@ -585,13 +728,127 @@ function closeModalForm() {
 
 
 /* ══════════════════════════════════════════════════════════
+   DETEKSI LOKASI (geolocation) — SATU fungsi untuk semua form
+   Mengisi input #f-koordinat dengan "lat, lng" dari GPS browser.
+
+   Catatan penting: browser HANYA mengizinkan geolocation pada
+   secure context (HTTPS) atau localhost/127.0.0.1. Pada http://IP
+   biasa, getCurrentPosition langsung gagal tanpa prompt izin.
+══════════════════════════════════════════════════════════ */
+function geoDetectKoordinat() {
+  const btn   = document.querySelector('.koordinat-btn');
+  const input = document.getElementById('f-koordinat');
+  const reset = function () {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-outlined">my_location</span> Deteksi'; }
+  };
+
+  /* 1. Cek secure context — penyebab paling umum gagal */
+  if (!window.isSecureContext) {
+    toast('Lokasi diblokir browser: situs harus diakses via HTTPS atau localhost (bukan http://IP). Akses lewat localhost atau pasang HTTPS.', 'danger');
+    return;
+  }
+  if (!navigator.geolocation) {
+    toast('Browser tidak mendukung geolokasi.', 'warning');
+    return;
+  }
+
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="material-symbols-outlined spin">refresh</span> Mendeteksi...'; }
+
+  navigator.geolocation.getCurrentPosition(
+    function (pos) {
+      const lat = pos.coords.latitude.toFixed(6);
+      const lng = pos.coords.longitude.toFixed(6);
+      if (input) input.value = lat + ', ' + lng;
+      /* panggil preview apa pun yang tersedia di halaman ini */
+      if (typeof previewKoordinat === 'function') previewKoordinat();
+      if (typeof previewKoordinatPelanggan === 'function') previewKoordinatPelanggan();
+      reset();
+      toast('Lokasi terdeteksi: ' + lat + ', ' + lng, 'success');
+    },
+    function (err) {
+      reset();
+      let msg;
+      if (err.code === 1)      msg = 'Akses lokasi ditolak. Klik ikon gembok di address bar → izinkan "Lokasi".';
+      else if (err.code === 2) msg = 'Lokasi tidak tersedia. Pastikan GPS/Wi-Fi aktif.';
+      else                     msg = 'Deteksi lokasi timeout. Coba lagi.';
+      toast(msg, 'danger');
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+  );
+}
+
+
+/* ══════════════════════════════════════════════════════════
    AUTO-INIT saat DOM siap
 ══════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', function () {
   initBottomNav();
   initHeaderCanvas();
   initDateBadge();
+
+  var _path = window.location.pathname;
+
+  /* Halaman yang boleh diakses tanpa login */
+  var _publicPages = ['/auth/', '/landing/', '/portal/', '/superadmin/'];
+  var _isPublic = _publicPages.some(function(p) { return _path.includes(p); });
+
+  /* ── Guard: belum login → paksa ke halaman login ── */
+  if (!_isPublic && !localStorage.getItem('tf_token')) {
+    var _returnUrl = encodeURIComponent(window.location.href);
+    window.location.replace('/app/frontend/auth/auth.html?next=' + _returnUrl);
+    return;
+  }
+
+  /* Superadmin yang nyasar ke halaman ISP → redirect ke panel superadmin */
+  if (!_isPublic && localStorage.getItem('tf_network_id') === '__superadmin__') {
+    if (!_path.includes('/superadmin/')) {
+      window.location.replace('/app/frontend/superadmin/superadmin.html');
+      return;
+    }
+  }
+
+  if (!_isPublic && localStorage.getItem('tf_token')) {
+    initProfileHeader();
+    initDropdownHeader();
+    applyRbacUi();
+    applyUIPermissions();
+    checkSubscriptionLock();
+  }
 });
+
+
+/* ══════════════════════════════════════════════════════════
+   CEK STATUS LANGGANAN — jika owner terkunci (trial habis /
+   langganan expired / suspended), arahkan ke halaman Langganan.
+   Halaman Langganan & Superadmin dikecualikan agar tidak loop.
+══════════════════════════════════════════════════════════ */
+function checkSubscriptionLock() {
+  var path = window.location.pathname;
+  /* Jangan cek di halaman langganan / superadmin / auth */
+  if (path.includes('/langganan/') || path.includes('/superadmin/') || path.includes('/auth/')) return;
+
+  var base = (typeof API_BASE !== 'undefined') ? API_BASE : '';
+  fetch(base + '/api/usage', { credentials: 'include' })
+    .then(function (r) {
+      if (r.status === 402) return { status: 'locked' };
+      return r.ok ? r.json() : null;
+    })
+    .then(function (d) {
+      if (!d) return;
+      if (d.status !== 'locked' && d.status !== 'suspended') return;
+
+      var role = localStorage.getItem('tf_role') || '';
+      if (role === 'owner') {
+        /* Owner → arahkan ke halaman Langganan untuk pilih/perpanjang paket */
+        if (typeof toast === 'function') toast('Masa trial / langganan berakhir. Mengarahkan ke Langganan…', 'warning');
+        setTimeout(function () { window.location.href = '/app/frontend/langganan/langganan.html'; }, 1200);
+      } else {
+        /* Anggota tim tidak bisa kelola langganan → beri info saja (tanpa redirect, hindari loop) */
+        if (typeof toast === 'function') toast('Workspace terkunci. Hubungi Owner untuk memperpanjang langganan.', 'danger');
+      }
+    })
+    .catch(function () { /* offline → abaikan */ });
+}
 
 /* ══════════════════════════════════════════════════════════
    18. getSession — ambil data user dari localStorage
@@ -718,8 +975,10 @@ function initProfileHeader() {
 ══════════════════════════════════════════════════════════ */
 function logout() {
   const keys = [
+    'technofix_user',   // ← key utama dari auth.js (sebelumnya tidak dihapus!)
     'tf_token', 'tf_user_id', 'tf_username',
     'tf_role', 'tf_network_id', 'tf_isp_name',
+    'tf_permissions',   // ← untuk applyUIPermissions()
   ];
   keys.forEach(function (k) { localStorage.removeItem(k); });
   window.location.href = '/app/frontend/auth/auth.html';
@@ -756,26 +1015,9 @@ function requireLogin(options) {
  
  
 /* ══════════════════════════════════════════════════════════
-   PATCH AUTO-INIT — tambahkan RBAC & profile ke initisasi
-   global yang sudah ada di bagian bawah global.js.
- 
-   CATATAN: Gantikan atau tambahkan baris berikut di dalam
-   blok DOMContentLoaded yang sudah ada:
-     initProfileHeader();
-     applyRbacUi();
- 
-   Atau jika ingin otomatis di setiap halaman, biarkan
-   kode ini berjalan sendiri:
+   RBAC & profile init sudah digabungkan ke blok DOMContentLoaded
+   tunggal di atas (bagian AUTO-INIT). Tidak perlu blok terpisah.
 ══════════════════════════════════════════════════════════ */
-document.addEventListener('DOMContentLoaded', function () {
-  /* Hanya jalankan RBAC jika ada sesi aktif (bukan di auth.html) */
-  const isAuthPage = window.location.pathname.includes('auth');
-  if (!isAuthPage && localStorage.getItem('tf_token')) {
-    initProfileHeader();
-    applyRbacUi();
-    applyUIPermissions();
-  }
-});
 
 /* ══════════════════════════════════════════════════════════
    24. initDropdownHeader — isi avatar + nama + badge role
@@ -932,14 +1174,9 @@ function applyToggleStyle(id, on) {
 
 
 /* ══════════════════════════════════════════════════════════
-   PATCH AUTO-INIT — tambahkan initDropdownHeader
+   initDropdownHeader sudah digabungkan ke blok DOMContentLoaded
+   tunggal di atas. Tidak perlu blok terpisah.
 ══════════════════════════════════════════════════════════ */
-document.addEventListener('DOMContentLoaded', function () {
-  const isAuthPage = window.location.pathname.includes('auth');
-  if (!isAuthPage && localStorage.getItem('tf_token')) {
-    initDropdownHeader();
-  }
-});
 
 /* ══════════════════════════════════════════════════════════
    applyUIPermissions() — kontrol visibilitas menu per user
@@ -984,18 +1221,57 @@ function applyUIPermissions() {
     }
   });
 
-  /* Guard halaman — redirect jika tidak punya izin */
+  /* Menu profil (tanpa data-perm) — gating berdasarkan href:
+     - Manajemen User → owner + admin (punya perm 'manajemen_user')
+     - Langganan       → owner saja (punya perm 'langganan') */
+  if (!isOwner) {
+    document.querySelectorAll('a[href*="manajemen_user"]').forEach(function (el) {
+      el.style.display = permissions.includes('manajemen_user') ? '' : 'none';
+    });
+    document.querySelectorAll('a[href*="langganan"]').forEach(function (el) {
+      el.style.display = permissions.includes('langganan') ? '' : 'none';
+    });
+  }
+
+  /* Guard halaman — redirect jika peran tidak punya izin halaman ini.
+     Token selaras dengan roles.py: perangkat, maps, keuangan,
+     manajemen_user, langganan. */
   if (!isOwner) {
     var PAGE_PERM_MAP = {
-      '/keuangan/':  'keuangan',
-      '/maps/':      'maps',
-      '/olt/':       'olt',
-      '/mikrotik/':  'mikrotik',
+      '/keuangan/':         'keuangan',
+      '/tagihan/':          'keuangan',
+      '/loket/':            'bayar',
+      '/notifikasi/':       'pelanggan',
+      '/pembayaran/':       'bayar',
+      '/genieacs/':         'perangkat',
+      '/maps/':             'maps',
+      '/input_perangkat/':  'perangkat',
+      '/manajemen_user/':   'manajemen_user',
+      '/langganan/':        'langganan',
     };
+    /* Permission kolektor dari roles.py mungkin belum ada di localStorage
+       user lama — inject secara dinamis berdasarkan role dan simpan ke localStorage */
+    if (role === 'kolektor') {
+      var kolPerms = ['pelanggan', 'bayar', 'maps'];
+      var updated = false;
+      kolPerms.forEach(function(p) {
+        if (!permissions.includes(p)) { permissions.push(p); updated = true; }
+      });
+      if (updated) {
+        try { localStorage.setItem('tf_permissions', JSON.stringify(permissions)); } catch(_) {}
+      }
+    }
+    // Owner/admin: pastikan perangkat_manage ada
+    if (role === 'owner' || role === 'admin') {
+      if (!permissions.includes('perangkat_manage')) {
+        permissions.push('perangkat_manage');
+        try { localStorage.setItem('tf_permissions', JSON.stringify(permissions)); } catch(_) {}
+      }
+    }
     var path = window.location.pathname;
     for (var pagePath in PAGE_PERM_MAP) {
       if (path.includes(pagePath) && !permissions.includes(PAGE_PERM_MAP[pagePath])) {
-        if (typeof toast === 'function') toast('Akses ditolak.', 'danger');
+        if (typeof toast === 'function') toast('Akses ditolak untuk peran Anda.', 'danger');
         setTimeout(function () {
           window.location.href = '/app/frontend/dashboard/dashboard.html';
         }, 1200);
@@ -1014,3 +1290,38 @@ function savePermissions(permissions) {
 
 window.applyUIPermissions = applyUIPermissions;
 window.savePermissions    = savePermissions;
+/* ══════════════════════════════════════════════════════════
+   DARK MODE
+══════════════════════════════════════════════════════════ */
+(function() {
+  // Halaman auth, landing, portal, superadmin → selalu light mode
+  var _noThemePaths = ['/auth/', '/landing/', '/portal/', '/superadmin/'];
+  var _pathNow = window.location.pathname;
+  if (_noThemePaths.some(function(p){ return _pathNow.includes(p); })) return;
+  var saved = localStorage.getItem('tf_theme') || 'light';
+  document.documentElement.setAttribute('data-theme', saved);
+})();
+
+function toggleDarkMode() {
+  var cur  = document.documentElement.getAttribute('data-theme') || 'light';
+  var next = cur === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('tf_theme', next);
+  document.querySelectorAll('.dark-toggle-input').forEach(function(el) {
+    el.checked = (next === 'dark');
+  });
+  var icon = document.getElementById('dark-mode-icon');
+  if (icon) icon.textContent = next === 'dark' ? 'light_mode' : 'dark_mode';
+}
+
+window.toggleDarkMode = toggleDarkMode;
+
+/* Sync toggle on DOM ready */
+document.addEventListener('DOMContentLoaded', function() {
+  var cur = localStorage.getItem('tf_theme') || 'light';
+  document.querySelectorAll('.dark-toggle-input').forEach(function(el) {
+    el.checked = (cur === 'dark');
+  });
+  var icon = document.getElementById('dark-mode-icon');
+  if (icon) icon.textContent = cur === 'dark' ? 'light_mode' : 'dark_mode';
+});

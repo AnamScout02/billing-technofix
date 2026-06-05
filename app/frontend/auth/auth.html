@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 
 <head>
@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
-    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Poppins:wght@400;500;600&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Poppins:wght@400;500;600&display=swap"
     rel="stylesheet" />
 
   <!-- Material Icons -->
@@ -18,85 +18,290 @@
     rel="stylesheet" />
 
   <!-- global.css wajib di-load PERTAMA -->
-  <link rel="stylesheet" href="/app/frontend/statis/global.css" />
+  <link rel="stylesheet" href="/app/frontend/statis/global.css?v=22" />
 
   <style>
     /* ══════════════════════════════════════════════════════════
-       AUTH PAGE — layout khusus, tidak pakai header/navbar
-       Semua style menggunakan token dari global.css
+       AUTH PAGE v2 — Split layout, professional & on-brand
     ══════════════════════════════════════════════════════════ */
+
+    html {
+      overflow-x: hidden;
+    }
 
     body {
       min-height: 100vh;
       display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 24px 16px;
+      align-items: stretch;
+      padding: 0;
+      background: var(--page-bg);
+      overflow-x: hidden;
     }
 
-    /* ── Kartu Auth Terpusat ── */
-    .auth-wrap {
+    /* ── LAYOUT SPLIT ────────────────────────────────────── */
+    .auth-layout {
+      display: flex;
       width: 100%;
-      max-width: 440px;
+      min-height: 100vh;
+      max-width: 100vw;
+      overflow-x: hidden;
     }
 
-    /* ── Brand di atas kartu ── */
-    .auth-brand {
+    /* ── PANEL KIRI: Branding / Visual ── */
+    .auth-left {
+      flex: 0 0 46%;
+      background: linear-gradient(150deg, #002a70 0%, #0040a1 45%, #0059d6 100%);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 40px 44px;
+      overflow: hidden;
+    }
+
+    /* Noise texture overlay */
+    .auth-left::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+      opacity: 0.4;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Decorative orbs */
+    .auth-left-orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(60px);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .auth-left-orb.orb-1 {
+      width: 320px; height: 320px;
+      background: rgba(0, 174, 239, 0.18);
+      top: -80px; right: -60px;
+    }
+    .auth-left-orb.orb-2 {
+      width: 240px; height: 240px;
+      background: rgba(79, 70, 229, 0.18);
+      bottom: 60px; left: -80px;
+    }
+    .auth-left-orb.orb-3 {
+      width: 160px; height: 160px;
+      background: rgba(255, 255, 255, 0.06);
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    /* ── Brand top ── */
+    .left-brand {
+      position: relative;
+      z-index: 1;
       display: flex;
       align-items: center;
-      gap: 12px;
-      justify-content: center;
-      margin-bottom: 28px;
+      gap: 14px;
+      animation: fadeSlideDown .5s ease both;
     }
 
-    .auth-brand-logo {
-      width: 48px;
-      height: 48px;
-      border-radius: 14px;
-      background: var(--primary);
+    .left-brand-logo {
+      width: 52px;
+      height: 52px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      backdrop-filter: blur(8px);
       display: flex;
       align-items: center;
       justify-content: center;
       color: #fff;
-      box-shadow: 0 4px 16px rgba(0, 64, 161, .35);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255,255,255,.2);
     }
 
-    .auth-brand-logo .material-symbols-outlined {
-      font-size: 26px;
-    }
+    .left-brand-logo .material-symbols-outlined { font-size: 28px; }
 
-    .auth-brand-text .brand-name {
-      font-size: 20px;
+    .left-brand-text .brand-name {
+      font-size: 22px;
       font-weight: 800;
       font-family: var(--heading);
-      color: var(--text);
-      letter-spacing: -.03em;
+      color: #fff;
+      letter-spacing: -.04em;
+      line-height: 1;
     }
 
-    .auth-brand-text .brand-sub {
+    .left-brand-text .brand-tagline {
       font-size: 12px;
+      color: rgba(255, 255, 255, 0.6);
+      margin-top: 3px;
+      font-weight: 500;
+      letter-spacing: .01em;
+    }
+
+    /* ── Network Canvas ── */
+    .left-visual {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+    }
+
+    #network-canvas {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* ── Center copy ── */
+    .left-copy {
+      position: relative;
+      z-index: 1;
+      animation: fadeSlideUp .6s .2s ease both;
+    }
+
+    .left-copy-headline {
+      font-size: 30px;
+      font-weight: 800;
+      font-family: var(--heading);
+      color: #fff;
+      letter-spacing: -.04em;
+      line-height: 1.25;
+      margin-bottom: 14px;
+    }
+
+    .left-copy-headline em {
+      font-style: normal;
+      color: #00aeef;
+    }
+
+    .left-copy-body {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.65);
+      line-height: 1.7;
+      max-width: 300px;
+    }
+
+    /* ── Feature pills ── */
+    .left-pills {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 28px;
+    }
+
+    .left-pill {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 10px;
+      padding: 10px 14px;
+      backdrop-filter: blur(4px);
+      animation: fadeSlideUp .5s ease both;
+    }
+
+    .left-pill:nth-child(1) { animation-delay: .35s; }
+    .left-pill:nth-child(2) { animation-delay: .45s; }
+    .left-pill:nth-child(3) { animation-delay: .55s; }
+
+    .left-pill .material-symbols-outlined {
+      font-size: 18px;
+      color: #00aeef;
+      flex-shrink: 0;
+    }
+
+    .left-pill-text {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.82);
+      font-weight: 500;
+      font-family: var(--sans);
+    }
+
+    /* ── Footer left ── */
+    .left-footer {
+      position: relative;
+      z-index: 1;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.35);
+      animation: fadeIn .8s .6s ease both;
+    }
+
+    /* ── PANEL KANAN: Form ── */
+    .auth-right {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 40px;
+      overflow-y: auto;
+      background: #fff;
+      position: relative;
+    }
+
+    .auth-right::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background:
+        radial-gradient(circle at 90% 10%, rgba(0, 64, 161, .04) 0%, transparent 50%),
+        radial-gradient(circle at 10% 90%, rgba(0, 174, 239, .04) 0%, transparent 50%);
+      pointer-events: none;
+    }
+
+    .auth-form-wrap {
+      width: 100%;
+      max-width: 400px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ── Form header ── */
+    .auth-form-header {
+      margin-bottom: 32px;
+      animation: fadeSlideDown .4s ease both;
+    }
+
+    .auth-form-greeting {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--primary);
+      margin-bottom: 6px;
+      font-family: var(--sans);
+    }
+
+    .auth-form-title {
+      font-size: 26px;
+      font-weight: 800;
+      font-family: var(--heading);
+      color: #0f1e3d;
+      letter-spacing: -.04em;
+      line-height: 1.2;
+      margin-bottom: 8px;
+    }
+
+    .auth-form-sub {
+      font-size: 13.5px;
       color: var(--text-dim);
+      line-height: 1.6;
     }
 
-    /* ── Kartu utama ── */
-    .auth-card {
-      background: var(--bg);
-      border: 1.5px solid var(--border);
-      border-radius: var(--r-xl);
-      box-shadow: var(--shadow-lg);
-      overflow: hidden;
-    }
-
-    /* ── Tab toggle: Login / Daftar ISP ── */
+    /* ── Tab toggle ── */
     .auth-tabs {
       display: flex;
-      border-bottom: 1px solid var(--border);
+      gap: 4px;
+      padding: 4px;
       background: var(--surface);
+      border-radius: var(--r-md);
+      margin-bottom: 28px;
+      animation: fadeSlideDown .4s .05s ease both;
     }
 
     .auth-tab {
       flex: 1;
-      padding: 14px 16px;
+      padding: 10px 14px;
       font-size: 13px;
       font-weight: 600;
       font-family: var(--sans);
@@ -108,66 +313,50 @@
       align-items: center;
       justify-content: center;
       gap: 7px;
-      transition: color .15s, background .15s;
-      border-bottom: 2px solid transparent;
-      margin-bottom: -1px;
+      transition: color .2s, background .2s, box-shadow .2s;
+      border-radius: calc(var(--r-md) - 2px);
     }
 
-    .auth-tab .material-symbols-outlined {
-      font-size: 17px;
-    }
+    .auth-tab .material-symbols-outlined { font-size: 17px; }
 
     .auth-tab.active {
       color: var(--primary);
-      background: var(--bg);
-      border-bottom-color: var(--primary);
+      background: #fff;
+      box-shadow: 0 1px 6px rgba(0, 64, 161, .14), 0 0 0 1px rgba(0, 64, 161, .08);
     }
 
     .auth-tab:hover:not(.active) {
       color: var(--text-muted);
-      background: var(--surface-2);
     }
 
-    /* ── Body form ── */
-    .auth-body {
-      padding: 28px 28px 24px;
-    }
-
-    .auth-form-title {
-      font-size: 17px;
-      font-weight: 800;
-      font-family: var(--heading);
-      color: var(--text);
-      letter-spacing: -.03em;
-      margin-bottom: 4px;
-    }
-
-    .auth-form-sub {
-      font-size: 12.5px;
-      color: var(--text-muted);
-      margin-bottom: 22px;
-      line-height: 1.6;
-    }
-
-    /* ── Panel: hanya satu yang tampil ── */
-    .auth-panel {
-      display: none;
-    }
-
+    /* ── Panel visibility ── */
+    .auth-panel { display: none; }
     .auth-panel.active {
       display: block;
-      animation: fadeIn .2s ease;
+      animation: panelIn .25s ease both;
     }
 
-    /* ── Tombol submit full-width ── */
+    @keyframes panelIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Form fields ── */
+    .auth-fields {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* ── Submit button ── */
     .btn-auth {
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 8px;
       width: 100%;
-      padding: 12px 20px;
-      background: var(--primary);
+      padding: 13px 20px;
+      background: linear-gradient(135deg, #0040a1 0%, #0059d6 100%);
       color: #fff;
       border: none;
       border-radius: var(--r-md);
@@ -175,52 +364,80 @@
       font-weight: 700;
       font-family: var(--sans);
       cursor: pointer;
-      box-shadow: 0 2px 10px rgba(0, 64, 161, .30);
-      transition: background .15s, box-shadow .15s, transform .1s;
-      margin-top: 20px;
+      box-shadow: 0 2px 12px rgba(0, 64, 161, .35), 0 1px 3px rgba(0, 64, 161, .2);
+      transition: transform .15s, box-shadow .15s, background .15s;
+      margin-top: 22px;
+      letter-spacing: .01em;
+      position: relative;
+      overflow: hidden;
     }
 
-    .btn-auth .material-symbols-outlined {
-      font-size: 18px;
+    .btn-auth::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, rgba(255,255,255,.12) 0%, transparent 100%);
+      pointer-events: none;
     }
+
+    .btn-auth .material-symbols-outlined { font-size: 18px; }
 
     .btn-auth:hover {
-      background: var(--primary-dark);
-      box-shadow: 0 4px 16px rgba(0, 64, 161, .40);
+      background: linear-gradient(135deg, #003080 0%, #0040a1 100%);
+      box-shadow: 0 6px 20px rgba(0, 64, 161, .45), 0 2px 6px rgba(0, 64, 161, .25);
+      transform: translateY(-1px);
     }
 
     .btn-auth:active {
-      transform: scale(.98);
+      transform: scale(.98) translateY(0);
+      box-shadow: 0 2px 8px rgba(0, 64, 161, .30);
     }
 
     .btn-auth:disabled {
-      opacity: .6;
+      opacity: .65;
       cursor: not-allowed;
+      transform: none;
     }
 
-    /* ── Pesan error/sukses ── */
+    /* Loading state */
+    .btn-spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, .35);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      display: none;
+      flex-shrink: 0;
+    }
+
+    .btn-auth.loading .btn-spinner { display: block; }
+    .btn-auth.loading .btn-label { display: none; }
+
+    /* ── Alert ── */
     .auth-alert {
       display: none;
-      padding: 10px 14px;
+      padding: 11px 14px;
       border-radius: var(--r-sm);
-      font-size: 12.5px;
-      font-weight: 600;
-      margin-bottom: 16px;
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 18px;
       border: 1px solid;
-      gap: 8px;
+      gap: 9px;
       align-items: flex-start;
+      line-height: 1.5;
     }
 
-    .auth-alert.show {
-      display: flex;
-    }
+    .auth-alert.show { display: flex; }
 
     .auth-alert .material-symbols-outlined {
-      font-size: 16px;
+      font-size: 17px;
       flex-shrink: 0;
       margin-top: 1px;
     }
 
+    /* auth.js memanggil class 'error' maupun 'danger' — dukung keduanya */
+    .auth-alert.error,
     .auth-alert.danger {
       background: var(--red-bg);
       color: var(--red);
@@ -239,6 +456,33 @@
       border-color: var(--blue-border);
     }
 
+    /* ── Info box (register) ── */
+    .role-info-box {
+      background: var(--primary-light);
+      border: 1px solid rgba(0, 64, 161, .15);
+      border-radius: var(--r-md);
+      padding: 12px 14px;
+      margin-bottom: 18px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .role-info-box .material-symbols-outlined {
+      font-size: 17px;
+      color: var(--primary);
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .role-info-box p {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .role-info-box strong { color: var(--text); }
+
     /* ── Divider ── */
     .auth-divider {
       display: flex;
@@ -256,19 +500,19 @@
     }
 
     .auth-divider span {
-      font-size: 11px;
+      font-size: 11.5px;
       color: var(--text-dim);
       font-weight: 600;
       white-space: nowrap;
     }
 
-    /* ── Catatan info di bawah kartu ── */
+    /* ── Note / link ── */
     .auth-note {
       text-align: center;
-      margin-top: 18px;
-      font-size: 12px;
+      margin-top: 14px;
+      font-size: 12.5px;
       color: var(--text-dim);
-      line-height: 1.6;
+      line-height: 1.7;
     }
 
     .auth-note a {
@@ -277,83 +521,99 @@
       text-decoration: none;
     }
 
-    .auth-note a:hover {
-      text-decoration: underline;
-    }
+    .auth-note a:hover { text-decoration: underline; }
 
-    /* ── Badge role info ── */
-    .role-info-box {
-      background: var(--primary-light);
-      border: 1px solid rgba(0, 64, 161, .15);
-      border-radius: var(--r-md);
-      padding: 12px 14px;
-      margin-bottom: 18px;
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-    }
-
-    .role-info-box .material-symbols-outlined {
-      font-size: 18px;
-      color: var(--primary);
-      flex-shrink: 0;
-      margin-top: 1px;
-    }
-
-    .role-info-box p {
-      font-size: 12px;
-      color: var(--text-muted);
-      line-height: 1.6;
-    }
-
-    .role-info-box strong {
-      color: var(--text);
-    }
-
-    /* ── Spinner di dalam tombol ── */
-    .btn-spinner {
-      width: 16px;
-      height: 16px;
-      border: 2px solid rgba(255, 255, 255, .4);
-      border-top-color: #fff;
-      border-radius: 50%;
-      animation: spin .7s linear infinite;
-      display: none;
-    }
-
-    .btn-auth.loading .btn-spinner {
-      display: block;
-    }
-
-    .btn-auth.loading .btn-label {
-      display: none;
-    }
-
-    /* ── Form group spacing ── */
-    .auth-fields {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-
-    /* ── Footer versi ── */
+    /* ── Versi footer ── */
     .auth-ver {
-      text-align: center;
-      margin-top: 28px;
+      margin-top: 32px;
       font-size: 11px;
-      color: var(--text-dim);
-      opacity: .7;
+      color: #b0bed4;
+      text-align: center;
     }
 
-    /* Responsive */
-    @media (max-width: 480px) {
-      .auth-body {
-        padding: 22px 20px 20px;
+    /* ── Animasi global ── */
+    @keyframes fadeSlideDown {
+      from { opacity: 0; transform: translateY(-12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fadeSlideUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ══════════════════════════════════════════════════════
+       RESPONSIVE
+    ══════════════════════════════════════════════════════ */
+
+    /* Tablet: sembunyikan panel kiri sebagian */
+    @media (max-width: 900px) {
+      .auth-left {
+        flex: 0 0 38%;
+        padding: 32px 32px;
       }
 
-      .auth-brand {
-        margin-bottom: 22px;
+      .left-copy-headline { font-size: 24px; }
+      .left-pills { display: none; }
+    }
+
+    /* Mobile: layout stacked */
+    @media (max-width: 640px) {
+      body {
+        overflow-x: hidden;
+        overflow-y: auto;
       }
+
+      .auth-layout {
+        flex-direction: column;
+        min-height: 100vh;
+        width: 100%;
+        overflow-x: hidden;
+      }
+
+      .auth-left {
+        flex: none;
+        width: 100%;
+        padding: 28px 24px 32px;
+        min-height: auto;
+        overflow: hidden;
+      }
+
+      .left-copy { display: none; }
+
+      .auth-left-orb.orb-1 {
+        width: 160px; height: 160px;
+        top: -40px; right: -20px;
+        filter: blur(50px);
+      }
+      .auth-left-orb.orb-2 { display: none; }
+      .auth-left-orb.orb-3 { display: none; }
+
+      .auth-right {
+        flex: 1;
+        width: 100%;
+        padding: 32px 24px;
+        justify-content: flex-start;
+        overflow-x: hidden;
+      }
+
+      .auth-form-wrap {
+        width: 100%;
+        max-width: 100%;
+      }
+
+      .auth-form-title { font-size: 22px; }
+
+      .left-footer { display: none; }
     }
   </style>
 </head>
@@ -363,44 +623,80 @@
   <!-- ══ TOAST ══ -->
   <div id="toast"></div>
 
-  <!-- ══ AUTH WRAP ══ -->
-  <div class="auth-wrap">
+  <div class="auth-layout">
 
-    <!-- Brand -->
-    <div class="auth-brand">
-      <div class="auth-brand-logo">
-        <span class="material-symbols-outlined">router</span>
+    <!-- ══ PANEL KIRI ══ -->
+    <div class="auth-left">
+      <div class="auth-left-orb orb-1"></div>
+      <div class="auth-left-orb orb-2"></div>
+      <div class="auth-left-orb orb-3"></div>
+
+      <!-- Animated network canvas -->
+      <div class="left-visual">
+        <canvas id="network-canvas"></canvas>
       </div>
-      <div class="auth-brand-text">
-        <div class="brand-name">TechnoFix</div>
-        <div class="brand-sub">Billing & Monitoring ISP</div>
+
+      <!-- Brand -->
+      <div class="left-brand">
+        <div class="left-brand-logo"><img src="/app/frontend/statis/technofixlogo.png" alt="TechnoFix" style="width:36px;height:36px;object-fit:contain;border-radius:8px"></div>
+        <div class="left-brand-text">
+          <div class="brand-name">TechnoFix</div>
+          <div class="brand-tagline">Billing & Monitoring ISP</div>
+        </div>
       </div>
+
+      <!-- Copy -->
+      <div class="left-copy">
+        <div class="left-copy-headline">Kelola jaringan ISP<br />lebih <em>cerdas</em> &amp; efisien</div>
+        <div class="left-copy-body">
+          Platform terintegrasi untuk monitoring pelanggan, penagihan, dan manajemen tim teknisi Anda.
+        </div>
+
+        <div class="left-pills">
+          <div class="left-pill">
+            <span class="material-symbols-outlined">monitoring</span>
+            <span class="left-pill-text">Monitoring perangkat real-time</span>
+          </div>
+          <div class="left-pill">
+            <span class="material-symbols-outlined">receipt_long</span>
+            <span class="left-pill-text">Tagihan otomatis &amp; laporan keuangan</span>
+          </div>
+          <div class="left-pill">
+            <span class="material-symbols-outlined">groups</span>
+            <span class="left-pill-text">Manajemen tim Owner &amp; Teknisi</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="left-footer">TechnoFix Billing System &nbsp;·&nbsp; v2.0</div>
     </div>
 
-    <!-- Kartu Auth -->
-    <div class="auth-card">
+    <!-- ══ PANEL KANAN ══ -->
+    <div class="auth-right">
+      <div class="auth-form-wrap">
 
-      <!-- Tab -->
-      <div class="auth-tabs">
-        <button class="auth-tab active" id="tab-login" onclick="switchTab('login')">
-          <span class="material-symbols-outlined">login</span>
-          Masuk
-        </button>
-        <button class="auth-tab" id="tab-register" onclick="switchTab('register')">
-          <span class="material-symbols-outlined">add_business</span>
-          Daftarkan ISP
-        </button>
-      </div>
+        <!-- Header -->
+        <div class="auth-form-header">
+          <div class="auth-form-greeting">Portal Masuk</div>
+          <div class="auth-form-title" id="form-title">Selamat Datang Kembali</div>
+          <div class="auth-form-sub" id="form-sub">Login untuk Owner maupun Teknisi yang sudah memiliki akun.</div>
+        </div>
 
-      <!-- Body -->
-      <div class="auth-body">
+        <!-- Tabs -->
+        <div class="auth-tabs">
+          <button class="auth-tab active" id="tab-login" onclick="switchTab('login')" aria-selected="true">
+            <span class="material-symbols-outlined">login</span>
+            Masuk
+          </button>
+          <button class="auth-tab" id="tab-register" onclick="switchTab('register')" aria-selected="false">
+            <span class="material-symbols-outlined">add_business</span>
+            Daftarkan ISP
+          </button>
+        </div>
 
         <!-- ── PANEL LOGIN ── -->
         <div class="auth-panel active" id="panel-login">
-          <div class="auth-form-title">Selamat Datang Kembali</div>
-          <div class="auth-form-sub">Login untuk Owner maupun Teknisi yang sudah memiliki akun.</div>
-
-          <!-- Alert -->
           <div class="auth-alert" id="alert-login">
             <span class="material-symbols-outlined">error</span>
             <span id="alert-login-msg"></span>
@@ -435,94 +731,88 @@
 
           <div class="auth-divider"><span>Belum punya akun?</span></div>
           <div class="auth-note">
-            Jika Anda ISP baru, <a href="#" onclick="switchTab('register');return false;">daftarkan ISP Anda</a>
-            terlebih dahulu.<br />
+            ISP baru? <a href="#" onclick="switchTab('register');return false;">Daftarkan ISP Anda</a> terlebih dahulu.<br />
             Teknisi dapat meminta akun kepada Owner melalui menu <strong>Manajemen Tim</strong>.
           </div>
         </div>
 
         <!-- ── PANEL DAFTAR ISP ── -->
         <div class="auth-panel" id="panel-register">
-          <div class="auth-form-title">Daftarkan ISP Anda</div>
-          <div class="auth-form-sub">Buat akun Owner baru untuk jaringan ISP Anda. Setiap ISP mendapat workspace
-            terpisah yang aman.</div>
-
           <div class="role-info-box">
             <span class="material-symbols-outlined">info</span>
-            <p><strong>Khusus Owner ISP.</strong> Registrasi ini akan membuat akun <em>Owner</em> dan workspace
-              jaringan baru (<code>network_id</code> unik). Akun Teknisi hanya bisa ditambahkan oleh Owner melalui
-              menu <strong>Manajemen Tim</strong> setelah login.</p>
+            <p><strong>Khusus Owner ISP.</strong> Registrasi ini membuat akun <em>Owner</em> dan workspace jaringan baru.
+              Akun Teknisi hanya bisa ditambahkan Owner melalui <strong>Manajemen Tim</strong>.</p>
           </div>
 
-          <!-- Alert -->
           <div class="auth-alert" id="alert-register">
             <span class="material-symbols-outlined">error</span>
             <span id="alert-register-msg"></span>
           </div>
 
-          <div class="auth-fields">
-            <div class="form-group">
-              <label class="form-label" for="reg-isp-name">Nama ISP / Jaringan <span class="req">*</span></label>
-              <input type="text" class="form-input" id="reg-isp-name" placeholder="Contoh: ISP Maju Jaya" />
-            </div>
+          <!-- form tag agar auth.js bisa memanggil .reset() -->
+          <form id="form-register" onsubmit="submitRegister(); return false;">
+            <div class="auth-fields">
+              <div class="form-group">
+                <label class="form-label" for="reg-isp-name">Nama ISP / Jaringan <span class="req">*</span></label>
+                <input type="text" class="form-input" id="reg-isp-name" placeholder="Contoh: ISP Maju Jaya" />
+              </div>
 
-            <div class="form-group">
-              <label class="form-label" for="reg-username">Username Owner <span class="req">*</span></label>
-              <input type="text" class="form-input" id="reg-username" placeholder="Huruf kecil, tanpa spasi"
-                autocapitalize="none" autocomplete="new-username" />
-              <div class="form-hint">Dipakai untuk login. Tidak bisa diubah setelah terdaftar.</div>
-            </div>
+              <div class="form-group">
+                <label class="form-label" for="reg-username">Username Owner <span class="req">*</span></label>
+                <input type="text" class="form-input" id="reg-username" placeholder="Huruf kecil, tanpa spasi"
+                  autocapitalize="none" autocomplete="new-username" />
+                <div class="form-hint">Dipakai untuk login. Tidak bisa diubah setelah terdaftar.</div>
+              </div>
 
-            <div class="form-group">
-              <label class="form-label" for="reg-password">Password <span class="req">*</span></label>
-              <div class="form-pwd-wrap">
-                <input type="password" class="form-input" id="reg-password" placeholder="Min. 8 karakter"
-                  autocomplete="new-password" />
-                <button type="button" class="form-pwd-toggle" onclick="togglePwdField('reg-password', this)"
-                  title="Tampilkan/sembunyikan password">
-                  <span class="material-symbols-outlined">visibility</span>
-                </button>
+              <div class="form-group">
+                <label class="form-label" for="reg-password">Password <span class="req">*</span></label>
+                <div class="form-pwd-wrap">
+                  <input type="password" class="form-input" id="reg-password" placeholder="Min. 8 karakter"
+                    autocomplete="new-password" />
+                  <button type="button" class="form-pwd-toggle" onclick="togglePwdField('reg-password', this)"
+                    title="Tampilkan/sembunyikan password">
+                    <span class="material-symbols-outlined">visibility</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="reg-password-confirm">Konfirmasi Password <span class="req">*</span></label>
+                <div class="form-pwd-wrap">
+                  <input type="password" class="form-input" id="reg-password-confirm" placeholder="Ulangi password"
+                    autocomplete="new-password" />
+                  <button type="button" class="form-pwd-toggle"
+                    onclick="togglePwdField('reg-password-confirm', this)" title="Tampilkan/sembunyikan password">
+                    <span class="material-symbols-outlined">visibility</span>
+                  </button>
+                </div>
               </div>
             </div>
 
-            <div class="form-group">
-              <label class="form-label" for="reg-password-confirm">Konfirmasi Password <span
-                  class="req">*</span></label>
-              <div class="form-pwd-wrap">
-                <input type="password" class="form-input" id="reg-password-confirm" placeholder="Ulangi password"
-                  autocomplete="new-password" />
-                <button type="button" class="form-pwd-toggle"
-                  onclick="togglePwdField('reg-password-confirm', this)" title="Tampilkan/sembunyikan password">
-                  <span class="material-symbols-outlined">visibility</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <button class="btn-auth" id="btn-register" onclick="submitRegister()">
-            <span class="btn-spinner"></span>
-            <span class="btn-label" style="display:flex;align-items:center;gap:7px;">
-              <span class="material-symbols-outlined">add_business</span>Daftarkan ISP Saya
-            </span>
-          </button>
+            <button type="submit" class="btn-auth" id="btn-register">
+              <span class="btn-spinner"></span>
+              <span class="btn-label" style="display:flex;align-items:center;gap:7px;">
+                <span class="material-symbols-outlined">add_business</span>Daftarkan ISP Saya
+              </span>
+            </button>
+          </form>
 
           <div class="auth-note" style="margin-top:16px;">
             Sudah punya akun? <a href="#" onclick="switchTab('login');return false;">Masuk di sini</a>
           </div>
         </div>
 
+        <div class="auth-ver">© 2025 TechnoFix &nbsp;·&nbsp; Billing & Monitoring ISP</div>
       </div>
     </div>
-
-    <div class="auth-ver">TechnoFix Billing System &nbsp;·&nbsp; v2.0</div>
   </div>
 
-  <!-- global.js PERTAMA -->
-  <script src="/app/frontend/statis/global.js"></script>
-  <!-- auth.js -->
-  <script src="/app/frontend/statis/auth.js"></script>
+  <!-- Scripts -->
+  <script src="/app/frontend/statis/global.js?v=21"></script>
+  <script src="/app/frontend/statis/auth.js?v=2"></script>
+
   <script>
-    /* togglePwdField — alias untuk togglePassword di auth.js */
+    /* ── Toggle password helper ── */
     function togglePwdField(inputId, btn) {
       const input = document.getElementById(inputId);
       const icon  = btn ? btn.querySelector('.material-symbols-outlined') : null;
@@ -535,8 +825,153 @@
         if (icon) icon.textContent = 'visibility';
       }
     }
+
+    /* ── Enter key → submit aktif ── */
+    document.addEventListener('keydown', function(e) {
+      if (e.key !== 'Enter') return;
+      const activePanel = document.querySelector('.auth-panel.active');
+      if (!activePanel) return;
+      if (activePanel.id === 'panel-login')    submitLogin();
+      if (activePanel.id === 'panel-register') submitRegister();
+    });
+
+    /* ── Tab switch: update header text (aman meski auth.js belum load) ── */
+    document.addEventListener('DOMContentLoaded', function() {
+      const _origSwitch = window.switchTab;
+      window.switchTab = function(tab) {
+        if (typeof _origSwitch === 'function') _origSwitch(tab);
+        const title = document.getElementById('form-title');
+        const sub   = document.getElementById('form-sub');
+        if (tab === 'login') {
+          if (title) title.textContent = 'Selamat Datang Kembali';
+          if (sub)   sub.textContent   = 'Login untuk Owner maupun Teknisi yang sudah memiliki akun.';
+        } else {
+          if (title) title.textContent = 'Daftarkan ISP Anda';
+          if (sub)   sub.textContent   = 'Buat workspace jaringan baru untuk ISP Anda.';
+        }
+      };
+
+      /* ── Dari landing page: ?register=1&paket=xxx ── */
+      const qp    = new URLSearchParams(location.search);
+      const paket = (qp.get('paket') || '').toLowerCase();
+      const PKG   = {
+        starter:    { label: 'Starter',    desc: 'Hingga 150 pelanggan' },
+        pro:        { label: 'Pro',        desc: 'Hingga 1.000 pelanggan' },
+        enterprise: { label: 'Enterprise', desc: 'Pelanggan tanpa batas' },
+      };
+      if (PKG[paket]) window._selectedPaket = paket;
+
+      if (qp.get('register') === '1' || PKG[paket]) {
+        window.switchTab('register');
+        /* Banner paket terpilih di atas form register */
+        if (PKG[paket]) {
+          const box = document.querySelector('#panel-register .role-info-box');
+          if (box) {
+            box.innerHTML =
+              '<span class="material-symbols-outlined">verified</span>' +
+              '<p>Paket dipilih: <strong>' + PKG[paket].label + '</strong> — ' + PKG[paket].desc +
+              '. Lengkapi data di bawah untuk membuat workspace ISP Anda.</p>';
+          }
+        }
+      }
+    });
+
+    /* ── Animated network canvas ── */
+    (function initNetworkCanvas() {
+      const canvas = document.getElementById('network-canvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+
+      let W, H, nodes, RAF;
+      const NODE_COUNT = 28;
+      const CONN_DIST  = 130;
+
+      function isMobile() { return window.innerWidth <= 640; }
+
+      function resize() {
+        W = canvas.width  = canvas.offsetWidth;
+        H = canvas.height = canvas.offsetHeight;
+      }
+
+      function initNodes() {
+        nodes = Array.from({ length: NODE_COUNT }, () => ({
+          x:  Math.random() * W,
+          y:  Math.random() * H,
+          vx: (Math.random() - .5) * .45,
+          vy: (Math.random() - .5) * .45,
+          r:  Math.random() * 2.5 + 1.5,
+          pulse: Math.random() * Math.PI * 2,
+        }));
+      }
+
+      function draw() {
+        // Hentikan animasi di mobile untuk hemat baterai
+        if (isMobile()) {
+          cancelAnimationFrame(RAF);
+          ctx.clearRect(0, 0, W, H);
+          return;
+        }
+
+        ctx.clearRect(0, 0, W, H);
+
+        nodes.forEach(n => {
+          n.x += n.vx;
+          n.y += n.vy;
+          n.pulse += 0.025;
+          if (n.x < 0 || n.x > W) n.vx *= -1;
+          if (n.y < 0 || n.y > H) n.vy *= -1;
+        });
+
+        for (let i = 0; i < nodes.length; i++) {
+          for (let j = i + 1; j < nodes.length; j++) {
+            const dx   = nodes[i].x - nodes[j].x;
+            const dy   = nodes[i].y - nodes[j].y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < CONN_DIST) {
+              const alpha = (1 - dist / CONN_DIST) * 0.22;
+              ctx.beginPath();
+              ctx.moveTo(nodes[i].x, nodes[i].y);
+              ctx.lineTo(nodes[j].x, nodes[j].y);
+              ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
+              ctx.lineWidth = 1;
+              ctx.stroke();
+            }
+          }
+        }
+
+        nodes.forEach(n => {
+          const glow = 0.55 + Math.sin(n.pulse) * 0.3;
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255,255,255,${glow * 0.7})`;
+          ctx.fill();
+
+          const ringR = n.r + 3 + Math.sin(n.pulse) * 2;
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, ringR, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(0, 174, 239, ${(1 - ringR / (n.r + 7)) * 0.4})`;
+          ctx.lineWidth = .8;
+          ctx.stroke();
+        });
+
+        RAF = requestAnimationFrame(draw);
+      }
+
+      window.addEventListener('resize', () => {
+        resize();
+        initNodes();
+        // Restart animasi jika resize dari mobile → desktop
+        if (!isMobile()) {
+          cancelAnimationFrame(RAF);
+          draw();
+        }
+      });
+
+      resize();
+      initNodes();
+      draw();
+    })();
   </script>
 
 </body>
-
 </html>

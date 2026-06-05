@@ -37,6 +37,12 @@ const AUTH_API = `${API_BASE}/api/auth`;
 // ══════════════════════════════════════════════════════════════
 
 (async function checkExistingSession() {
+  /* Jika datang dari landing untuk DAFTAR ISP baru (?register=1 / ?paket=),
+     jangan auto-redirect ke dashboard meski sedang login — user sengaja
+     ingin membuat workspace owner baru. */
+  const _qp = new URLSearchParams(location.search);
+  if (_qp.get('register') === '1' || _qp.get('paket')) return;
+
   const stored = getStoredUser();
   if (!stored) return; // Belum pernah login, tampilkan form
 
@@ -115,7 +121,10 @@ async function submitLogin(event) {
     if (res.ok && data.status === 'success') {
       saveStoredUser(data.user);
       showAlert('login', 'success', `Selamat datang, ${escHtml(data.user.username)}! Mengalihkan...`);
-      setTimeout(() => window.location.replace(DASHBOARD_URL), 700);
+      // Kembali ke halaman yang diminta sebelum diarahkan ke login (?next=)
+      const _nextRaw = new URLSearchParams(location.search).get('next') || '';
+      const _next = _nextRaw && !_nextRaw.includes('/auth/') ? decodeURIComponent(_nextRaw) : DASHBOARD_URL;
+      setTimeout(() => window.location.replace(_next), 700);
 
     } else {
       showAlert('login', 'error', data.message || 'Login gagal. Periksa username dan password.');
@@ -168,11 +177,13 @@ async function submitRegister(event) {
   setButtonLoading(btn, true, 'Mendaftarkan...');
 
   try {
+    /* Paket dipilih dari landing page (?paket=...) — default starter */
+    const paket = (window._selectedPaket || 'starter');
     const res  = await fetch(`${AUTH_API}/register`, {
       method:      'POST',
       headers:     { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body:        JSON.stringify({ isp_name, username, password }),
+      body:        JSON.stringify({ isp_name, username, password, paket }),
     });
 
     const data = await res.json();
@@ -211,8 +222,13 @@ async function submitRegister(event) {
  *   </a>
  */
 async function doLogout() {
+  const user = getStoredUser();
+  const logoutEndpoint = (user && user.role === 'superadmin')
+    ? `${AUTH_API}/admin/logout`
+    : `${AUTH_API}/logout`;
+
   try {
-    await fetch(`${AUTH_API}/logout`, {
+    await fetch(logoutEndpoint, {
       method:      'POST',
       credentials: 'include',
     });
@@ -231,24 +247,34 @@ window.doLogout = doLogout;
 // 6. HELPER — localStorage
 // ══════════════════════════════════════════════════════════════
 
-/** Simpan data user setelah login berhasil. */
+/**
+ * Simpan data user setelah login berhasil.
+ *
+ * Sistem ini menggunakan Flask Session (cookie HttpOnly) sebagai autentikasi
+ * server-side. Tidak ada JWT token — localStorage hanya menyimpan metadata
+ * user untuk kebutuhan UI (nama, role, RBAC, dll).
+ *
+ * tf_token → penanda "sudah login" untuk guard di global.js.
+ *   Format: "uid-<id>-<network_id>" agar unik per akun dan mudah di-debug.
+ *   Bukan token keamanan — otentikasi asli tetap via session cookie.
+ */
 function saveStoredUser(user) {
+  // Simpan objek lengkap untuk kebutuhan getStoredUser()
   localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
 
-  // Key individual yang dibaca oleh getSession() di global.js
-  localStorage.setItem('tf_token',      user.id       || user.username || 'active');
-  localStorage.setItem('tf_user_id',    String(user.id        || ''));
-  localStorage.setItem('tf_username',   user.username  || '');
-  localStorage.setItem('tf_role',       user.role      || '');
-  localStorage.setItem('tf_network_id', user.network_id || '');
-  localStorage.setItem('tf_isp_name',   user.isp_name  || '');
+  // Key individual yang dibaca getSession() di global.js
+  const token = `uid-${user.id || 'x'}-${user.network_id || 'local'}`;
+  localStorage.setItem('tf_token',      token);
+  localStorage.setItem('tf_user_id',    String(user.id         || ''));
+  localStorage.setItem('tf_username',   user.username           || '');
+  localStorage.setItem('tf_role',       user.role               || '');
+  localStorage.setItem('tf_network_id', user.network_id         || '');
+  localStorage.setItem('tf_isp_name',   user.isp_name          || '');
 
-  // permissions — dipakai applyUIPermissions()
-  if (user && Array.isArray(user.permissions)) {
-    localStorage.setItem('tf_permissions', JSON.stringify(user.permissions));
-  } else {
-    localStorage.setItem('tf_permissions', '[]');
-  }
+  // permissions — dipakai applyUIPermissions() di global.js
+  // Backend mengirim array permissions; owner selalu kosong (akses penuh)
+  const perms = Array.isArray(user.permissions) ? user.permissions : [];
+  localStorage.setItem('tf_permissions', JSON.stringify(perms));
 }
 
 /** Ambil data user dari localStorage. */
@@ -385,6 +411,15 @@ function initRBAC() {
     // (server juga akan tolak request via @login_required)
     window.location.replace(AUTH_URL);
     return;
+  }
+
+  // Superadmin: izinkan akses dashboard tanpa pemeriksaan RBAC ISP
+  if (user.role === 'superadmin') {
+    const usernameEl = document.getElementById('profile-username');
+    const avatarEl   = document.getElementById('avatar-initials');
+    if (usernameEl) usernameEl.textContent = user.username;
+    if (avatarEl)   avatarEl.textContent   = user.username.slice(0, 2).toUpperCase();
+    return user;
   }
 
   // ── Sembunyikan elemen berdasarkan role ──────────────────

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 
 <head>
@@ -18,498 +18,37 @@
     rel="stylesheet" />
 
   <!-- global.css WAJIB pertama -->
-  <link rel="stylesheet" href="/app/frontend/statis/global.css" />
-
-  <style>
-    /* ══════════════════════════════════════════════════
-       keuangan.css — inline style halaman keuangan
-       Hanya style SPESIFIK halaman ini, selebihnya
-       sepenuhnya mengandalkan global.css
-    ══════════════════════════════════════════════════ */
-
-    /* ── Toolbar keuangan ─────────────────────────── */
-    .toolbar {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin-bottom: 16px;
-    }
-
-    .search-wrap {
-      display: flex;
-      align-items: center;
-      background: var(--bg);
-      border: 1.5px solid var(--border);
-      border-radius: var(--r-md);
-      padding: 0 12px;
-      gap: 8px;
-      flex: 1;
-      min-width: 180px;
-      max-width: 320px;
-      transition: border-color .15s, box-shadow .15s;
-    }
-
-    .search-wrap:focus-within {
-      border-color: var(--primary);
-      box-shadow: 0 0 0 3px var(--primary-ring);
-    }
-
-    .search-wrap .material-symbols-outlined {
-      font-size: 18px;
-      color: var(--text-dim);
-      flex-shrink: 0;
-    }
-
-    .search-wrap input {
-      border: none;
-      background: none;
-      outline: none;
-      height: 38px;
-      width: 100%;
-      font-size: 13px;
-      font-family: var(--sans);
-      color: var(--text);
-    }
-
-    .search-wrap input::placeholder {
-      color: var(--text-dim);
-    }
-
-    .filter-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      padding: 5px 12px;
-      border-radius: var(--r-sm);
-      font-size: 12px;
-      font-weight: 600;
-      font-family: var(--sans);
-      border: 1px solid var(--border);
-      background: var(--bg);
-      color: var(--text-muted);
-      cursor: pointer;
-      transition: background .14s, border-color .14s, color .14s;
-      white-space: nowrap;
-    }
-
-    .filter-chip:hover {
-      background: var(--surface);
-      border-color: var(--border-2);
-    }
-
-    .filter-chip.active {
-      background: var(--primary-light);
-      border-color: rgba(0, 64, 161, .2);
-      color: var(--primary);
-    }
-
-    .filter-chip.green.active {
-      background: var(--green-bg);
-      border-color: var(--green-border);
-      color: var(--green);
-    }
-
-    .filter-chip.red.active {
-      background: var(--red-bg);
-      border-color: var(--red-border);
-      color: var(--red);
-    }
-
-    .filter-chip .material-symbols-outlined {
-      font-size: 15px;
-    }
-
-    .filter-select {
-      height: 38px;
-      padding: 0 10px;
-      border: 1.5px solid var(--border);
-      border-radius: var(--r-sm);
-      background: var(--bg);
-      color: var(--text);
-      font-size: 12px;
-      font-weight: 600;
-      font-family: var(--sans);
-      cursor: pointer;
-      outline: none;
-      appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238a96a8' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 8px center;
-      padding-right: 26px;
-      transition: border-color .15s;
-    }
-
-    .filter-select:focus {
-      border-color: var(--primary);
-    }
-
-    .filter-group {
-      display: flex;
-      gap: 8px;
-    }
-
-    /* ── Tabel Transaksi ──────────────────────────── */
-    .table-wrap {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: var(--r-lg);
-      box-shadow: var(--shadow-sm);
-      position: relative;
-      overflow: hidden;
-    }
-
-    .table-scroll {
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-      max-height: calc(100vh - 380px);
-      min-height: 200px;
-      overflow-y: auto;
-    }
-
-    .table-scroll::-webkit-scrollbar {
-      height: 5px;
-      width: 5px;
-    }
-
-    .table-scroll::-webkit-scrollbar-track {
-      background: transparent;
-    }
-
-    .table-scroll::-webkit-scrollbar-thumb {
-      background: var(--border);
-      border-radius: 4px;
-    }
-
-    .keuangan-table {
-      width: 100%;
-      border-collapse: separate;
-      border-spacing: 0;
-      font-size: 13px;
-      font-family: var(--sans);
-      min-width: 760px;
-    }
-
-    .keuangan-table thead th {
-      position: sticky;
-      top: 0;
-      z-index: 3;
-      background: var(--header-bg);
-      color: rgba(255, 255, 255, .85);
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: .06em;
-      padding: 11px 14px;
-      border-bottom: 1px solid rgba(255, 255, 255, .12);
-      white-space: nowrap;
-      user-select: none;
-    }
-
-    .keuangan-table thead th.sortable {
-      cursor: pointer;
-    }
-
-    .keuangan-table thead th.sortable:hover {
-      color: #fff;
-      background: #004a9e;
-    }
-
-    .keuangan-table thead th.th-nominal {
-      text-align: right;
-    }
-
-    .keuangan-table tbody td {
-      padding: 11px 14px;
-      border-bottom: 1px solid var(--border);
-      color: var(--text);
-      vertical-align: middle;
-      white-space: nowrap;
-    }
-
-    .keuangan-table tbody tr:last-child td {
-      border-bottom: none;
-    }
-
-    .keuangan-table tbody tr:hover td {
-      background: #f8faff;
-    }
-
-    /* Kolom nominal rata kanan */
-    .keuangan-table .td-nominal {
-      text-align: right;
-      font-weight: 700;
-    }
-
-    .nominal-pemasukan {
-      color: var(--green);
-    }
-
-    .nominal-pengeluaran {
-      color: var(--red);
-    }
-
-    /* Badge tipe */
-    .badge-tipe {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 11px;
-      font-weight: 600;
-      padding: 3px 9px;
-      border-radius: 99px;
-      border: 1px solid;
-      white-space: nowrap;
-    }
-
-    .badge-tipe.pemasukan {
-      background: var(--green-bg);
-      color: var(--green);
-      border-color: var(--green-border);
-    }
-
-    .badge-tipe.pengeluaran {
-      background: var(--red-bg);
-      color: var(--red);
-      border-color: var(--red-border);
-    }
-
-    .badge-tipe .material-symbols-outlined {
-      font-size: 13px;
-    }
-
-    /* Badge status */
-    .badge-status-trx {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 11px;
-      font-weight: 600;
-      padding: 3px 9px;
-      border-radius: 99px;
-      border: 1px solid;
-      white-space: nowrap;
-    }
-
-    .badge-status-trx.lunas {
-      background: var(--green-bg);
-      color: var(--green);
-      border-color: var(--green-border);
-    }
-
-    .badge-status-trx.pending {
-      background: var(--amber-bg);
-      color: var(--amber);
-      border-color: var(--amber-border);
-    }
-
-    .badge-status-trx.gagal {
-      background: var(--red-bg);
-      color: var(--red);
-      border-color: var(--red-border);
-    }
-
-    .tbl-keterangan {
-      font-weight: 600;
-      color: var(--text);
-    }
-
-    .tbl-username {
-      font-size: 11px;
-      color: var(--text-dim);
-      margin-top: 2px;
-    }
-
-    .tbl-actions {
-      display: flex;
-      gap: 5px;
-      align-items: center;
-    }
-
-    .table-footer {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 10px 16px;
-      border-top: 1px solid var(--border);
-      font-size: 12px;
-      color: var(--text-muted);
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-
-    /* ── Pagination ────────────────────────────────── */
-    .pagination {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      justify-content: center;
-      margin-top: 16px;
-      flex-wrap: wrap;
-    }
-
-    .page-btn {
-      min-width: 34px;
-      height: 34px;
-      padding: 0 10px;
-      border-radius: var(--r-sm);
-      border: 1px solid var(--border);
-      background: var(--bg);
-      color: var(--text-muted);
-      font-size: 13px;
-      font-weight: 600;
-      font-family: var(--sans);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background .14s, border-color .14s, color .14s;
-    }
-
-    .page-btn:hover {
-      background: var(--surface);
-      border-color: var(--border-2);
-      color: var(--text);
-    }
-
-    .page-btn.active {
-      background: var(--primary);
-      color: #fff;
-      border-color: var(--primary);
-    }
-
-    .page-btn:disabled {
-      opacity: .4;
-      cursor: not-allowed;
-    }
-
-    /* ── Saldo Bersih banner ───────────────────────── */
-    .saldo-banner {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      background: var(--primary-light);
-      border: 1px solid rgba(0, 64, 161, .18);
-      border-radius: var(--r-lg);
-      padding: 14px 18px;
-      margin-bottom: 18px;
-      flex-wrap: wrap;
-    }
-
-    .saldo-banner-icon {
-      width: 44px;
-      height: 44px;
-      border-radius: var(--r-md);
-      background: var(--primary);
-      color: #fff;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
-
-    .saldo-banner-icon .material-symbols-outlined {
-      font-size: 22px;
-    }
-
-    .saldo-banner-body {
-      flex: 1;
-      min-width: 0;
-    }
-
-    .saldo-banner-label {
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: .06em;
-      color: var(--primary);
-      opacity: .75;
-    }
-
-    .saldo-banner-nilai {
-      font-size: 22px;
-      font-weight: 800;
-      font-family: var(--heading);
-      color: var(--primary);
-      letter-spacing: -.03em;
-      line-height: 1.2;
-    }
-
-    .saldo-banner-bulan {
-      font-size: 12px;
-      color: var(--text-muted);
-      margin-top: 2px;
-    }
-
-    /* ── Responsive ────────────────────────────────── */
-    @media (max-width: 768px) {
-      .toolbar {
-        gap: 8px;
-      }
-
-      .search-wrap {
-        max-width: 100%;
-      }
-
-      .table-scroll {
-        max-height: calc(100vh - 320px);
-      }
-
-      .saldo-banner {
-        flex-wrap: wrap;
-      }
-    }
-
-    @media (max-width: 480px) {
-      .toolbar {
-        flex-direction: column;
-        align-items: stretch;
-      }
-
-      .table-footer {
-        flex-direction: column;
-        align-items: flex-start;
-      }
-
-      .keuangan-table {
-        font-size: 12px;
-      }
-    }
-  </style>
+  <link rel="stylesheet" href="/app/frontend/statis/global.css?v=22" />
+  <link rel="stylesheet" href="/app/frontend/keuangan/keuangan.css?v=1" />
 </head>
 
 <body>
 
   <!-- ══ HEADER ══ -->
   <header class="header">
+    <canvas class="header-canvas" id="header-canvas"></canvas>
     <div class="header-inner">
       <div class="header-brand">
-        <div class="brand-logo">
-          <span class="material-symbols-outlined">router</span>
-        </div>
+        <div class="brand-logo"><img src="/app/frontend/statis/technofixlogo.png" alt="TechnoFix" /></div>
         <div>
           <div class="brand-name">TechnoFix</div>
           <div class="brand-sub">Monitoring status jaringan &amp; pelanggan</div>
         </div>
       </div>
 
-      <nav class="topbar-nav">
+            <nav class="topbar-nav">
         <a href="/app/frontend/dashboard/dashboard.html">
           <span class="material-symbols-outlined">dashboard</span>Dashboard
         </a>
         <a href="/app/frontend/pelanggan/pelanggan.html">
           <span class="material-symbols-outlined">group</span>Pelanggan
         </a>
-        <a href="#">
-          <span class="material-symbols-outlined">person</span>Profile
-        </a>
-        <a href="#" onclick="openPerangkatSheet(event)">
+        <a href="#" onclick="openPerangkatSheet(event)" data-perm="perangkat">
           <span class="material-symbols-outlined">router</span>Perangkat
         </a>
-        <a href="/app/frontend/keuangan/keuangan.html" class="active">
-          <span class="material-symbols-outlined">payments</span>Keuangan
-        </a>
-        <a href="/app/frontend/maps/maps.html">
+        <a href="#" onclick="openKeuanganSheet(event)" data-perm="keuangan"><span class="material-symbols-outlined">payments</span>Keuangan</a>
+
+        <a href="/app/frontend/maps/maps.html" data-perm="maps">
           <span class="material-symbols-outlined">map</span>Maps
         </a>
       </nav>
@@ -518,6 +57,8 @@
         <button class="icon-btn" onclick="loadKeuangan()" title="Refresh data keuangan">
           <span class="material-symbols-outlined" id="refresh-icon">refresh</span>
         </button>
+                <a href="/app/frontend/panduan/panduan.html" target="_blank" class="icon-btn" title="Panduan Penggunaan" style="text-decoration:none"><span class="material-symbols-outlined">help</span></a>
+        <button class="icon-btn" onclick="toggleDarkMode()" title="Ganti tema gelap/terang" style="margin-right:2px"><span class="material-symbols-outlined" id="dark-mode-icon">dark_mode</span></button>
         <div class="profile-wrap" id="profile-wrap">
           <button class="profile-btn" onclick="toggleProfileMenu()" title="Profil">
             <div class="avatar-circle" id="avatar-initials">AD</div>
@@ -525,75 +66,61 @@
             <span class="material-symbols-outlined profile-chevron">expand_more</span>
           </button>
           <div class="profile-dropdown" id="profile-dropdown">
-
-            <!-- Header sesi: nama + badge role -->
-            <div class="profile-menu-header">
-              <div class="profile-menu-avatar" id="dd-avatar">AD</div>
-              <div class="profile-menu-identity">
-                <span class="profile-menu-name" id="dd-username">Admin</span>
-                <span class="profile-menu-role" id="dd-role-badge">Owner</span>
-              </div>
+          <div class="profile-menu-header">
+            <div class="profile-menu-avatar" id="dd-avatar">AD</div>
+            <div class="profile-menu-identity">
+              <span class="profile-menu-name" id="dd-username">Admin</span>
+              <span class="profile-menu-role" id="dd-role-badge">Owner</span>
             </div>
-            <div class="profile-menu-divider"></div>
-
-            <!-- Navigasi akun -->
-            <a href="/app/frontend/profil/profil.html" class="profile-menu-item">
-              <span class="material-symbols-outlined">person</span>Profil saya
-            </a>
-            <a href="#" class="profile-menu-item" onclick="showModalGantiPassword(); return false;">
-              <span class="material-symbols-outlined">lock_reset</span>Ganti password
-            </a>
-            <a href="#" class="profile-menu-item" onclick="showModalSetting(); return false;">
-              <span class="material-symbols-outlined">settings</span>Setting
-            </a>
-            <div class="profile-menu-divider"></div>
-
-            <!-- Owner only -->
-            <a href="/app/frontend/manajemen_user/manajemen_user.html" class="profile-menu-item btn-owner-only">
-              <span class="material-symbols-outlined">manage_accounts</span>Manajemen user
-            </a>
-            <a href="/app/frontend/manajemen_tim/manajemen_tim.html" class="profile-menu-item btn-owner-only">
-              <span class="material-symbols-outlined">groups</span>Manajemen tim
-            </a>
-            <div class="profile-menu-divider btn-owner-only"></div>
-
-            <!-- Logout -->
-            <a href="#" class="profile-menu-item logout" onclick="showModalLogout(); return false;">
-              <span class="material-symbols-outlined">logout</span>Keluar
-            </a>
-
           </div>
+          <div class="profile-menu-divider"></div>
+          <a href="/app/frontend/profile/profile.html" class="profile-menu-item">
+            <span class="material-symbols-outlined">person</span>Profil saya
+          </a>
+          <a href="/app/frontend/setting/setting.html" class="profile-menu-item">
+            <span class="material-symbols-outlined">settings</span>Setting
+          </a>
+          <a href="/app/frontend/langganan/langganan.html" class="profile-menu-item btn-owner-only">
+            <span class="material-symbols-outlined">workspace_premium</span>Langganan
+          </a>
+          <div class="profile-menu-divider btn-owner-only"></div>
+          <a href="/app/frontend/manajemen_user/manajemen_user.html" class="profile-menu-item btn-owner-only">
+            <span class="material-symbols-outlined">manage_accounts</span>Manajemen user
+          </a>
+          <a href="/app/frontend/panduan/panduan.html" target="_blank" class="profile-menu-item">
+            <span class="material-symbols-outlined">menu_book</span>Panduan Penggunaan
+          </a>
+          <div class="profile-menu-divider"></div>
+          <a href="#" class="profile-menu-item logout" onclick="showModalLogout();return false;">
+            <span class="material-symbols-outlined">logout</span>Keluar
+          </a>
         </div>
-      </div>
+        </div>
     </div>
   </header>
 
 
-  <!-- ══ BOTTOM NAVBAR — MOBILE ONLY ══ -->
+    <!-- ══ BOTTOM NAVBAR — MOBILE ONLY ══ -->
   <nav class="bottom-nav">
     <div class="bottom-nav-inner">
       <div class="bottom-nav-indicator" id="bottom-nav-indicator"></div>
-      <a href="/app/frontend/dashboard/dashboard.html" class="bottom-nav-item">
+      <a href="/app/frontend/dashboard/dashboard.html" class="bottom-nav-item ">
         <div class="bottom-nav-icon"><span class="material-symbols-outlined">dashboard</span></div>
         <span class="bottom-nav-label">Dashboard</span>
       </a>
-      <a href="/app/frontend/pelanggan/pelanggan.html" class="bottom-nav-item">
+      <a href="/app/frontend/pelanggan/pelanggan.html" class="bottom-nav-item ">
         <div class="bottom-nav-icon"><span class="material-symbols-outlined">group</span></div>
         <span class="bottom-nav-label">Pelanggan</span>
       </a>
-      <a href="#" class="bottom-nav-item">
-        <div class="bottom-nav-icon"><span class="material-symbols-outlined">person</span></div>
-        <span class="bottom-nav-label">Profile</span>
-      </a>
-      <a href="#" class="bottom-nav-item" onclick="openPerangkatSheet(event)">
+      <a href="#" class="bottom-nav-item " onclick="openPerangkatSheet(event)" data-perm="perangkat">
         <div class="bottom-nav-icon"><span class="material-symbols-outlined">router</span></div>
         <span class="bottom-nav-label">Perangkat</span>
       </a>
-      <a href="/app/frontend/keuangan/keuangan.html" class="bottom-nav-item active">
+      <a href="#" onclick="openKeuanganSheet(event)" class="bottom-nav-item" data-perm="keuangan">
         <div class="bottom-nav-icon"><span class="material-symbols-outlined">payments</span></div>
         <span class="bottom-nav-label">Keuangan</span>
       </a>
-      <a href="/app/frontend/maps/maps.html" class="bottom-nav-item">
+      <a href="/app/frontend/maps/maps.html" class="bottom-nav-item " data-perm="maps">
         <div class="bottom-nav-icon"><span class="material-symbols-outlined">map</span></div>
         <span class="bottom-nav-label">Maps</span>
       </a>
@@ -874,115 +401,8 @@
     </div>
   </div>
 
-  <!-- ══ MODAL: SETTING ══ -->
-  <div class="modal-overlay" id="modal-setting" onclick="closeModalSetting(event)">
-    <div class="modal-sheet" style="max-width:420px" onclick="event.stopPropagation()">
-      <div class="modal-handle"></div>
-      <div style="padding:20px 24px 0;display:flex;align-items:center;justify-content:space-between">
-        <div>
-          <h2 style="font-family:var(--heading);font-size:16px;font-weight:800;color:var(--text);margin:0">Setting</h2>
-          <p style="font-size:12px;color:var(--text-dim);margin:2px 0 0">Preferensi aplikasi Anda</p>
-        </div>
-        <button onclick="closeModalSetting()"
-          style="width:30px;height:30px;border-radius:50%;border:1px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;flex-shrink:0">
-          <span class="material-symbols-outlined" style="font-size:16px;color:var(--text-muted)">close</span>
-        </button>
-      </div>
-      <div style="padding:16px 24px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;max-height:60vh">
-        <div>
-          <p
-            style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-dim);margin-bottom:10px">
-            Tampilan</p>
-          <div style="display:flex;flex-direction:column;gap:10px">
-            <div style="display:flex;align-items:center;justify-content:space-between">
-              <label style="font-size:13px;font-weight:600;color:var(--text)">Tema</label>
-              <select class="filter-select" id="setting-tema" style="width:140px">
-                <option value="auto">Ikuti sistem</option>
-                <option value="light">Terang</option>
-                <option value="dark">Gelap</option>
-              </select>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between">
-              <label style="font-size:13px;font-weight:600;color:var(--text)">Bahasa</label>
-              <select class="filter-select" id="setting-bahasa" style="width:140px">
-                <option value="id">Indonesia</option>
-                <option value="en">English</option>
-              </select>
-            </div>
-          </div>
-        </div>
-        <div>
-          <p
-            style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-dim);margin-bottom:10px">
-            Data & Refresh</p>
-          <div style="display:flex;flex-direction:column;gap:10px">
-            <div style="display:flex;align-items:center;justify-content:space-between">
-              <label style="font-size:13px;font-weight:600;color:var(--text)">Auto-refresh</label>
-              <select class="filter-select" id="setting-refresh" style="width:140px">
-                <option value="0">Nonaktif</option>
-                <option value="30">30 detik</option>
-                <option value="60">1 menit</option>
-                <option value="300">5 menit</option>
-              </select>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between">
-              <label style="font-size:13px;font-weight:600;color:var(--text)">Baris per halaman</label>
-              <select class="filter-select" id="setting-perpage" style="width:140px">
-                <option value="50">50 baris</option>
-                <option value="100">100 baris</option>
-                <option value="200">200 baris</option>
-              </select>
-            </div>
-          </div>
-        </div>
-        <div>
-          <p
-            style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-dim);margin-bottom:10px">
-            Notifikasi</p>
-          <div style="display:flex;flex-direction:column;gap:10px">
-            <div style="display:flex;align-items:center;justify-content:space-between">
-              <div>
-                <p style="font-size:13px;font-weight:600;color:var(--text);margin:0">Pelanggan offline</p>
-                <p style="font-size:11px;color:var(--text-dim);margin:0">Notif saat ada pelanggan putus</p>
-              </div>
-              <label style="position:relative;display:inline-block;width:40px;height:22px;cursor:pointer">
-                <input type="checkbox" id="notif-offline" style="opacity:0;width:0;height:0"
-                  onchange="toggleNotif(this,'notif-offline')">
-                <span id="track-offline"
-                  style="position:absolute;inset:0;background:var(--border);border-radius:11px;transition:background .2s"></span>
-                <span id="thumb-offline"
-                  style="position:absolute;top:3px;left:3px;width:16px;height:16px;background:#fff;border-radius:50%;transition:transform .2s"></span>
-              </label>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between">
-              <div>
-                <p style="font-size:13px;font-weight:600;color:var(--text);margin:0">Sinyal lemah (RX)</p>
-                <p style="font-size:11px;color:var(--text-dim);margin:0">Alert saat sinyal di bawah -30 dBm</p>
-              </div>
-              <label style="position:relative;display:inline-block;width:40px;height:22px;cursor:pointer">
-                <input type="checkbox" id="notif-rx" style="opacity:0;width:0;height:0"
-                  onchange="toggleNotif(this,'notif-rx')">
-                <span id="track-rx"
-                  style="position:absolute;inset:0;background:var(--border);border-radius:11px;transition:background .2s"></span>
-                <span id="thumb-rx"
-                  style="position:absolute;top:3px;left:3px;width:16px;height:16px;background:#fff;border-radius:50%;transition:transform .2s"></span>
-              </label>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="form-actions" style="padding:16px 24px;margin-top:0">
-        <button class="btn btn-cancel" onclick="closeModalSetting()">Batal</button>
-        <button class="btn-primary" onclick="simpanSetting()">
-          <span class="material-symbols-outlined">save</span>Simpan setting
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- TOAST -->
+  <!-- ══ TOAST ══ -->
   <div id="toast"></div>
-
 
   <!-- ══ PERANGKAT SHEET ══ -->
   <div class="psheet-overlay" id="psheet-overlay" onclick="closePerangkatSheet()"></div>
@@ -997,24 +417,9 @@
         <span class="material-symbols-outlined">close</span>
       </button>
     </div>
-    <!-- 
-  ══════════════════════════════════════════════════════════
-  PASTE INI ke semua file HTML — ganti isi <div class="psheet-list">
-  yang lama dengan blok ini (sudah include ODC baru)
-  ══════════════════════════════════════════════════════════
--->
-    <!-- 
-  ══════════════════════════════════════════════════════════
-  PASTE INI ke semua file HTML — ganti isi <div class="psheet-list">
-  yang lama dengan blok ini (sudah include ODC baru)
-  ══════════════════════════════════════════════════════════
--->
     <div class="psheet-list">
-
       <a href="/app/frontend/input_perangkat/input_mikrotik.html" class="psheet-item psheet-mikrotik">
-        <div class="psheet-item-icon">
-          <span class="material-symbols-outlined">router</span>
-        </div>
+        <div class="psheet-item-icon"><span class="material-symbols-outlined">router</span></div>
         <div class="psheet-item-body">
           <div class="psheet-item-name">MikroTik</div>
           <div class="psheet-item-desc">Router, firewall, dan manajemen bandwidth</div>
@@ -1022,11 +427,8 @@
         <div class="psheet-item-badge">Router</div>
         <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
       </a>
-
       <a href="/app/frontend/input_perangkat/input_olt.html" class="psheet-item psheet-olt">
-        <div class="psheet-item-icon">
-          <span class="material-symbols-outlined">settings_input_antenna</span>
-        </div>
+        <div class="psheet-item-icon"><span class="material-symbols-outlined">settings_input_antenna</span></div>
         <div class="psheet-item-body">
           <div class="psheet-item-name">OLT</div>
           <div class="psheet-item-desc">Optical Line Terminal — kontrol jaringan fiber</div>
@@ -1034,11 +436,8 @@
         <div class="psheet-item-badge">Fiber</div>
         <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
       </a>
-
       <a href="/app/frontend/input_perangkat/input_odc.html" class="psheet-item psheet-odc">
-        <div class="psheet-item-icon">
-          <span class="material-symbols-outlined">storage</span>
-        </div>
+        <div class="psheet-item-icon"><span class="material-symbols-outlined">storage</span></div>
         <div class="psheet-item-body">
           <div class="psheet-item-name">ODC</div>
           <div class="psheet-item-desc">Optical Distribution Cabinet — kabinet distribusi utama</div>
@@ -1046,11 +445,8 @@
         <div class="psheet-item-badge">Cabinet</div>
         <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
       </a>
-
       <a href="/app/frontend/input_perangkat/input_odp.html" class="psheet-item psheet-odp">
-        <div class="psheet-item-icon">
-          <span class="material-symbols-outlined">hub</span>
-        </div>
+        <div class="psheet-item-icon"><span class="material-symbols-outlined">hub</span></div>
         <div class="psheet-item-body">
           <div class="psheet-item-name">ODP</div>
           <div class="psheet-item-desc">Optical Distribution Point — titik distribusi kabel</div>
@@ -1058,13 +454,30 @@
         <div class="psheet-item-badge">Distribusi</div>
         <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
       </a>
-
+      <a href="/app/frontend/genieacs/onu.html" class="psheet-item psheet-onu" data-perm="perangkat"><div class="psheet-item-icon"><span class="material-symbols-outlined">wifi</span></div><div class="psheet-item-body"><div class="psheet-item-name">ONU / GenieACS</div><div class="psheet-item-desc">Monitoring & remote TR-069</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
     </div>
+  </div>
 
-    <!-- global.js WAJIB sebelum keuangan.js -->
-    <script src="/app/frontend/statis/global.js"></script>
-    <script src="/app/frontend/keuangan/keuangan.js"></script>
+  <!-- Scripts -->
+
+  <!-- KEUANGAN SHEET -->
+  <div class="psheet-overlay" id="ksheet-overlay" onclick="closeKeuanganSheet()"></div>
+  <div class="psheet ksheet" id="ksheet" role="dialog" aria-modal="true">
+    <div class="psheet-handle"></div>
+    <div class="psheet-head">
+      <div><p class="psheet-eyebrow">Keuangan & Tagihan</p><h2 class="psheet-title">Pilih Fitur</h2></div>
+      <button class="psheet-close" onclick="closeKeuanganSheet()"><span class="material-symbols-outlined">close</span></button>
+    </div>
+    <div class="psheet-list">
+      <a href="/app/frontend/keuangan/keuangan.html" class="psheet-item psheet-keuangan"><div class="psheet-item-icon"><span class="material-symbols-outlined">payments</span></div><div class="psheet-item-body"><div class="psheet-item-name">Keuangan</div><div class="psheet-item-desc">Pemasukan & pengeluaran</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/tagihan/tagihan.html" class="psheet-item psheet-tagihan" data-perm="keuangan"><div class="psheet-item-icon"><span class="material-symbols-outlined">receipt_long</span></div><div class="psheet-item-body"><div class="psheet-item-name">Tagihan</div><div class="psheet-item-desc">Tagihan bulanan pelanggan</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/loket/loket.html" class="psheet-item psheet-loket" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">point_of_sale</span></div><div class="psheet-item-body"><div class="psheet-item-name">Loket / Kasir</div><div class="psheet-item-desc">Terima bayar + komisi</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/notifikasi/wa.html" class="psheet-item psheet-wa" data-perm="pelanggan"><div class="psheet-item-icon"><span class="material-symbols-outlined">chat</span></div><div class="psheet-item-body"><div class="psheet-item-name">Notifikasi WA</div><div class="psheet-item-desc">Pengingat tagihan WhatsApp</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/pembayaran/payment.html" class="psheet-item psheet-payment" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">credit_card</span></div><div class="psheet-item-body"><div class="psheet-item-name">Bayar Online</div><div class="psheet-item-desc">Midtrans / Xendit</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+    </div>
+  </div>
+  <script src="/app/frontend/statis/global.js?v=21"></script>
+  <script src="/app/frontend/keuangan/keuangan.js?v=1"></script>
 
 </body>
-
-</html>
+</html> 

@@ -1,0 +1,252 @@
+/* ============================================================
+   keuangan.css — TechnoFix · Halaman Keuangan
+   ⚠  Load SETELAH global.css
+   Hanya style spesifik halaman ini.
+   ============================================================ */
+
+
+/* ── Toolbar ── */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.search-wrap {
+  display: flex;
+  align-items: center;
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 0 12px;
+  gap: 8px;
+  flex: 1;
+  min-width: 180px;
+  max-width: 320px;
+  transition: border-color .15s, box-shadow .15s;
+}
+.search-wrap:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-ring);
+}
+.search-wrap .material-symbols-outlined {
+  font-size: 18px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+.search-wrap input {
+  border: none;
+  background: none;
+  outline: none;
+  height: 38px;
+  width: 100%;
+  font-size: 13px;
+  font-family: var(--sans);
+  color: var(--text);
+}
+.search-wrap input::placeholder { color: var(--text-dim); }
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: var(--r-sm);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--sans);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background .14s, border-color .14s, color .14s;
+  white-space: nowrap;
+}
+.filter-chip:hover           { background: var(--surface); border-color: var(--border-2); }
+.filter-chip.active          { background: var(--primary-light); border-color: rgba(0,64,161,.2); color: var(--primary); }
+.filter-chip.green.active    { background: var(--green-bg); border-color: var(--green-border); color: var(--green); }
+.filter-chip.red.active      { background: var(--red-bg);   border-color: var(--red-border);   color: var(--red); }
+.filter-chip .material-symbols-outlined { font-size: 15px; }
+
+.filter-select {
+  height: 38px;
+  padding: 0 26px 0 10px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--sans);
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238a96a8' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  transition: border-color .15s;
+}
+.filter-select:focus { border-color: var(--primary); }
+
+.filter-group { display: flex; gap: 8px; }
+
+
+/* ── Tabel Transaksi ── */
+.table-wrap {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
+}
+
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-height: calc(100vh - 380px);
+  min-height: 200px;
+  overflow-y: auto;
+}
+.table-scroll::-webkit-scrollbar        { height: 5px; width: 5px; }
+.table-scroll::-webkit-scrollbar-track  { background: transparent; }
+.table-scroll::-webkit-scrollbar-thumb  { background: var(--border); border-radius: 4px; }
+
+.keuangan-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+  font-family: var(--sans);
+  min-width: 760px;
+}
+
+.keuangan-table thead th {
+  position: sticky; top: 0; z-index: 3;
+  background: var(--header-bg);
+  color: rgba(255,255,255,.85);
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .06em;
+  padding: 11px 14px;
+  border-bottom: 1px solid rgba(255,255,255,.12);
+  white-space: nowrap; user-select: none;
+}
+.keuangan-table thead th.sortable         { cursor: pointer; }
+.keuangan-table thead th.sortable:hover   { color: #fff; background: var(--primary-dark); }
+.keuangan-table thead th.th-nominal       { text-align: right; }
+
+.keuangan-table tbody td {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.keuangan-table tbody tr:last-child td  { border-bottom: none; }
+.keuangan-table tbody tr:hover td       { background: var(--surface); }
+.keuangan-table .td-nominal             { text-align: right; font-weight: 700; }
+
+.nominal-pemasukan   { color: var(--green); }
+.nominal-pengeluaran { color: var(--red); }
+
+
+/* ── Badge tipe & status ── */
+.badge-tipe {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 600;
+  padding: 3px 9px; border-radius: 99px; border: 1px solid;
+  white-space: nowrap;
+}
+.badge-tipe.pemasukan   { background: var(--green-bg); color: var(--green); border-color: var(--green-border); }
+.badge-tipe.pengeluaran { background: var(--red-bg);   color: var(--red);   border-color: var(--red-border); }
+.badge-tipe .material-symbols-outlined { font-size: 13px; }
+
+.badge-status-trx {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 600;
+  padding: 3px 9px; border-radius: 99px; border: 1px solid;
+  white-space: nowrap;
+}
+.badge-status-trx.lunas   { background: var(--green-bg); color: var(--green); border-color: var(--green-border); }
+.badge-status-trx.pending { background: var(--amber-bg); color: var(--amber); border-color: var(--amber-border); }
+.badge-status-trx.gagal   { background: var(--red-bg);   color: var(--red);   border-color: var(--red-border); }
+
+.tbl-keterangan { font-weight: 600; color: var(--text); }
+.tbl-username   { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+.tbl-actions    { display: flex; gap: 5px; align-items: center; }
+
+.table-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px; border-top: 1px solid var(--border);
+  font-size: 12px; color: var(--text-muted);
+  flex-wrap: wrap; gap: 8px;
+}
+
+
+/* ── Pagination ── */
+.pagination {
+  display: flex; align-items: center; gap: 5px;
+  justify-content: center; margin-top: 16px; flex-wrap: wrap;
+}
+
+.page-btn {
+  min-width: 34px; height: 34px; padding: 0 10px;
+  border-radius: var(--r-sm); border: 1px solid var(--border);
+  background: var(--bg); color: var(--text-muted);
+  font-size: 13px; font-weight: 600; font-family: var(--sans);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: background .14s, border-color .14s, color .14s;
+}
+.page-btn:hover    { background: var(--surface); border-color: var(--border-2); color: var(--text); }
+.page-btn.active   { background: var(--primary); color: #fff; border-color: var(--primary); }
+.page-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+
+/* ── Saldo Bersih banner ── */
+.saldo-banner {
+  display: flex; align-items: center; gap: 14px;
+  background: var(--primary-light);
+  border: 1px solid rgba(0,64,161,.18);
+  border-radius: var(--r-lg);
+  padding: 14px 18px; margin-bottom: 18px; flex-wrap: wrap;
+}
+
+.saldo-banner-icon {
+  width: 44px; height: 44px; border-radius: var(--r-md);
+  background: var(--primary); color: #fff;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.saldo-banner-icon .material-symbols-outlined { font-size: 22px; }
+
+.saldo-banner-body  { flex: 1; min-width: 0; }
+
+.saldo-banner-label {
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .06em;
+  color: var(--primary); opacity: .75;
+}
+
+.saldo-banner-nilai {
+  font-size: 22px; font-weight: 800;
+  font-family: var(--heading); color: var(--primary);
+  letter-spacing: -.03em; line-height: 1.2;
+}
+
+.saldo-banner-bulan { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .toolbar      { gap: 8px; }
+  .search-wrap  { max-width: 100%; }
+  .table-scroll { max-height: calc(100vh - 320px); }
+  .saldo-banner { flex-wrap: wrap; }
+}
+
+@media (max-width: 480px) {
+  .toolbar          { flex-direction: column; align-items: stretch; }
+  .table-footer     { flex-direction: column; align-items: flex-start; }
+  .keuangan-table   { font-size: 12px; }
+}

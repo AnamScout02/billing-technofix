@@ -1,118 +1,143 @@
 /* ============================================================
    input_odp.js — Manajemen ODP (Optical Distribution Point)
-   Requires: global.js  ← wajib di-load lebih dulu di HTML
-             (API_BASE, escHtml, val, animNum, toast,
-              openModalForm, closeModalForm, statusInfo)
+   v3.0 — Migrasi penuh dari localStorage ke backend API
+   ============================================================
+   PERUBAHAN dari v2.x (localStorage):
+   ✅ Semua CRUD menggunakan fetch ke /api/odp (odp.py)
+   ✅ State: _allData (seragam dengan standar global)
+   ✅ Field koordinat + geolocation picker + preview peta mini
+   ✅ Warning dependency: cek port_terpakai sebelum hapus
+   ✅ credentials: 'include' di semua fetch (session cookie)
+   ✅ Pola async/await selaras dengan input_odc.js
 
-   Endpoint (backend belum ada — menggunakan localStorage
-   sebagai penyimpanan sementara sampai endpoint /odp dibuat):
-   Saat backend endpoint /odp tersedia, ganti _loadLocal()
-   dengan fetch(`${API_BASE}/odp`) dan sesuaikan fungsi lainnya.
+   Requires: global.js (API_BASE, escHtml, val, animNum,
+             toast, openModalForm, closeModalForm,
+             getAuthHeaders)
 
-   Fields ODP:
-   - nama        : nama titik ODP (wajib)
-   - kode        : kode unik ODP, cth: ODP-BWI-001
-   - olt_id      : OLT induk
-   - port_olt    : port OLT yang terhubung ke ODP ini
-   - kapasitas   : jumlah port total (2, 4, 8, 16)
-   - terpakai    : jumlah port yang sudah digunakan
-   - lokasi      : alamat / koordinat
-   - keterangan  : catatan tambahan
+   Endpoint backend (odp.py):
+   GET    /api/odp          → daftar semua ODP
+   GET    /api/odp?odc_id=N → filter per ODC
+   POST   /api/odp          → tambah ODP
+   PUT    /api/odp/<id>     → edit ODP
+   DELETE /api/odp/<id>     → hapus ODP
+
+   Skema respons ODP dari backend (odp_to_dict):
+     id, nama, lokasi, koordinat, jumlah_port,
+     port_terpakai, odc_id, odc_nama, keterangan
    ============================================================ */
 
 'use strict';
 
-// ── STATE ──────────────────────────────────────────────────────
-let odps      = [];
-let editingId = null;
-const STORE_KEY = 'technofix_odp_data';
+// ── STATE ─────────────────────────────────────────────────────
+let _allData  = [];   // semua ODP dari backend
+let _editingId = null;
 
 
-// ── STORAGE HELPERS (sementara pakai localStorage) ──────────────
-function _saveLocal() {
-  try { localStorage.setItem(STORE_KEY, JSON.stringify(odps)); } catch (_) {}
-}
+// ── INIT ──────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  loadOdp();
+});
 
-function _loadLocal() {
+
+// ── LOAD ──────────────────────────────────────────────────────
+async function loadOdp() {
+  showLoading();
   try {
-    const raw = localStorage.getItem(STORE_KEY);
-    odps = raw ? JSON.parse(raw) : [];
-  } catch (_) {
-    odps = [];
+    const res  = await fetch(`${API_BASE}/api/odp`, {
+      credentials: 'include',
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    _allData = Array.isArray(data) ? data : [];
+    renderOdp();
+  } catch (e) {
+    document.getElementById('odp-list').innerHTML = `
+      <div class="empty-state">
+        <span class="material-symbols-outlined" style="font-size:40px;color:var(--red)">wifi_off</span>
+        <p style="font-weight:600;color:var(--text)">Tidak bisa terhubung ke server</p>
+        <p style="font-size:12px;color:var(--text-muted)">Pastikan backend Flask sudah berjalan.</p>
+      </div>`;
+    updateStats();
   }
 }
 
-function _nextId() {
-  return odps.length ? Math.max(...odps.map(x => x.id)) + 1 : 1;
+function syncAll() { loadOdp(); }
+
+function showLoading() {
+  document.getElementById('odp-list').innerHTML = `
+    <div class="empty-state">
+      <span class="material-symbols-outlined spin" style="font-size:32px">refresh</span>
+      <p>Memuat data ODP...</p>
+    </div>`;
 }
 
 
-// ── STATS ──────────────────────────────────────────────────────
+// ── STATS ─────────────────────────────────────────────────────
 function updateStats() {
-  const total    = odps.length;
-  const terpakai = odps.reduce((s, o) => s + (Number(o.terpakai) || 0), 0);
-  const kapasitas = odps.reduce((s, o) => s + (Number(o.kapasitas) || 0), 0);
-  const sisa     = kapasitas - terpakai;
+  const totalPort    = _allData.reduce((s, o) => s + (Number(o.jumlah_port)    || 0), 0);
+  const totalTerpakai = _allData.reduce((s, o) => s + (Number(o.port_terpakai) || 0), 0);
 
-  animNum('stat-total', total);
-  animNum('stat-aktif', terpakai);
-  animNum('stat-sisa',  sisa < 0 ? 0 : sisa);
+  animNum('stat-total',          _allData.length);
+  animNum('stat-port-terpakai',  totalTerpakai);
+  animNum('stat-port-total',     totalPort);
 
-  const el = document.getElementById('device-count');
-  if (el) el.textContent = `${total} titik ODP`;
+  const cnt = document.getElementById('odp-count');
+  if (cnt) cnt.textContent = `${_allData.length} titik ODP`;
 }
 
 
-// ── RENDER ──────────────────────────────────────────────────────
+// ── RENDER ────────────────────────────────────────────────────
 function renderOdp() {
-  const container = document.getElementById('device-list');
+  const container = document.getElementById('odp-list');
   if (!container) return;
 
-  if (!odps.length) {
+  if (!_allData.length) {
     container.innerHTML = `
       <div class="empty-state">
-        <span class="material-symbols-outlined" style="font-size:44px;color:var(--text-dim);">hub</span>
-        <p style="font-weight:700;color:var(--text);">Belum ada ODP terdaftar</p>
-        <p style="font-size:12px;color:var(--text-muted);">Klik <strong>Tambah ODP</strong> untuk mulai mendaftarkan titik distribusi.</p>
+        <span class="material-symbols-outlined" style="font-size:44px;color:var(--text-dim)">hub</span>
+        <p style="font-weight:700;color:var(--text)">Belum ada ODP terdaftar</p>
+        <p style="font-size:12px;color:var(--text-muted)">
+          Klik <strong>Tambah</strong> untuk mendaftarkan titik distribusi baru.
+        </p>
       </div>`;
     updateStats();
     return;
   }
 
-  container.innerHTML = odps.map((o, idx) => {
-    const kapasitas = Number(o.kapasitas) || 0;
-    const terpakai  = Number(o.terpakai)  || 0;
-    const sisa      = kapasitas - terpakai;
-    const persen    = kapasitas > 0 ? Math.round((terpakai / kapasitas) * 100) : 0;
-    const barColor  = persen >= 90 ? 'var(--red)' : persen >= 70 ? 'var(--amber)' : 'var(--green)';
+  container.innerHTML = _allData.map((o, idx) => {
+    const kapasitas   = Number(o.jumlah_port)    || 0;
+    const terpakai    = Number(o.port_terpakai)  || 0;
+    const sisa        = kapasitas - terpakai;
+    const persen      = kapasitas > 0 ? Math.min(100, Math.round((terpakai / kapasitas) * 100)) : 0;
+    const barColor    = persen >= 90 ? 'var(--red)' : persen >= 70 ? 'var(--amber)' : 'var(--green)';
+    const koordinat   = o.koordinat || '';
+
+    // Status badge: port tersisa / penuh
+    const badgeClass  = sisa > 0 ? 'connected' : 'failed';
+    const badgeLabel  = sisa > 0 ? `${sisa} port tersisa` : 'Penuh';
 
     return `
       <div class="device-card" id="card-${o.id}" style="animation-delay:${idx * 40}ms">
 
-        <div class="device-icon" style="background:var(--primary-light);">
+        <div class="device-icon" style="background:var(--amber-bg);color:var(--amber)">
           <span class="material-symbols-outlined">hub</span>
         </div>
 
         <div class="device-info">
           <div class="device-top">
             <span class="device-name">${escHtml(o.nama)}</span>
-            ${o.kode ? `<span class="device-tipe-badge">${escHtml(o.kode)}</span>` : ''}
-            <span class="badge ${sisa > 0 ? 'connected' : 'failed'}">
+            <span class="badge ${badgeClass}">
               <span class="badge-dot"></span>
-              ${sisa > 0 ? `${sisa} port tersisa` : 'Penuh'}
+              ${badgeLabel}
             </span>
           </div>
 
           <div class="device-meta">
-            ${o.olt_nama ? `
+            ${o.odc_nama ? `
             <span class="device-meta-item">
-              <span class="material-symbols-outlined">settings_input_antenna</span>
-              ${escHtml(o.olt_nama)}
-            </span>` : ''}
-            ${o.port_olt ? `
-            <span class="device-meta-item">
-              <span class="material-symbols-outlined">cable</span>
-              Port ${escHtml(o.port_olt)}
+              <span class="material-symbols-outlined">account_tree</span>
+              ODC: ${escHtml(o.odc_nama)}
             </span>` : ''}
             <span class="device-meta-item">
               <span class="material-symbols-outlined">fiber_manual_record</span>
@@ -120,19 +145,27 @@ function renderOdp() {
             </span>
             ${o.lokasi ? `
             <span class="device-meta-item">
-              <span class="material-symbols-outlined">location_on</span>
+              <span class="material-symbols-outlined">place</span>
               ${escHtml(o.lokasi)}
             </span>` : ''}
           </div>
 
           <!-- Progress bar penggunaan port -->
-          <div style="margin-top:8px;display:flex;align-items:center;gap:8px;">
-            <div style="flex:1;height:5px;background:var(--border);border-radius:99px;overflow:hidden;">
-              <div style="width:${persen}%;height:100%;background:${barColor};border-radius:99px;
-                   transition:width .4s ease;"></div>
+          <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+            <div style="flex:1;height:5px;background:var(--border);border-radius:99px;overflow:hidden">
+              <div style="width:${persen}%;height:100%;background:${barColor};border-radius:99px;transition:width .4s"></div>
             </div>
-            <span style="font-size:11px;font-weight:700;color:${barColor};flex-shrink:0;">${persen}%</span>
+            <span style="font-size:11px;font-weight:700;color:${barColor};flex-shrink:0">${persen}%</span>
           </div>
+
+          ${koordinat ? `
+          <div class="device-profile-row" style="margin-top:6px">
+            <a href="https://www.google.com/maps?q=${encodeURIComponent(koordinat)}"
+               target="_blank" class="koordinat-badge">
+              <span class="material-symbols-outlined">location_on</span>
+              ${escHtml(koordinat)}
+            </a>
+          </div>` : ''}
 
           ${o.keterangan ? `<p class="device-keterangan">${escHtml(o.keterangan)}</p>` : ''}
         </div>
@@ -141,7 +174,7 @@ function renderOdp() {
           <button class="btn btn-amber btn-sm" onclick="editOdp(${o.id})">
             <span class="material-symbols-outlined">edit</span> Edit
           </button>
-          <button class="btn btn-red btn-sm" onclick="confirmDeleteOdp(${o.id})" title="Hapus">
+          <button class="btn btn-red btn-sm" onclick="confirmDelete(${o.id})" title="Hapus ODP">
             <span class="material-symbols-outlined">delete</span>
           </button>
         </div>
@@ -153,111 +186,147 @@ function renderOdp() {
 }
 
 
-// ── LOAD OLT OPTIONS ─────────────────────────────────────────────
-async function loadOltOptions(selectedId) {
-  const sel = document.getElementById('f-olt');
-  if (!sel) return;
-  sel.innerHTML = '<option value="">— Pilih OLT Induk —</option>';
-  try {
-    const res  = await fetch(`${API_BASE}/olt`);
-    if (!res.ok) return;
-    const data = await res.json();
-    data.forEach(olt => {
-      const opt = new Option(`${olt.name} (${olt.ip})`, olt.id);
-      if (String(olt.id) === String(selectedId)) opt.selected = true;
-      sel.appendChild(opt);
-    });
-  } catch (_) {}
-}
-
-
-// ── FORM MODAL ───────────────────────────────────────────────────
-function showForm(prefill = null) {
-  editingId    = prefill ? prefill.id : null;
+// ── FORM MODAL ────────────────────────────────────────────────
+async function showForm(prefill = null) {
+  _editingId   = prefill ? prefill.id : null;
   const isEdit = !!prefill;
-  const v      = k => prefill ? escHtml(String(prefill[k] || '')) : '';
+  const v      = k => prefill ? escHtml(String(prefill[k] ?? '')) : '';
+
+  // Load opsi ODC dan ODP (untuk cascade)
+  let odcOptions = '<option value="">— Pilih ODC —</option>';
+  let odpParentOptions = '<option value="">— Pilih ODP Induk —</option>';
+  try {
+    const [rOdc, rOdp] = await Promise.all([
+      fetch(`${API_BASE}/api/odc`, { credentials: 'include', headers: getAuthHeaders() }),
+      fetch(`${API_BASE}/api/odp`, { credentials: 'include', headers: getAuthHeaders() }),
+    ]);
+    if (rOdc.ok) {
+      const data = await rOdc.json();
+      odcOptions += data.map(o =>
+        `<option value="${o.id}" ${prefill?.odc_id == o.id ? 'selected' : ''}>${escHtml(o.nama)} (${o.jumlah_port} port)</option>`
+      ).join('');
+    }
+    if (rOdp.ok) {
+      const data = await rOdp.json();
+      // Exclude diri sendiri saat edit
+      odpParentOptions += data
+        .filter(o => !prefill || o.id != prefill.id)
+        .map(o => `<option value="${o.id}" ${prefill?.parent_odp_id == o.id ? 'selected' : ''}>${escHtml(o.nama)} (${o.jumlah_port} port)</option>`)
+        .join('');
+    }
+  } catch (_) {}
+
+  // Tentukan mode relasi saat edit
+  const relasiMode = prefill?.parent_odp_id ? 'odp' : 'odc';
 
   const html = `
-    <div class="form-modal" style="width:540px;">
+    <div class="form-modal" style="width:560px">
 
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
         <div style="width:40px;height:40px;border-radius:var(--r-md);flex-shrink:0;
-             background:var(--primary-light);color:var(--primary);
-             display:flex;align-items:center;justify-content:center;">
-          <span class="material-symbols-outlined" style="font-size:20px;">
+             background:var(--amber-bg);color:var(--amber);
+             display:flex;align-items:center;justify-content:center">
+          <span class="material-symbols-outlined" style="font-size:20px">
             ${isEdit ? 'edit' : 'add_circle'}
           </span>
         </div>
-        <div style="flex:1;">
-          <div style="font-family:var(--heading);font-size:16px;font-weight:800;color:var(--text);">
+        <div style="flex:1">
+          <div style="font-family:var(--heading);font-size:16px;font-weight:800;color:var(--text)">
             ${isEdit ? 'Edit ODP' : 'Tambah ODP Baru'}
           </div>
-          <div style="font-size:12px;color:var(--text-muted);margin-top:1px;">
-            ${isEdit ? 'Perbarui data titik distribusi' : 'Daftarkan Optical Distribution Point baru'}
+          <div style="font-size:12px;color:var(--text-muted);margin-top:1px">
+            Optical Distribution Point — titik distribusi ke pelanggan
           </div>
         </div>
-        <button class="psheet-close" onclick="cancelForm()" title="Tutup">
+        <button class="psheet-close" onclick="cancelForm()">
           <span class="material-symbols-outlined">close</span>
         </button>
       </div>
 
       <div class="form-grid">
 
-        <div class="form-group">
+        <div class="form-group full">
           <label class="form-label">Nama ODP <span class="req">*</span></label>
           <input class="form-input" type="text" id="f-nama"
-                 placeholder="cth: ODP-Jl-Merdeka-01" value="${v('nama')}">
+                 placeholder="Contoh: ODP-Jl-Merdeka-01" value="${v('nama')}">
         </div>
 
-        <div class="form-group">
-          <label class="form-label">Kode ODP</label>
-          <input class="form-input" type="text" id="f-kode"
-                 placeholder="cth: ODP-BWI-001" value="${v('kode')}">
-        </div>
-
+        <!-- Jumlah Port -->
         <div class="form-group full">
-          <label class="form-label">OLT Induk</label>
-          <select class="form-input" id="f-olt">
-            <option value="">— Pilih OLT Induk —</option>
+          <label class="form-label">Jumlah Port (Kapasitas) <span class="req">*</span></label>
+          <select class="form-input" id="f-jumlah-port">
+            ${[2, 4, 8, 12, 16, 24, 32, 48, 64].map(n =>
+              `<option value="${n}" ${(prefill?.jumlah_port ?? 8) == n ? 'selected' : ''}>${n} port</option>`
+            ).join('')}
           </select>
         </div>
 
-        <div class="form-group">
-          <label class="form-label">Port OLT</label>
-          <input class="form-input" type="text" id="f-port-olt"
-                 placeholder="cth: 0/1/1" value="${v('port_olt')}">
-          <span class="form-hint">Port pada OLT yang terhubung ke ODP ini</span>
+        <!-- Relasi: ODC langsung ATAU ODP induk (cascade) -->
+        <div class="form-group full">
+          <label class="form-label">Jenis Relasi</label>
+          <div style="display:flex;gap:16px;margin-bottom:8px">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600">
+              <input type="radio" name="relasi-mode" value="odc" id="r-odc"
+                ${relasiMode === 'odc' ? 'checked' : ''}
+                onchange="_odpRelasiToggle('odc')" style="accent-color:var(--primary)">
+              Terhubung ke ODC
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600">
+              <input type="radio" name="relasi-mode" value="odp" id="r-odp"
+                ${relasiMode === 'odp' ? 'checked' : ''}
+                onchange="_odpRelasiToggle('odp')" style="accent-color:var(--primary)">
+              Terhubung ke ODP lain (Cascade)
+            </label>
+          </div>
         </div>
 
-        <div class="form-group">
-          <label class="form-label">Kapasitas Port <span class="req">*</span></label>
-          <select class="form-input" id="f-kapasitas">
-            <option value="2"  ${v('kapasitas') === '2'  ? 'selected' : ''}>2 port</option>
-            <option value="4"  ${v('kapasitas') === '4'  ? 'selected' : ''}>4 port</option>
-            <option value="8"  ${!prefill || v('kapasitas') === '8'  ? 'selected' : ''}>8 port</option>
-            <option value="16" ${v('kapasitas') === '16' ? 'selected' : ''}>16 port</option>
-            <option value="32" ${v('kapasitas') === '32' ? 'selected' : ''}>32 port</option>
+        <!-- Relasi ke ODC + Port ODC -->
+        <div id="relasi-odc-wrap" class="form-group full" style="${relasiMode === 'odc' ? '' : 'display:none'}">
+          <label class="form-label">Relasi ke ODC</label>
+          <select class="form-input" id="f-odc-id" onchange="_loadPortOdcForOdp()">${odcOptions}</select>
+        </div>
+        <div id="port-odc-wrap" class="form-group full" style="display:none">
+          <label class="form-label">Terhubung ke Port ODC <span style="font-size:10px;color:var(--text-dim)">(port yang belum dipakai ODP lain)</span></label>
+          <select class="form-input" id="f-port-odc">
+            <option value="">— Pilih Port —</option>
           </select>
         </div>
 
-        <div class="form-group">
-          <label class="form-label">Port Terpakai</label>
-          <input class="form-input" type="number" id="f-terpakai"
-                 placeholder="0" min="0" value="${v('terpakai') || '0'}">
+        <!-- Relasi ke ODP induk (cascade) + Port ODP parent -->
+        <div id="relasi-odp-wrap" class="form-group full" style="${relasiMode === 'odp' ? '' : 'display:none'}">
+          <label class="form-label">Relasi ke ODP Induk <span style="font-size:10px;color:var(--text-dim)">(cascade splitter)</span></label>
+          <select class="form-input" id="f-parent-odp-id" onchange="_loadPortParentOdp()">${odpParentOptions}</select>
+        </div>
+        <div id="port-parent-odp-wrap" class="form-group full" style="display:none">
+          <label class="form-label">Terhubung ke Port ODP Induk <span style="font-size:10px;color:var(--text-dim)">(port yang belum dipakai)</span></label>
+          <select class="form-input" id="f-port-parent-odp">
+            <option value="">— Pilih Port —</option>
+          </select>
         </div>
 
         <div class="form-group full">
-          <label class="form-label">Lokasi / Koordinat</label>
-          <input class="form-input" type="text" id="f-lokasi"
-                 placeholder="cth: Jl. Merdeka No.12, Banyuwangi / -8.2678, 114.3692"
-                 value="${v('lokasi')}">
+          <label class="form-label">
+            <span class="material-symbols-outlined"
+                  style="font-size:13px;vertical-align:middle;color:var(--primary)">location_on</span>
+            Titik Koordinat
+            <span style="font-size:10px;font-weight:400;color:var(--text-dim);margin-left:4px">(untuk Maps)</span>
+          </label>
+          <div class="koordinat-row">
+            <input class="form-input" type="text" id="f-koordinat"
+                   placeholder="-6.200000, 106.816666"
+                   value="${v('koordinat')}"
+                   oninput="previewKoordinat()">
+            <button type="button" class="koordinat-btn" onclick="deteksiLokasi()">
+              <span class="material-symbols-outlined">my_location</span>
+              Deteksi
+            </button>
+          </div>
+          <span class="form-hint">Format: latitude, longitude</span>
+          <div class="koordinat-preview" id="koordinat-preview">
+            <iframe id="koordinat-iframe" src="" loading="lazy"></iframe>
+          </div>
         </div>
 
-        <div class="form-group full">
-          <label class="form-label">Keterangan</label>
-          <textarea class="form-input" id="f-keterangan" rows="2"
-                    placeholder="Catatan tambahan tentang ODP ini...">${prefill ? escHtml(prefill.keterangan || '') : ''}</textarea>
-        </div>
 
       </div>
 
@@ -271,96 +340,245 @@ function showForm(prefill = null) {
           ${isEdit ? 'Simpan Perubahan' : 'Tambah ODP'}
         </button>
       </div>
-
     </div>`;
 
   openModalForm(html);
-
-  requestAnimationFrame(async () => {
-    await loadOltOptions(prefill?.olt_id || '');
+  requestAnimationFrame(() => {
     document.getElementById('f-nama')?.focus();
+    if (isEdit && prefill?.koordinat) previewKoordinat();
+    // Load port setelah form terbuka
+    if (relasiMode === 'odc' && prefill?.odc_id) {
+      _loadPortOdcForOdp().then(() => {
+        const portSel = document.getElementById('f-port-odc');
+        if (portSel && prefill.port_odc) portSel.value = prefill.port_odc;
+      });
+    } else if (relasiMode === 'odp' && prefill?.parent_odp_id) {
+      _loadPortParentOdp().then(() => {
+        const portSel = document.getElementById('f-port-parent-odp');
+        if (portSel && prefill.port_parent_odp) portSel.value = prefill.port_parent_odp;
+      });
+    }
   });
 }
 
 function cancelForm() {
-  editingId = null;
+  _editingId = null;
   closeModalForm();
 }
 
 function editOdp(id) {
-  const o = odps.find(x => x.id === id);
+  const o = _allData.find(x => x.id === id);
   if (o) showForm(o);
 }
 
 
-// ── CRUD ─────────────────────────────────────────────────────────
-function addOdp() {
-  const nama      = val('f-nama');
-  const kode      = val('f-kode');
-  const oltId     = val('f-olt');
-  const portOlt   = val('f-port-olt');
-  const kapasitas = val('f-kapasitas');
-  const terpakai  = val('f-terpakai') || '0';
-  const lokasi    = val('f-lokasi');
-  const keterangan = val('f-keterangan');
+// ── KOORDINAT HELPERS ─────────────────────────────────────────
+function deteksiLokasi() { geoDetectKoordinat(); }  /* pakai fungsi bersama di global.js */
 
-  if (!nama) { toast('Nama ODP wajib diisi', 'warning'); return; }
-  if (!kapasitas) { toast('Kapasitas port wajib dipilih', 'warning'); return; }
-  if (Number(terpakai) > Number(kapasitas)) {
-    toast('Port terpakai tidak bisa melebihi kapasitas', 'warning'); return;
+function previewKoordinat() {
+  const raw     = (document.getElementById('f-koordinat')?.value || '').trim();
+  const preview = document.getElementById('koordinat-preview');
+  const iframe  = document.getElementById('koordinat-iframe');
+  if (!preview || !iframe) return;
+
+  const parts = raw.split(',').map(s => s.trim());
+  if (
+    parts.length === 2 &&
+    !isNaN(parseFloat(parts[0])) &&
+    !isNaN(parseFloat(parts[1]))
+  ) {
+    iframe.src = `https://maps.google.com/maps?q=${parseFloat(parts[0])},${parseFloat(parts[1])}&z=15&output=embed`;
+    preview.classList.add('show');
+  } else {
+    preview.classList.remove('show');
+    iframe.src = '';
+  }
+}
+
+
+// ── COLLECT FORM ──────────────────────────────────────────────
+function collectForm() {
+  const nama         = val('f-nama');
+  const jumlahPort   = parseInt(val('f-jumlah-port'))   || 0;
+  const portTerpakai = parseInt(val('f-port-terpakai'))  || 0;
+
+  if (!nama) {
+    toast('Nama ODP wajib diisi', 'warning');
+    return null;
+  }
+  const modeOdc = document.getElementById('r-odc')?.checked !== false;
+  const odc_id       = modeOdc ? (val('f-odc-id') || null) : null;
+  const parent_odp_id = !modeOdc ? (val('f-parent-odp-id') || null) : null;
+  const port_odc       = modeOdc ? (val('f-port-odc') || null) : null;
+  const port_parent_odp = !modeOdc ? (val('f-port-parent-odp') || null) : null;
+
+  return {
+    nama,
+    lokasi:           val('f-lokasi'),
+    koordinat:        val('f-koordinat'),
+    jumlah_port:      jumlahPort,
+    odc_id,
+    parent_odp_id,
+    port_odc:         port_odc ? parseInt(port_odc) : null,
+    port_parent_odp:  port_parent_odp ? parseInt(port_parent_odp) : null,
+    keterangan:       val('f-keterangan'),
+  };
+}
+
+// ── Toggle relasi ODC / ODP cascade ─────────────────────────
+function _odpRelasiToggle(mode) {
+  const odcWrap    = document.getElementById('relasi-odc-wrap');
+  const portOdcW   = document.getElementById('port-odc-wrap');
+  const odpWrap    = document.getElementById('relasi-odp-wrap');
+  const portOdpW   = document.getElementById('port-parent-odp-wrap');
+  if (mode === 'odc') {
+    if (odcWrap)  odcWrap.style.display  = '';
+    if (odpWrap)  odpWrap.style.display  = 'none';
+    if (portOdpW) portOdpW.style.display = 'none';
+    _loadPortOdcForOdp();
+  } else {
+    if (odcWrap)  odcWrap.style.display  = 'none';
+    if (portOdcW) portOdcW.style.display = 'none';
+    if (odpWrap)  odpWrap.style.display  = '';
+    _loadPortParentOdp();
+  }
+}
+
+async function _loadPortOdcForOdp() {
+  const odcId = val('f-odc-id');
+  const wrap  = document.getElementById('port-odc-wrap');
+  const sel   = document.getElementById('f-port-odc');
+  if (!odcId || !wrap || !sel) { if(wrap) wrap.style.display='none'; return; }
+  try {
+    const r = await fetch(`${API_BASE}/api/odc/${odcId}/ports`, { credentials:'include', headers:getAuthHeaders() });
+    const d = await r.json();
+    sel.innerHTML = '<option value="">— Pilih Port —</option>';
+    (d.tersedia||[]).forEach(p => sel.appendChild(new Option('Port ' + p + ' (kosong)', p)));
+    Object.entries(d.odp_per_port||{}).forEach(([port, name]) => {
+      const o = new Option('Port ' + port + ' — ' + name + ' (terpakai)', port);
+      o.disabled = true; o.style.color='var(--text-dim)'; sel.appendChild(o);
+    });
+    wrap.style.display = '';
+  } catch(_) { if(wrap) wrap.style.display='none'; }
+}
+
+async function _loadPortParentOdp() {
+  const odpId = val('f-parent-odp-id');
+  const wrap  = document.getElementById('port-parent-odp-wrap');
+  const sel   = document.getElementById('f-port-parent-odp');
+  if (!odpId || !wrap || !sel) { if(wrap) wrap.style.display='none'; return; }
+  try {
+    const r = await fetch(`${API_BASE}/api/odp/${odpId}/child-ports`, { credentials:'include', headers:getAuthHeaders() });
+    const d = await r.json();
+    sel.innerHTML = '<option value="">— Pilih Port —</option>';
+    (d.tersedia||[]).forEach(p => sel.appendChild(new Option('Port ' + p + ' (kosong)', p)));
+    Object.entries(d.terhubung_per_port||{}).forEach(([port, name]) => {
+      const o = new Option('Port ' + port + ' — ' + name + ' (terpakai)', port);
+      o.disabled = true; o.style.color='var(--text-dim)'; sel.appendChild(o);
+    });
+    wrap.style.display = '';
+  } catch(_) { if(wrap) wrap.style.display='none'; }
+}
+
+
+// ── CRUD — ADD ────────────────────────────────────────────────
+async function addOdp() {
+  const payload = collectForm();
+  if (!payload) return;
+
+  const btn = document.getElementById('btn-submit-form');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-symbols-outlined spin">refresh</span> Menyimpan...';
   }
 
-  // Ambil nama OLT dari select
-  const oltSel   = document.getElementById('f-olt');
-  const oltNama  = oltSel?.options[oltSel.selectedIndex]?.text || '';
-
-  const newOdp = {
-    id: _nextId(),
-    nama, kode, olt_id: oltId, olt_nama: oltNama,
-    port_olt: portOlt, kapasitas: Number(kapasitas),
-    terpakai: Number(terpakai), lokasi, keterangan,
-    created_at: new Date().toISOString(),
-  };
-
-  odps.push(newOdp);
-  _saveLocal();
-  cancelForm();
-  renderOdp();
-  toast(`ODP ${nama} berhasil ditambahkan`, 'success');
+  try {
+    const res  = await fetch(`${API_BASE}/api/odp`, {
+      method:      'POST',
+      credentials: 'include',
+      headers:     getAuthHeaders(),
+      body:        JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      cancelForm();
+      toast(`ODP ${payload.nama} berhasil ditambahkan`, 'success');
+      loadOdp();
+    } else {
+      toast(data.error || 'Gagal menyimpan ODP', 'danger');
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-symbols-outlined">add</span> Tambah ODP';
+      }
+    }
+  } catch (e) {
+    toast('Tidak bisa menghubungi server', 'danger');
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<span class="material-symbols-outlined">add</span> Tambah ODP';
+    }
+  }
 }
 
-function saveEdit() {
-  const o = odps.find(x => x.id === editingId);
-  if (!o) return;
 
-  const nama       = val('f-nama');
-  const kapasitas  = Number(val('f-kapasitas')) || 0;
-  const terpakai   = Number(val('f-terpakai'))  || 0;
+// ── CRUD — EDIT ───────────────────────────────────────────────
+async function saveEdit() {
+  const payload = collectForm();
+  if (!payload) return;
 
-  if (!nama) { toast('Nama ODP wajib diisi', 'warning'); return; }
-  if (terpakai > kapasitas) { toast('Port terpakai melebihi kapasitas', 'warning'); return; }
+  const btn = document.getElementById('btn-submit-form');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-symbols-outlined spin">refresh</span> Menyimpan...';
+  }
 
-  const oltSel  = document.getElementById('f-olt');
-  const oltNama = oltSel?.options[oltSel.selectedIndex]?.text || '';
-
-  Object.assign(o, {
-    nama, kode: val('f-kode'),
-    olt_id: val('f-olt'), olt_nama: oltNama,
-    port_olt: val('f-port-olt'), kapasitas,
-    terpakai, lokasi: val('f-lokasi'),
-    keterangan: val('f-keterangan'),
-    updated_at: new Date().toISOString(),
-  });
-
-  _saveLocal();
-  cancelForm();
-  renderOdp();
-  toast(`ODP ${nama} berhasil diperbarui`, 'success');
+  try {
+    const res  = await fetch(`${API_BASE}/api/odp/${_editingId}`, {
+      method:      'PUT',
+      credentials: 'include',
+      headers:     getAuthHeaders(),
+      body:        JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      cancelForm();
+      toast('ODP berhasil diperbarui', 'success');
+      loadOdp();
+    } else {
+      toast(data.error || 'Gagal memperbarui ODP', 'danger');
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-symbols-outlined">check</span> Simpan Perubahan';
+      }
+    }
+  } catch (e) {
+    toast('Tidak bisa menghubungi server', 'danger');
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<span class="material-symbols-outlined">check</span> Simpan Perubahan';
+    }
+  }
 }
 
-function confirmDeleteOdp(id) {
-  const o = odps.find(x => x.id === id);
+
+// ── CRUD — DELETE (dengan dependency check) ───────────────────
+function confirmDelete(id) {
+  const o = _allData.find(x => x.id === id);
   if (!o) return;
+
+  const terpakai    = Number(o.port_terpakai) || 0;
+  const isOccupied  = terpakai > 0;
+
+  // Warning: ODP masih memiliki pelanggan (port terpakai > 0)
+  const warnOnu = isOccupied
+    ? `<div style="background:var(--red-bg);border:1px solid var(--red-border);
+           border-radius:var(--r-md);padding:10px 14px;margin-top:12px;
+           font-size:12px;color:var(--red);display:flex;align-items:center;gap:8px">
+         <span class="material-symbols-outlined" style="font-size:16px;flex-shrink:0">warning</span>
+         <span><strong>Perhatian:</strong> ODP ini masih memiliki
+           <strong>${terpakai} port terpakai</strong> (kemungkinan ada pelanggan aktif).
+           Pastikan semua pelanggan sudah dipindahkan sebelum menghapus.</span>
+       </div>` : '';
 
   openModalForm(`
     <div class="modal">
@@ -369,33 +587,35 @@ function confirmDeleteOdp(id) {
       </div>
       <div class="hapus-title">Hapus ODP?</div>
       <div class="hapus-sub">
-        Yakin ingin menghapus <strong>${escHtml(o.nama)}</strong>?<br>
-        Data ini akan dihapus dari sistem secara permanen.
+        Yakin hapus <strong>${escHtml(o.nama)}</strong>?<br>
+        Data ODP ini akan dihapus secara permanen.
       </div>
-      <div class="modal-actions" style="margin-top:20px;">
-        <button class="btn btn-cancel" onclick="closeModalForm()">Batal</button>
-        <button class="btn btn-red" onclick="doDeleteOdp(${id})">
+      ${warnOnu}
+      <div class="modal-actions" style="margin-top:20px">
+        <button class="btn" onclick="closeModalForm()">Batal</button>
+        <button class="btn btn-red" onclick="doDelete(${id})">
           <span class="material-symbols-outlined">delete</span> Ya, Hapus
         </button>
       </div>
     </div>`);
 }
 
-function doDeleteOdp(id) {
-  odps = odps.filter(x => x.id !== id);
-  _saveLocal();
+async function doDelete(id) {
   closeModalForm();
-  renderOdp();
-  toast('ODP berhasil dihapus', 'danger');
+  try {
+    const res = await fetch(`${API_BASE}/api/odp/${id}`, {
+      method:      'DELETE',
+      credentials: 'include',
+      headers:     getAuthHeaders(),
+    });
+    if (res.ok) {
+      toast('ODP berhasil dihapus', 'danger');
+      loadOdp();
+    } else {
+      const data = await res.json().catch(() => ({}));
+      toast(data.error || 'Gagal menghapus ODP', 'danger');
+    }
+  } catch (e) {
+    toast('Tidak bisa menghubungi server', 'danger');
+  }
 }
-
-
-// ── SYNC ALL (placeholder — hubungkan ke API saat backend siap) ──
-function syncAll() {
-  toast('Fitur sinkronisasi ODP ke backend akan segera tersedia', 'info');
-}
-
-
-// ── INIT ─────────────────────────────────────────────────────────
-_loadLocal();
-renderOdp();

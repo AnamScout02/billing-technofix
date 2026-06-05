@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Panel Super Admin — TechnoFix</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
+  <link rel="stylesheet" href="/app/frontend/superadmin/superadmin.css?v=2" />
+</head>
+<body>
+
+  <!-- ══ TOPBAR ══ -->
+  <header class="sa-top">
+    <div class="sa-top-inner">
+      <div class="sa-brand">
+        <div class="sa-logo"><span class="material-symbols-outlined">shield_person</span></div>
+        <div>
+          <div class="sa-brand-name">TechnoFix · Super Admin</div>
+          <div class="sa-brand-sub">Kelola seluruh owner &amp; langganan</div>
+        </div>
+      </div>
+      <div class="sa-top-actions">
+        <span class="sa-admin-name" id="sa-admin-name">admin</span>
+        <button class="sa-btn sa-btn-ghost" onclick="adminLogout()"><span class="material-symbols-outlined">logout</span>Keluar</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="sa-main">
+
+    <!-- STATS -->
+    <div class="sa-stats" id="sa-stats">
+      <div class="sa-stat"><div class="sa-stat-num" id="st-total">–</div><div class="sa-stat-lbl">Total Owner</div></div>
+      <div class="sa-stat"><div class="sa-stat-num" id="st-active">–</div><div class="sa-stat-lbl">Aktif</div></div>
+      <div class="sa-stat"><div class="sa-stat-num" id="st-trial">–</div><div class="sa-stat-lbl">Trial</div></div>
+      <div class="sa-stat"><div class="sa-stat-num" id="st-locked">–</div><div class="sa-stat-lbl">Terkunci</div></div>
+    </div>
+
+    <!-- PERMINTAAN UPGRADE (pending) -->
+    <div id="sa-requests-wrap" style="display:none;margin-bottom:26px">
+      <div class="sa-head"><h1>Permintaan Upgrade <span id="sa-req-badge" class="sa-pkg" style="background:rgba(245,158,11,.18);color:#fcd34d;border-color:rgba(245,158,11,.3)">0</span></h1></div>
+      <div id="sa-requests" class="sa-req-list"></div>
+    </div>
+
+    <div class="sa-head">
+      <h1>Daftar Owner / ISP</h1>
+      <div class="sa-search">
+        <span class="material-symbols-outlined">search</span>
+        <input type="text" id="sa-search" placeholder="Cari nama ISP…" oninput="filterOwners()" />
+      </div>
+    </div>
+
+    <!-- TABEL OWNER -->
+    <div class="sa-table-wrap">
+      <table class="sa-table">
+        <thead>
+          <tr>
+            <th>ISP / Owner</th><th>Paket</th><th>Status</th><th>Tim</th>
+            <th>Berlaku s/d</th><th>Daftar</th><th class="ta-right">Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="sa-tbody">
+          <tr><td colspan="7" class="sa-loading"><span class="material-symbols-outlined spin">progress_activity</span> Memuat…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <!-- ══ MODAL AKTIVASI ══ -->
+  <div class="sa-modal-overlay" id="sa-modal" onclick="closeModal(event)">
+    <div class="sa-modal" onclick="event.stopPropagation()">
+      <div class="sa-modal-head">
+        <h3 id="sa-modal-title">Aktifkan Paket</h3>
+        <button class="sa-x" onclick="closeModal()"><span class="material-symbols-outlined">close</span></button>
+      </div>
+      <div class="sa-modal-body">
+        <div class="sa-owner-chip" id="sa-modal-owner">—</div>
+        <label class="sa-label">Paket</label>
+        <select id="sa-modal-paket" class="sa-input"></select>
+        <label class="sa-label">Durasi (bulan)</label>
+        <select id="sa-modal-bulan" class="sa-input">
+          <option value="1">1 bulan</option><option value="3">3 bulan</option>
+          <option value="6">6 bulan</option><option value="12">12 bulan</option>
+        </select>
+      </div>
+      <div class="sa-modal-foot">
+        <button class="sa-btn sa-btn-ghost" onclick="closeModal()">Batal</button>
+        <button class="sa-btn sa-btn-primary" id="sa-modal-confirm"><span class="material-symbols-outlined">check</span>Aktifkan</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+  <script src="/app/frontend/statis/global.js?v=21"></script>
+  <script src="/app/frontend/superadmin/superadmin.js?v=2"></script>
+</body>
+</html>

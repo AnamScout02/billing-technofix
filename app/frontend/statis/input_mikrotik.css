@@ -1,294 +1,74 @@
 /* ============================================================
    input_mikrotik.css — Manajemen Perangkat MikroTik
+   v3.0 — SETELAH KONSOLIDASI ke global.css
    ⚠ Load SETELAH global.css
 
-   Hanya berisi komponen SPESIFIK halaman ini:
-   1.  Topbar override (legacy — header utama kini via global.css)
-   2.  Stats row
-   3.  Tombol tambahan: btn-blue, btn-amber, btn-red, btn-sm
-   4.  Form card & fields (termasuk form-modal yang dipakai JS baru)
-   5.  List header
-   6.  Device card
-   7.  Badge status modifier
-   8.  Empty state
-   9.  Spin alias
-   10. Responsive
+   Semua kelas shared sudah dipindah ke global.css:
+     .btn-blue/amber/red/green, .form-card, .form-grid,
+     .form-group, .form-input, .form-label, .form-hint,
+     .form-pwd-wrap, .ip-port-row, .koordinat-*, .list-header,
+     .device-card, .device-icon, .device-info, .device-meta,
+     .device-actions, .empty-state, .badge.*, .spin,
+     responsive breakpoints
+
+   File ini hanya berisi override & komponen SPESIFIK MikroTik:
+     1. Stats row 3 kolom (override default global)
+     2. Device card — layout grid mobile (override global flex)
+     3. Device profile row — badge jumlah PPPoE profile
    ============================================================ */
 
-
 /* ══════════════════════════════════════════════════════════
-   1. TOPBAR OVERRIDE (legacy — dibiarkan agar tidak break)
-══════════════════════════════════════════════════════════ */
-.topbar {
-  position: sticky; top: 0; z-index: 50;
-  height: var(--header-h);
-  background: rgba(255,255,255,.96);
-  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid var(--border);
-  box-shadow: 0 1px 0 var(--border), 0 2px 12px rgba(0,0,0,.04);
-}
-.topbar-inner {
-  max-width: 100%; margin: 0 auto; padding: 0 32px; height: 100%;
-  display: flex; align-items: center; justify-content: space-between; gap: 16px;
-}
-.topbar-brand { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-.topbar-logo {
-  width: 38px; height: 38px; border-radius: 11px;
-  background: linear-gradient(135deg, var(--primary) 0%, #0055cc 100%);
-  display: flex; align-items: center; justify-content: center;
-  color: #fff; font-size: 20px;
-  box-shadow: 0 2px 10px rgba(0,64,161,.35); flex-shrink: 0;
-}
-.topbar-name {
-  font-size: 15px; font-weight: 700; font-family: var(--heading);
-  color: var(--primary); letter-spacing: -.02em; line-height: 1.2;
-}
-.topbar-avatar {
-  width: 36px; height: 36px; border-radius: 50%;
-  background: linear-gradient(135deg, var(--primary) 0%, #0055cc 100%);
-  color: #fff; font-size: 14px; font-weight: 700; font-family: var(--heading);
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer; letter-spacing: .04em;
-  box-shadow: 0 2px 8px rgba(0,64,161,.28);
-  transition: box-shadow .15s, transform .1s;
-}
-.topbar-avatar:hover { box-shadow: 0 4px 14px rgba(0,64,161,.38); transform: scale(1.05); }
-
-
-/* ══════════════════════════════════════════════════════════
-   2. STATS ROW
+   1. STATS ROW — 3 kolom (default global sudah 3, konfirmasi)
 ══════════════════════════════════════════════════════════ */
 .stats-row {
-  display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 14px; margin-bottom: 22px;
+  gap: 14px;
+  margin-bottom: 22px;
 }
-
 
 /* ══════════════════════════════════════════════════════════
-   3. TOMBOL TAMBAHAN
+   2. DEVICE CARD — override layout untuk mobile grid
+   Desktop: flex row (dari global.css)
+   Mobile: grid 2 kolom dengan actions di bawah
 ══════════════════════════════════════════════════════════ */
-.btn-blue  { background: var(--blue-bg);  border-color: var(--blue-border);  color: var(--blue); }
-.btn-amber { background: var(--amber-bg); border-color: var(--amber-border); color: var(--amber); }
-.btn-red   { background: var(--red-bg);   border-color: var(--red-border);   color: var(--red); }
-.btn-green { background: var(--green-bg); border-color: var(--green-border); color: var(--green); }
-
-.btn-blue:hover  { background: #dbeafe; border-color: #93c5fd; }
-.btn-amber:hover { background: #fef3c7; border-color: #fcd34d; }
-.btn-red:hover   { background: #fee2e2; border-color: #fca5a5; }
-.btn-green:hover { background: #dcfce7; border-color: #86efac; }
-
-.btn-sm   { padding: 5px 11px; font-size: 12px; }
-.btn-sm .material-symbols-outlined { font-size: 13px; }
-
-
-/* ══════════════════════════════════════════════════════════
-   4. FORM CARD & FIELDS
-   .form-modal (modal popup) didefinisikan di global.css.
-   .form-card di bawah dipertahankan untuk kompatibilitas.
-══════════════════════════════════════════════════════════ */
-.form-card {
-  background: var(--bg);
-  border: 1.5px solid var(--primary);
-  border-radius: var(--r-xl);
-  padding: 20px 24px; margin-bottom: 22px;
-  box-shadow: 0 0 0 3px var(--primary-ring), var(--shadow-md);
-  animation: slideDown .22s cubic-bezier(.22,1,.36,1);
-}
-.form-card-title {
-  font-size: 15px; font-weight: 700; font-family: var(--heading);
-  color: var(--text); letter-spacing: -.01em;
-  margin-bottom: 20px; display: flex; align-items: center; gap: 12px;
-}
-.form-card-title .material-symbols-outlined { font-size: 20px; color: var(--primary); }
-
-.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.form-group      { display: flex; flex-direction: column; gap: 6px; }
-.form-group.full { grid-column: 1 / -1; }
-
-.form-label { font-size: 12px; font-weight: 600; color: var(--text-muted); letter-spacing: .01em; }
-
-.form-input {
-  height: 40px; padding: 0 12px;
-  border: 1.5px solid var(--border); border-radius: var(--r-sm);
-  background: var(--surface); color: var(--text);
-  font-size: 13px; font-family: var(--sans);
-  width: 100%; outline: none;
-  transition: border-color .15s, box-shadow .15s, background .15s;
-}
-.form-input:focus {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--primary-ring);
-  background: var(--bg);
-}
-.form-input::placeholder { color: var(--text-dim); }
-
-/* ✅ .mono: tidak lagi monospace — font biasa saja, bold */
-.form-input.mono { font-family: var(--sans); font-weight: 600; font-size: 12px; }
-
-/* Textarea */
-textarea.form-input { height: auto; padding: 10px 12px; resize: none; line-height: 1.6; }
-
-/* Select arrow */
-select.form-input {
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238a96a8' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: right 10px center;
-  padding-right: 32px; cursor: pointer;
-}
-
-.ip-port-row                         { display: flex; gap: 8px; }
-.ip-port-row .form-input:first-child { flex: 1; }
-.ip-port-row .form-input.port        { width: 90px; text-align: center; }
-
-/* Password toggle */
-.form-pwd-wrap { position: relative; display: flex; align-items: center; }
-.form-pwd-wrap .form-input { padding-right: 40px; }
-.form-pwd-toggle {
-  position: absolute; right: 10px;
-  background: none; border: none; cursor: pointer;
-  color: var(--text-dim); display: flex; align-items: center;
-  transition: color .15s; padding: 0;
-}
-.form-pwd-toggle:hover { color: var(--primary); }
-.form-pwd-toggle .material-symbols-outlined { font-size: 18px; }
-
-.form-hint { font-size: 11px; color: var(--text-dim); margin-top: 3px; }
-.form-actions {
-  display: flex; justify-content: flex-end; gap: 10px;
-  margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border);
-}
-
-
-/* ══════════════════════════════════════════════════════════
-   5. LIST HEADER
-══════════════════════════════════════════════════════════ */
-.list-header {
-  display: flex; align-items: center;
-  justify-content: space-between; margin-bottom: 12px;
-}
-.list-title {
-  font-size: 11px; font-weight: 700;
-  color: var(--text-dim); text-transform: uppercase; letter-spacing: .06em;
-}
-#device-count { font-size: 12px; color: var(--text-dim); }
-
-
-/* ══════════════════════════════════════════════════════════
-   6. DEVICE CARD
-══════════════════════════════════════════════════════════ */
-.device-card {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  padding: 16px 18px; margin-bottom: 10px;
-  display: flex; align-items: center; gap: 14px;
-  box-shadow: var(--shadow-sm);
-  transition: border-color .2s, box-shadow .2s, transform .15s;
-  animation: fadeUp .2s ease both;
-}
-.device-card:hover {
-  border-color: var(--border-2); box-shadow: var(--shadow-md); transform: translateY(-1px);
-}
-
-/* Border kiri warna status */
-.device-card.status-connected { border-left: 3px solid var(--green); }
-.device-card.status-failed    { border-left: 3px solid var(--red); }
-.device-card.status-pending   { border-left: 3px solid var(--amber); }
-
-.device-icon {
-  width: 42px; height: 42px; border-radius: var(--r-md);
-  background: var(--primary-light);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 22px; color: var(--primary); flex-shrink: 0;
-}
-.device-info  { flex: 1; min-width: 0; }
-.device-top   { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap; }
-.device-name  { font-size: 13px; font-weight: 700; color: var(--text); }
-
-/* Badge tipe OLT */
-.device-tipe-badge {
-  font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 99px;
-  background: var(--primary-light); color: var(--primary);
-  border: 1px solid rgba(0,64,161,.2); white-space: nowrap;
-}
-
-.device-meta {
-  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
-}
-.device-meta-item {
-  display: flex; align-items: center; gap: 5px;
-  font-size: 12px; color: var(--text-muted);
-  font-family: var(--sans);         /* ✅ tidak ada monospace */
-}
-.device-meta-item .material-symbols-outlined { font-size: 13px; color: var(--text-dim); }
-
-.device-keterangan { font-size: 11px; color: var(--text-dim); margin-top: 5px; font-style: italic; }
-.device-actions { display: flex; gap: 5px; flex-shrink: 0; }
-
-
-/* ══════════════════════════════════════════════════════════
-   7. BADGE STATUS MODIFIER
-   JS pakai: class="badge connected" / "badge failed" dll
-══════════════════════════════════════════════════════════ */
-.badge.connected            { background: var(--green-bg);  color: var(--green);    border-color: var(--green-border); }
-.badge.connected .badge-dot { background: var(--green); }
-.badge.failed               { background: var(--red-bg);    color: var(--red);      border-color: var(--red-border); }
-.badge.failed .badge-dot    { background: var(--red); animation: pulse-red 1.2s infinite; }
-.badge.pending              { background: var(--surface);   color: var(--text-dim); border-color: var(--border); }
-.badge.pending .badge-dot   { background: var(--text-dim); }
-.badge.syncing              { background: var(--blue-bg);   color: var(--blue);     border-color: var(--blue-border); }
-.badge.syncing .badge-dot   { background: var(--blue); animation: pulse-blue .8s infinite; }
-
-
-/* ══════════════════════════════════════════════════════════
-   8. EMPTY STATE
-   Dipakai oleh renderDevices() saat tidak ada data / error
-══════════════════════════════════════════════════════════ */
-.empty-state {
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  padding: 48px 24px; text-align: center;
-  color: var(--text-muted);
-  background: var(--bg);
-  border: 1px dashed var(--border);
-  border-radius: var(--r-lg);
-  gap: 8px;
-}
-.empty-state p { margin: 0; font-size: 13px; line-height: 1.6; }
-.empty-state .material-symbols-outlined { font-size: 40px; color: var(--text-dim); }
-
-
-/* ══════════════════════════════════════════════════════════
-   9. SPIN ALIAS
-   global.css: .spinning — JS halaman ini pakai .spin
-══════════════════════════════════════════════════════════ */
-.spin { animation: spinAnim .8s linear infinite; display: inline-block; }
-
-
-/* ══════════════════════════════════════════════════════════
-   10. RESPONSIVE
-══════════════════════════════════════════════════════════ */
-@media (max-width: 768px) {
-  .topbar-inner      { padding: 0 16px; }
-  .stats-row         { grid-template-columns: 1fr 1fr; gap: 10px; }
-  .device-card       { flex-wrap: wrap; }
-  .device-actions    { width: 100%; justify-content: flex-end; margin-top: 6px; }
-}
-
-@media (max-width: 480px) {
-  .stats-row         { grid-template-columns: 1fr 1fr; gap: 8px; }
-  .form-grid         { grid-template-columns: 1fr; }
-  .form-group.full   { grid-column: 1; }
-  .device-name       { font-size: 12px; }
-  .device-meta-item  { font-size: 11.5px; }
-  .btn-sm            { font-size: 11.5px; padding: 4px 9px; }
-  .ip-port-row       { flex-direction: column; }
-  .ip-port-row .form-input.port { width: 100%; text-align: left; }
+@media (max-width: 639px) {
+  .device-card {
+    display: grid;
+    grid-template-columns: 44px 1fr;
+    grid-template-rows: auto auto;
+    gap: 0 12px;
+    align-items: start;
+  }
+  .device-icon    { grid-column: 1; grid-row: 1 / 3; align-self: start; margin-top: 2px; }
+  .device-info    { grid-column: 2; grid-row: 1; }
+  .device-actions {
+    grid-column: 1 / 3;
+    grid-row: 3;
+    flex-direction: row;
+    justify-content: flex-end;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+  }
+  .stats-row { grid-template-columns: 1fr 1fr; gap: 10px; }
 }
 
 @media (max-width: 360px) {
-  .device-card  { padding: 12px 14px; }
-  .device-icon  { width: 36px; height: 36px; font-size: 18px; }
-  .stats-row    { grid-template-columns: 1fr; }
+  .stats-row { grid-template-columns: 1fr; }
 }
+
+/* ══════════════════════════════════════════════════════════
+   3. DEVICE PROFILE ROW — badge PPPoE profile count
+   Spesifik MikroTik: menampilkan badge jumlah PPPoE Profile
+══════════════════════════════════════════════════════════ */
+.profile-count-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 600;
+  background: var(--primary-light); color: var(--primary);
+  border: 1px solid rgba(0,64,161,.18);
+  border-radius: 99px; padding: 2px 9px;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.profile-count-badge:hover { background: #d0e3fb; border-color: var(--primary); }
+.profile-count-badge .material-symbols-outlined { font-size: 12px; }

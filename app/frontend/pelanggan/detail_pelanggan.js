@@ -45,6 +45,35 @@ document.addEventListener('DOMContentLoaded', () => {
   _renderHero(_pelanggan);
   _renderInfoCards(_pelanggan);
 
+  // Kolektor: tampilkan bar aksi terbatas + info ringkas, sembunyikan bar penuh + CLI + info penuh
+  var _role = localStorage.getItem('tf_role') || '';
+  if (_role === 'kolektor') {
+    var barFull    = document.getElementById('dp-action-bar-full');
+    var barKol     = document.getElementById('dp-action-bar-kolektor');
+    var cliCol     = document.querySelector('.dp-card-cli');
+    var infoFull   = document.getElementById('dp-info-full');
+    var infoKol    = document.getElementById('dp-info-kolektor');
+    if (barFull)  barFull.style.display  = 'none';
+    if (barKol)   barKol.style.display   = '';
+    if (cliCol)   cliCol.style.display   = 'none';
+    if (infoFull) infoFull.style.display = 'none';
+    if (infoKol)  infoKol.style.display  = '';
+    // Isi info ringkas kolektor
+    var p = _pelanggan;
+    var fmtD = function(v){ if(!v) return '—'; try{ return new Date(v).toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'}); }catch(_){ return v; } };
+    _setText('kol-info-nama',       p.nama || p.username || '—');
+    _setText('kol-info-username',   p.username || '—');
+    _setText('kol-info-hp',         p.hp || '—');
+    _setText('kol-info-profil',     p.profil || '—');
+    var _rph = p.harga ? 'Rp ' + Number(p.harga).toLocaleString('id-ID') + ' / bulan' : '—';
+    _setText('kol-info-tgl-jatuh',  fmtD(p.tgl_jatuh));
+    // Tambah tagihan ke info kolektor jika ada elemennya
+    var hEl = document.getElementById('kol-info-harga');
+    if (hEl) hEl.textContent = _rph;
+    _setText('kol-info-status',     p.status || '—');
+    _setText('kol-info-koordinat',  p.titik_koordinat || p.koordinat || '—');
+  }
+
   // Tentukan tab default berdasarkan tipe OLT yang tersimpan
   const tipe = (_pelanggan._oltTipe || '').toLowerCase();
   _cliTab = tipe.includes('huawei') ? 'huawei' : 'zte';
@@ -59,7 +88,43 @@ document.addEventListener('DOMContentLoaded', () => {
       if (warn) warn.style.display = cbOlt.checked ? 'flex' : 'none';
     });
   }
+
+  // ── Fetch password REAL dari MikroTik secara async ──
+  _fetchCredentialsThenRerender();
+
+  // ── Load riwayat transaksi ──
+  _loadRiwayat(_pelanggan.username);
 });
+
+
+/* ══════════════════════════════════════════════════════════
+   FETCH CREDENTIALS — ambil password real dari /credentials
+═══════════════════════════════════════════════════════════ */
+async function _fetchCredentialsThenRerender() {
+  if (!_pelanggan?.id) return;
+  try {
+    const res = await fetch(`${API_BASE}/api/pelanggan/${_pelanggan.id}/credentials`, {
+      credentials: 'include',
+      headers:     getAuthHeaders(),
+    });
+    if (!res.ok) {
+      console.warn('[credentials] fetch gagal:', res.status);
+      return;
+    }
+    const data = await res.json();
+    if (data.password) {
+      _pelanggan.password = data.password;
+      // Update sessionStorage agar persistent kalau user refresh
+      try {
+        sessionStorage.setItem('tf_detail_pelanggan', JSON.stringify(_pelanggan));
+      } catch (_) {}
+      // Re-render CLI script dengan password real
+      _renderCli(_pelanggan);
+    }
+  } catch (e) {
+    console.warn('[credentials] error:', e);
+  }
+}
 
 
 /* ══════════════════════════════════════════════════════════
@@ -116,6 +181,8 @@ function _renderInfoCards(p) {
   _setText('info-username',   fmt(p.username));
   _setText('info-hp',         fmt(p.hp));
   _setText('info-profil',     fmt(p.profil));
+  const _rp = n => n ? 'Rp ' + Number(n).toLocaleString('id-ID') + ' / bulan' : '—';
+  _setText('info-harga', _rp(p.harga));
   _setText('info-tgl-pasang', fmtDate(p.tgl_pasang));
   _setText('info-tgl-jatuh',  fmtDate(p.tgl_jatuh));
   _setText('info-koordinat',  fmt(p.koordinat));
@@ -161,7 +228,17 @@ function _buildCliScript(p, forceTipe) {
   const sn       = p.sn       || 'ZTEG00000000';
   const vlan     = p.vlan     || '200';
   const profil   = (p.profil  || 'PAKET1').toUpperCase();
-  const password = '••••••';   // Password tidak ditampilkan dalam plaintext
+  // TCONT profile di OLT — beda dengan profil PPPoE. Fallback 'default'.
+  const tcont    = (p.tcont_profile || '').trim() || 'default';
+
+  // Password: prioritas dari _pelanggan.password (di-fetch dari /credentials)
+  // Fallback ke placeholder jika belum ter-fetch
+  const password = (p.password && p.password.length > 0)
+                 ? p.password
+                 : '••••••';
+  const pwdNote  = password === '••••••'
+    ? '\n! CATATAN: Password belum di-fetch. Tunggu loading selesai\n! atau klik "Regis Ulang" untuk kirim otomatis ke OLT\n'
+    : '';
 
   const isHuawei = (forceTipe || '').toLowerCase().includes('huawei');
 
@@ -181,6 +258,7 @@ function _buildCliScript(p, forceTipe) {
 
   /* ── Script ZTE C300 / C600 (default) ── */
   return [
+    pwdNote,
     'con t',
     `interface gpon-olt_${gponPath}`,
     `no onu ${onuId}`,
@@ -190,7 +268,7 @@ function _buildCliScript(p, forceTipe) {
     `interface gpon-onu_${gponPath}:${onuId}`,
     `name ${username}`,
     'sn-bind enable sn',
-    `tcont 1 profile ${profil}`,
+    `tcont 1 profile ${tcont}`,
     'gemport 1 tcont 1',
     'switchport mode hybrid vport 1',
     `service-port 1 vport 1 user-vlan ${vlan} vlan ${vlan}`,
@@ -268,6 +346,15 @@ function copyCliScript() {
 ══════════════════════════════════════════════════════════ */
 function aksiModem(aksi) {
   if (!_pelanggan) return;
+
+  // Teknisi tidak bisa isolir/enable/disable
+  const _role = localStorage.getItem('tf_role') || '';
+  if (_role === 'teknisi' && ['isolir','enable','disable'].includes(aksi)) {
+    if (typeof toast === 'function') {
+      toast('Aksi ini hanya bisa dilakukan oleh Admin atau Owner. Silakan hubungi Admin/Owner.', 'warning');
+    }
+    return;
+  }
 
   switch (aksi) {
     case 'enable':
@@ -353,30 +440,61 @@ async function konfirmasiReboot() {
 }
 
 /* ── Konfirmasi Remote — buka IP di tab baru ── */
-function konfirmasiRemote() {
-  const ipEl   = document.getElementById('remote-ip');
-  const hintEl = document.getElementById('remote-ip-hint');
-  const ip     = (ipEl?.value || '').trim();
+async function konfirmasiRemote() {
+  const ipEl     = document.getElementById('remote-ip');
+  const hintEl   = document.getElementById('remote-ip-hint');
+  const publicIp = (ipEl?.value || '').trim();
 
-  if (!ip) {
-    if (hintEl) { hintEl.textContent = 'IP address wajib diisi.'; hintEl.style.display = 'block'; }
-    ipEl?.focus();
-    return;
+  // public_ip opsional — kalau kosong, backend auto-detect dari WAN MikroTik
+  if (publicIp) {
+    const ipv4Re = /^(\d{1,3}\.){3}\d{1,3}$/;
+    if (!ipv4Re.test(publicIp)) {
+      if (hintEl) { hintEl.textContent = 'Format IP publik tidak valid (cth: 103.194.175.54).'; hintEl.style.display = 'block'; }
+      ipEl?.focus();
+      return;
+    }
   }
 
-  // Validasi format IP (IPv4 sederhana atau hostname)
-  const ipv4Re = /^(\d{1,3}\.){3}\d{1,3}$/;
-  const hostRe = /^[a-zA-Z0-9.-]+$/;
-  if (!ipv4Re.test(ip) && !hostRe.test(ip)) {
-    if (hintEl) { hintEl.textContent = 'Format IP tidak valid.'; hintEl.style.display = 'block'; }
-    ipEl?.focus();
-    return;
+  const btn = document.getElementById('btn-konfirmasi-remote');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-symbols-outlined spin">refresh</span> Membuat NAT...';
   }
 
-  _tutupModal('modal-remote');
-  const url = ip.startsWith('http') ? ip : `http://${ip}`;
-  window.open(url, '_blank', 'noopener,noreferrer');
-  toast(`Membuka remote modem: ${ip}`, 'info');
+  try {
+    const res = await fetch(`${API_BASE}/api/pelanggan/${_pelanggan.id}/remote-on`, {
+      method:      'POST',
+      credentials: 'include',
+      headers:     getAuthHeaders(),
+      body:        JSON.stringify({
+        public_ip:  publicIp || undefined,
+        modem_port: parseInt(document.getElementById('remote-port')?.value || '80'),
+      }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || 'Gagal membuat NAT rule');
+    }
+
+    _tutupModal('modal-remote');
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<span class="material-symbols-outlined">open_in_new</span> Buka';
+    }
+
+    // Buka URL hasil NAT di tab baru + tampilkan info modal
+    window.open(data.url, '_blank', 'noopener,noreferrer');
+    toast(`✅ Remote aktif: ${data.url} → modem ${data.modem_ip}`, 'success');
+
+  } catch (e) {
+    if (hintEl) { hintEl.textContent = e.message; hintEl.style.display = 'block'; }
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<span class="material-symbols-outlined">open_in_new</span> Buka';
+    }
+    toast(e.message || 'Gagal membuat remote', 'danger');
+  }
 }
 
 /** Input handler — hilangkan hint error saat user mengetik */
@@ -434,9 +552,10 @@ async function konfirmasiHapusPelanggan() {
 
   try {
     const res  = await fetch(`${API_BASE}/api/pelanggan/${_pelanggan.id}`, {
-      method:  'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({
+      method:      'DELETE',
+      credentials: 'include',
+      headers:     getAuthHeaders(),
+      body:        JSON.stringify({
         device_id: _pelanggan.device_id,
         username:  _pelanggan.username,
         targets,
@@ -500,17 +619,19 @@ async function registrasiUlang() {
 
   try {
     const res  = await fetch(`${API_BASE}/api/pelanggan/${_pelanggan.id}/provision`, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({
-        olt_id:       _pelanggan.olt_id,
-        slot_port:    _pelanggan.slot_port,
-        vlan:         _pelanggan.vlan,
-        sn:           _pelanggan.sn,
-        username:     _pelanggan.username,
-        profil:       _pelanggan.profil,
-        re_provision: true,
-        cli_type:     _cliTab,  // kirim tipe CLI yang dipilih user
+      method:      'POST',
+      credentials: 'include',
+      headers:     getAuthHeaders(),
+      body:        JSON.stringify({
+        olt_id:        _pelanggan.olt_id,
+        slot_port:     _pelanggan.slot_port,
+        vlan:          _pelanggan.vlan,
+        sn:            _pelanggan.sn,
+        username:      _pelanggan.username,
+        profil:        _pelanggan.profil,
+        tcont_profile: _pelanggan.tcont_profile || '',
+        re_provision:  true,
+        cli_type:      _cliTab,
       }),
     });
 
@@ -520,11 +641,24 @@ async function registrasiUlang() {
       throw new Error(data.error || data.message || 'Gagal registrasi ulang');
     }
 
+    // Jika backend mengembalikan script lengkap (dengan password real),
+    // update tampilan CLI script di halaman
+    if (data.script) {
+      const cliEl = document.getElementById('cli-script-content');
+      if (cliEl) {
+        cliEl.textContent = data.script;
+        toast('✅ Script CLI diperbarui dengan data lengkap dari backend', 'info');
+      }
+    }
+
     const warnings = data.warnings || [];
     if (warnings.length > 0) {
       toast(`⚠ Registrasi selesai dengan peringatan: ${warnings[0]}`, 'warning');
     } else {
-      toast(`✅ Registrasi ulang "${_pelanggan.username}" berhasil dikirim ke OLT`, 'success');
+      const target = data.ok
+        ? `✅ Registrasi ulang "${_pelanggan.username}" berhasil dikirim ke OLT ${data.olt_name || ''}`
+        : `📋 Script digenerate untuk OLT ${data.olt_name || ''} — kirim manual ke terminal`;
+      toast(target, data.ok ? 'success' : 'warning');
     }
 
   } catch (err) {
@@ -567,8 +701,9 @@ async function _aksiFetch(btnId, url, method, body, successMsg, modalId, toastTy
   try {
     const res  = await fetch(url, {
       method,
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify(body),
+      credentials: 'include',
+      headers:     getAuthHeaders(),
+      body:        JSON.stringify(body),
     });
     const data = await res.json();
 
@@ -652,4 +787,68 @@ function _fallbackRxTx(p) {
     else               rxClass = 'rx-ok';
   }
   return { rx, tx, rxFormatted: fmt(rx), txFormatted: fmt(tx), rxClass };
+}
+
+/* ══════════════════════════════════════════════════════════
+   RIWAYAT TRANSAKSI
+══════════════════════════════════════════════════════════ */
+async function _loadRiwayat(username) {
+  if (!username) return;
+  const base = (typeof API_BASE !== 'undefined') ? API_BASE : '';
+  const hdr  = (typeof getAuthHeaders === 'function') ? getAuthHeaders() : {};
+  try {
+    const r = await fetch(`${base}/api/tagihan/pelanggan/${encodeURIComponent(username)}`,
+      { credentials: 'include', headers: hdr });
+    if (!r.ok) return;
+    const d = await r.json();
+    const list = d.tagihan || [];
+    const sub = document.getElementById('riwayat-sub');
+    if (sub) sub.textContent = list.length + ' transaksi';
+    const tbody = document.getElementById('riwayat-tbody');
+    if (!tbody) return;
+    if (!list.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-dim)">Belum ada riwayat tagihan.</td></tr>';
+      return;
+    }
+    function rp(n) { return 'Rp ' + (Number(n)||0).toLocaleString('id-ID'); }
+    function fmtTgl(s) { if (!s) return '—'; try { return new Date(s).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}); } catch { return s; } }
+    tbody.innerHTML = list.map(t => {
+      const lunas = t.status === 'lunas';
+      const badge = lunas
+        ? '<span class="rw-badge rw-lunas"><span class="dot"></span>Lunas</span>'
+        : '<span class="rw-badge rw-belum"><span class="dot"></span>Belum Bayar</span>';
+      return `<tr>
+        <td class="rw-col-periode">${t.periode}</td>
+        <td>${t.profil || '—'}</td>
+        <td class="rw-col-nominal">${rp(t.nominal)}</td>
+        <td class="rw-col-dim">${fmtTgl(t.jatuh_tempo)}</td>
+        <td>${badge}</td>
+        <td class="rw-col-dim">${lunas ? fmtTgl(t.paid_at) : '—'}</td>
+        <td class="rw-col-dim">${lunas ? (t.metode || '—') : '—'}</td>
+      </tr>`;
+    }).join('');
+  } catch (_) {}
+}
+
+
+/* ══════════════════════════════════════════════════════════
+   AKSI KOLEKTOR — Hubungi & Rute
+══════════════════════════════════════════════════════════ */
+function _dpHubungi() {
+  if (!_pelanggan) return;
+  var hp = (_pelanggan.hp || '').replace(/\D/g, '');
+  if (!hp) { if (typeof toast === 'function') toast('Nomor HP tidak tersedia', 'warning'); return; }
+  var wa = '62' + (hp.startsWith('0') ? hp.slice(1) : hp);
+  window.open('https://wa.me/' + wa, '_blank');
+}
+
+function _dpRute() {
+  if (!_pelanggan) return;
+  var coord = _pelanggan.titik_koordinat || _pelanggan.koordinat || '';
+  if (!coord) { if (typeof toast === 'function') toast('Koordinat belum diisi', 'warning'); return; }
+  var parts = coord.split(',');
+  var lat = parts[0] ? parts[0].trim() : '';
+  var lng = parts[1] ? parts[1].trim() : '';
+  if (!lat || !lng) { if (typeof toast === 'function') toast('Format koordinat tidak valid', 'warning'); return; }
+  window.open('https://www.google.com/maps/dir/?api=1&destination=' + lat + ',' + lng, '_blank');
 }

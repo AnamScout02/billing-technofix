@@ -18,8 +18,8 @@
    STATE
 ══════════════════════════════════════════════════════════ */
 
-let _allTransaksi  = [];     // data mentah dari API
-let _filtered      = [];     // setelah filter/search/sort
+let _allData  = [];     // data mentah dari API
+let _filteredData      = [];     // setelah filter/search/sort
 let _filterTipe    = '';     // '' | 'pemasukan' | 'pengeluaran'
 let _sortKey       = 'tanggal';
 let _sortAsc       = false;
@@ -68,12 +68,12 @@ async function loadKeuangan() {
   params.set('limit', 1000);
 
   try {
-    const res  = await fetch(`${API_BASE}/api/keuangan?${params}`);
+    const res  = await fetch(`${API_BASE}/api/keuangan?${params}`, { credentials: 'include', headers: getAuthHeaders() });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
 
     renderStats(data.stats);
-    _allTransaksi = data.transaksi || [];
+    _allData = data.transaksi || [];
     applyFilterSort();
     showState('table');
 
@@ -149,7 +149,7 @@ function applyFilterSort() {
   const q      = (document.getElementById('input-search')?.value || '').toLowerCase();
   const status = document.getElementById('filter-status')?.value || '';
 
-  let list = [..._allTransaksi];
+  let list = [..._allData];
 
   // Filter tipe
   if (_filterTipe) list = list.filter(t => t.tipe === _filterTipe);
@@ -176,7 +176,7 @@ function applyFilterSort() {
     return _sortAsc ? cmp : -cmp;
   });
 
-  _filtered = list;
+  _filteredData = list;
   renderTabel();
   renderPaginasi();
 }
@@ -191,9 +191,9 @@ function renderTabel() {
   if (!tbody) return;
 
   const start  = (_currentPage - 1) * PAGE_SIZE;
-  const page   = _filtered.slice(start, start + PAGE_SIZE);
+  const page   = _filteredData.slice(start, start + PAGE_SIZE);
 
-  if (_filtered.length === 0) {
+  if (_filteredData.length === 0) {
     tbody.innerHTML = '';
     showState('empty');
     return;
@@ -201,13 +201,13 @@ function renderTabel() {
   showState('table');
 
   // Total nominal terpilih (semua baris, bukan hanya satu halaman)
-  const totalNominal = _filtered.reduce((sum, t) => {
+  const totalNominal = _filteredData.reduce((sum, t) => {
     return sum + (t.tipe === 'pemasukan' ? t.nominal : -t.nominal);
   }, 0);
 
   const fmt = n => 'Rp ' + Number(n).toLocaleString('id-ID');
   setText('tabel-count',
-    `Menampilkan ${start + 1}–${Math.min(start + page.length, _filtered.length)} dari ${_filtered.length} transaksi`);
+    `Menampilkan ${start + 1}–${Math.min(start + page.length, _filteredData.length)} dari ${_filteredData.length} transaksi`);
   const elTotal = document.getElementById('tabel-total-nominal');
   if (elTotal) {
     elTotal.textContent = `Netto: ${fmt(Math.abs(totalNominal))}`;
@@ -432,7 +432,7 @@ async function simpanTransaksi() {
   try {
     const res  = await fetch(`${API_BASE}/api/keuangan`, {
       method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include', headers: getAuthHeaders(),
       body:    JSON.stringify({
         tipe, keterangan, nominal: Number(nominal),
         metode, status, tanggal, username, catatan,
@@ -457,7 +457,7 @@ async function simpanTransaksi() {
 ══════════════════════════════════════════════════════════ */
 
 function showFormEdit(id) {
-  const trx = _allTransaksi.find(t => t.id === id);
+  const trx = _allData.find(t => t.id === id);
   if (!trx) { toast('Data tidak ditemukan', 'warning'); return; }
 
   const html = `
@@ -562,7 +562,7 @@ async function updateTransaksi(id) {
   try {
     const res  = await fetch(`${API_BASE}/api/keuangan/${id}`, {
       method:  'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include', headers: getAuthHeaders(),
       body:    JSON.stringify({ tipe, keterangan, nominal: Number(nominal), metode, status, tanggal, username, catatan }),
     });
     const data = await res.json();
@@ -581,7 +581,7 @@ async function updateTransaksi(id) {
 ══════════════════════════════════════════════════════════ */
 
 function konfirmasiLunas(id) {
-  const trx = _allTransaksi.find(t => t.id === id);
+  const trx = _allData.find(t => t.id === id);
   if (!trx) return;
 
   const html = `
@@ -608,7 +608,7 @@ function konfirmasiLunas(id) {
 
 async function eksekusiLunas(id) {
   try {
-    const res  = await fetch(`${API_BASE}/api/keuangan/${id}/lunas`, { method: 'POST' });
+    const res  = await fetch(`${API_BASE}/api/keuangan/${id}/lunas`, { method: 'POST', credentials: 'include', headers: getAuthHeaders() });
     const data = await res.json();
     if (!res.ok && data.status !== 'info') throw new Error(data.message || 'Gagal');
     toast(data.message || 'Berhasil ditandai Lunas', 'success');
@@ -648,7 +648,7 @@ function tutupModalHapus() {
 async function eksekusiHapus() {
   if (!_hapusId) return;
   try {
-    const res  = await fetch(`${API_BASE}/api/keuangan/${_hapusId}`, { method: 'DELETE' });
+    const res  = await fetch(`${API_BASE}/api/keuangan/${_hapusId}`, { method: 'DELETE', credentials: 'include', headers: getAuthHeaders() });
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || 'Gagal hapus');
     toast('Transaksi berhasil dihapus', 'success');
@@ -665,7 +665,7 @@ async function eksekusiHapus() {
 ══════════════════════════════════════════════════════════ */
 
 function cetakStruk(id) {
-  const trx = _allTransaksi.find(t => t.id === id);
+  const trx = _allData.find(t => t.id === id);
   if (!trx) { toast('Data tidak ditemukan', 'warning'); return; }
 
   /**
@@ -727,7 +727,7 @@ function renderPaginasi() {
   const container   = document.getElementById('pagination');
   if (!container) return;
 
-  const totalPages = Math.ceil(_filtered.length / PAGE_SIZE);
+  const totalPages = Math.ceil(_filteredData.length / PAGE_SIZE);
   if (totalPages <= 1) { container.innerHTML = ''; return; }
 
   let html = '';
@@ -761,7 +761,7 @@ function renderPaginasi() {
 }
 
 function goPage(p) {
-  const totalPages = Math.ceil(_filtered.length / PAGE_SIZE);
+  const totalPages = Math.ceil(_filteredData.length / PAGE_SIZE);
   if (p < 1 || p > totalPages) return;
   _currentPage = p;
   renderTabel();

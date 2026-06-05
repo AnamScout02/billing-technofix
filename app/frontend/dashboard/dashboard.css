@@ -1,0 +1,905 @@
+/* ============================================================
+   dashboard.css — TechnoFix · Dashboard  v4.0
+   ⚠  Load SETELAH global.css
+   ─────────────────────────────────────────────────────────
+   File ini HANYA mengatur style eksklusif dashboard.
+   Semua token warna, font, stat-card gradient, g-select,
+   modal, badge, section-head navy → dari global.css v2.0.
+   Tidak ada duplikasi class global di sini.
+   ============================================================ */
+
+
+/* ══════════════════════════════════════════════════════════
+   1. DEVICE BAR — identik visual dengan pelanggan device-bar
+══════════════════════════════════════════════════════════ */
+.dash-device-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 14px 18px;
+  margin-bottom: var(--section-gap);
+  box-shadow: var(--shadow-sm);
+  flex-wrap: wrap;
+}
+
+.dash-device-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.dash-device-icon {
+  width: 42px; height: 42px;
+  border-radius: var(--r-md);
+  background: var(--primary-light);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; color: var(--primary); flex-shrink: 0;
+}
+.dash-device-icon .material-symbols-outlined { font-size: 22px; }
+
+.dash-device-info { display: flex; flex-direction: column; gap: 2px; }
+
+.dash-device-label {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.dash-device-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+
+/* ══════════════════════════════════════════════════════════
+   2. STATUS DOT & BADGE — koneksi MikroTik
+══════════════════════════════════════════════════════════ */
+.dash-conn-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dash-status-dot {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: var(--border-2);
+  flex-shrink: 0;
+  transition: background .3s;
+}
+.dash-status-dot.online  {
+  background: var(--green);
+  box-shadow: 0 0 0 3px var(--green-bg);
+  animation: pulseGreen .9s infinite;
+}
+.dash-status-dot.offline {
+  background: var(--red);
+  box-shadow: 0 0 0 3px var(--red-bg);
+  animation: pulseRed 1.2s infinite;
+}
+.dash-status-dot.pending {
+  background: var(--amber);
+  box-shadow: 0 0 0 3px var(--amber-bg);
+  animation: pulseAmber .8s infinite;
+}
+
+.dash-status-text {
+  font-size: 12px; font-weight: 600;
+  color: var(--text-dim); white-space: nowrap; transition: color .3s;
+}
+.dash-status-text.online  { color: var(--green); }
+.dash-status-text.offline { color: var(--red);   }
+.dash-status-text.pending { color: var(--amber);  }
+
+/* Badge sync kecil — identik pelanggan .sync-status */
+.sync-badge {
+  font-size: 10.5px; font-weight: 600;
+  padding: 2px 8px; border-radius: 99px;
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text-dim); white-space: nowrap;
+  transition: background .2s, color .2s;
+}
+.sync-badge.syncing { background: var(--blue-bg);  color: var(--blue);  border-color: var(--blue-border); }
+.sync-badge.ok      { background: var(--green-bg); color: var(--green); border-color: var(--green-border); }
+.sync-badge.error   { background: var(--red-bg);   color: var(--red);   border-color: var(--red-border); }
+
+
+/* ══════════════════════════════════════════════════════════
+   3. STAT CARD OVERRIDE
+   stat-num--sm: angka panjang (rupiah) tidak overflow
+   stat-trend di card gradient → putih
+══════════════════════════════════════════════════════════ */
+.stat-num--sm {
+  font-size: 17px !important;
+  letter-spacing: -.01em !important;
+  word-break: break-all;
+}
+
+.stat-row-4 .stat-card .stat-trend {
+  background: rgba(255,255,255,.18) !important;
+  color: rgba(255,255,255,.92) !important;
+}
+.stat-row-4 .stat-card .stat-trend.up,
+.stat-row-4 .stat-card .stat-trend.warn,
+.stat-row-4 .stat-card .stat-trend.neutral {
+  background: rgba(255,255,255,.18) !important;
+  color: rgba(255,255,255,.92) !important;
+}
+
+
+/* ══════════════════════════════════════════════════════════
+   4. g-select DI HEADER SECTION NAVY (bandwidth controls)
+   Override agar kontras di latar navy
+══════════════════════════════════════════════════════════ */
+.dash-g-select-navy {
+  background-color: rgba(255,255,255,.14) !important;
+  border: 1px solid rgba(255,255,255,.28) !important;
+  color: #fff !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2.2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
+  height: 34px !important;
+  font-size: 12px !important;
+}
+.dash-g-select-navy option { background: #003f88; color: #fff; }
+.dash-g-select-navy:focus  {
+  border-color: rgba(255,255,255,.60) !important;
+  box-shadow: 0 0 0 3px rgba(255,255,255,.12) !important;
+  outline: none;
+}
+.dash-g-icon-navy { color: rgba(255,255,255,.75) !important; }
+
+
+/* ══════════════════════════════════════════════════════════
+   5. BANDWIDTH PILL — di header section navy
+══════════════════════════════════════════════════════════ */
+.dash-bw-controls {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+
+.dash-bw-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 11px;
+  background: rgba(255,255,255,.12);
+  border: 1px solid rgba(255,255,255,.22);
+  border-radius: 99px; white-space: nowrap;
+}
+.dash-bw-pill-dot   { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.dash-bw-pill-label { font-size: 11px; font-weight: 600; color: rgba(255,255,255,.75); }
+.dash-bw-pill strong {
+  font-size: 12.5px; font-weight: 700;
+  font-family: var(--heading); color: #fff;
+}
+
+
+/* ══════════════════════════════════════════════════════════
+   6. TOMBOL AKSI DI HEADER SECTION NAVY
+══════════════════════════════════════════════════════════ */
+.dash-head-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 12px; border-radius: var(--r-sm);
+  font-size: 12px; font-weight: 600; font-family: var(--sans);
+  cursor: pointer; white-space: nowrap;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.28);
+  background: rgba(255,255,255,.12);
+  text-decoration: none;
+  transition: background .14s, border-color .14s;
+  flex-shrink: 0;
+}
+.dash-head-btn:hover {
+  background: rgba(255,255,255,.22);
+  border-color: rgba(255,255,255,.50);
+  color: #fff;
+}
+
+
+/* ══════════════════════════════════════════════════════════
+   7. CHART WRAP
+══════════════════════════════════════════════════════════ */
+.dash-chart-wrap {
+  position: relative;
+  padding: 16px 20px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+.dash-chart-wrap canvas {
+  display: block; width: 100% !important; height: 100% !important;
+}
+
+.dash-chart-empty {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 10px;
+  position: absolute; inset: 0;
+  color: var(--text-dim); text-align: center; pointer-events: none;
+}
+.dash-chart-empty .material-symbols-outlined { font-size: 30px; opacity: .28; }
+.dash-chart-empty p { font-size: 13px; }
+.dash-chart-empty.hidden { display: none !important; }
+
+
+/* ══════════════════════════════════════════════════════════
+   8. GRID 2 KOLOM
+══════════════════════════════════════════════════════════ */
+.dash-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--section-gap);
+  margin-bottom: var(--section-gap);
+  align-items: start;
+}
+.dash-grid-2 .dash-section { margin-bottom: 0; }
+
+
+/* ══════════════════════════════════════════════════════════
+   9. OFFLINE LIST — identik pola info-row global
+══════════════════════════════════════════════════════════ */
+.dash-offline-list {
+  display: flex; flex-direction: column;
+  max-height: 290px; overflow-y: auto;
+  scrollbar-width: thin; scrollbar-color: var(--border-2) transparent;
+}
+.dash-offline-list::-webkit-scrollbar       { width: 4px; }
+.dash-offline-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+/* Zebra strip — identik global.css .info-row */
+.dash-offline-item:nth-child(odd)  { background: #fff; }
+.dash-offline-item:nth-child(even) { background: #f0f5ff; }
+
+.dash-offline-item {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 10px;
+  padding: 10px var(--section-pad-h);
+  border-bottom: 1px solid var(--border);
+  text-decoration: none;
+  transition: background .12s;
+  min-width: 0;
+}
+.dash-offline-item:last-child { border-bottom: none; }
+.dash-offline-item:hover      { background: #e0eaff !important; }
+
+.dash-offline-icon {
+  width: 32px; height: 32px; flex-shrink: 0;
+  border-radius: var(--r-sm);
+  background: var(--red-bg); color: var(--red);
+  display: flex; align-items: center; justify-content: center;
+}
+.dash-offline-icon .material-symbols-outlined { font-size: 16px; }
+
+.dash-offline-body { flex: 1; min-width: 0; }
+.dash-offline-name {
+  display: block;
+  font-size: 12.5px; font-weight: 700;
+  color: var(--text); font-family: var(--heading);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dash-offline-meta {
+  display: block;
+  font-size: 11px; color: var(--text-dim); margin-top: 1px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.dash-offline-right {
+  display: flex; flex-direction: column;
+  align-items: flex-end; gap: 3px; flex-shrink: 0;
+}
+.dash-offline-badge {
+  display: inline-flex; align-items: center;
+  font-size: 9.5px; font-weight: 700;
+  letter-spacing: .05em; text-transform: uppercase;
+  padding: 2px 7px;
+  background: var(--red); color: #fff; border-radius: 99px;
+}
+
+.dash-offline-more {
+  display: block; text-align: center;
+  padding: 9px var(--section-pad-h);
+  font-size: 12px; font-weight: 600; color: var(--primary);
+  text-decoration: none; border-top: 1px solid var(--border);
+  transition: background .12s;
+}
+.dash-offline-more:hover { background: var(--primary-light); }
+
+
+/* ══════════════════════════════════════════════════════════
+   10. ACTIVITY LOG
+══════════════════════════════════════════════════════════ */
+.dash-log-list {
+  display: flex; flex-direction: column;
+  max-height: 300px; overflow-y: auto;
+  scrollbar-width: thin; scrollbar-color: var(--border-2) transparent;
+}
+.dash-log-list::-webkit-scrollbar       { width: 4px; }
+.dash-log-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+.dash-log-item {
+  display: grid;
+  grid-template-columns: 8px 1fr auto;
+  align-items: center; gap: 12px;
+  padding: 9px var(--section-pad-h);
+  border-bottom: 1px solid var(--border);
+  transition: background .12s;
+}
+.dash-log-item:nth-child(odd)  { background: #fff; }
+.dash-log-item:nth-child(even) { background: #f0f5ff; }
+.dash-log-item:last-child      { border-bottom: none; }
+.dash-log-item:hover           { background: #e0eaff !important; }
+
+.dash-log-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.dash-log-dot.info    { background: var(--blue); }
+.dash-log-dot.warning { background: var(--amber); }
+.dash-log-dot.error   { background: var(--red); }
+.dash-log-dot.success { background: var(--green); }
+
+.dash-log-msg {
+  font-size: 12.5px; color: var(--text-muted);
+  line-height: 1.4; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+.dash-log-msg strong { color: var(--text); font-weight: 700; }
+.dash-log-time { font-size: 10.5px; color: var(--text-dim); white-space: nowrap; }
+
+
+/* ══════════════════════════════════════════════════════════
+   11. EMPTY STATE — seragam pola pelanggan
+══════════════════════════════════════════════════════════ */
+.dash-empty-state {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 10px; padding: 32px 24px;
+  color: var(--text-dim); text-align: center;
+}
+.dash-empty-state .material-symbols-outlined { font-size: 36px; opacity: .25; }
+.dash-empty-state p   { font-size: 13px; color: var(--text-dim); line-height: 1.6; }
+.dash-empty-state.error .material-symbols-outlined { opacity: 1; color: var(--red);   }
+.dash-empty-state.ok    .material-symbols-outlined { opacity: 1; color: var(--green); }
+
+
+/* ══════════════════════════════════════════════════════════
+   12. TABEL PROFIL PPPoE — pakai dash-section-table dari global
+   Tambahan: row zebra sesuai global, badge profil & pakai
+══════════════════════════════════════════════════════════ */
+.dash-profile-count {
+  display: inline-flex; align-items: center;
+  font-size: 11.5px; font-weight: 600;
+  padding: 2px 9px; border-radius: 99px;
+  background: var(--primary-light); color: var(--primary);
+  border: 1px solid rgba(0,64,161,.18);
+}
+
+.dash-profile-rate {
+  font-size: 12px; font-weight: 600;
+  color: var(--text-muted); font-family: var(--sans);
+  white-space: nowrap;
+}
+
+.dash-profile-harga {
+  font-size: 12.5px; font-weight: 700;
+  color: var(--green);
+}
+.dash-profile-harga.none {
+  font-weight: 400; color: var(--text-dim);
+  font-size: 12px; font-style: italic;
+}
+
+.dash-profile-pakai {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 12px; font-weight: 600;
+  color: var(--text-muted);
+}
+.dash-profile-pakai .material-symbols-outlined { font-size: 13px; color: var(--text-dim); }
+
+
+/* ══════════════════════════════════════════════════════════
+   13. RESPONSIVE
+══════════════════════════════════════════════════════════ */
+@media (max-width: 900px) {
+  .dash-grid-2 { grid-template-columns: 1fr; }
+  .dash-grid-2 .dash-section { margin-bottom: 0; }
+}
+
+@media (max-width: 768px) {
+  .dash-device-bar    { flex-direction: column; align-items: flex-start; }
+  .dash-device-bar-right { width: 100%; justify-content: flex-start; }
+  .dash-bw-controls   { gap: 6px; }
+  .dash-chart-wrap    { padding: 12px 14px; }
+  .dash-offline-item  { padding: 9px 14px; }
+  .dash-offline-more  { padding: 9px 14px; }
+  .dash-log-item      { padding: 9px 14px; }
+}
+
+@media (max-width: 480px) {
+  .dash-bw-controls { flex-direction: column; align-items: stretch; }
+  .dash-bw-controls .g-select-wrap { width: 100%; }
+  .dash-g-select-navy { min-width: 0; width: 100%; }
+  .dash-log-msg { white-space: normal; }
+  .dash-device-bar { padding: 12px 14px; }
+  .stat-num--sm { font-size: 15px !important; }
+}
+
+/* ══════════════════════════════════════════════════════════
+   BANDWIDTH REALTIME — Opsi B redesign
+══════════════════════════════════════════════════════════ */
+.dash-bw-section {
+  padding: 0;
+  overflow: hidden;
+}
+.dash-bw-head {
+  background: var(--card-head-bg);
+  border-bottom: 1px solid var(--card-head-border);
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 11px var(--section-pad-h);
+}
+.dash-bw-head-left { min-width: 0; }
+.dash-bw-title {
+  font-size: 13px; font-weight: 700; color: #fff;
+  display: flex; align-items: center; gap: 6px; margin: 0;
+}
+.dash-bw-title .material-symbols-outlined { font-size: 16px; opacity: .8; }
+.dash-bw-sub { font-size: 10px; color: rgba(255,255,255,.45); margin: 2px 0 0; }
+.dash-bw-head-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.dash-bw-live {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 600; color: var(--bw-live-dot);
+}
+.dash-bw-live-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--bw-live-dot);
+  animation: bwPulse .9s infinite;
+}
+@keyframes bwPulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+/* Metric cards — stacked vertikal, tiap kartu horizontal (info kiri + sparkline kanan) */
+.dash-bw-metrics {
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid var(--border);
+}
+.dash-bw-metric {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0;
+  padding: 14px var(--section-pad-h);
+}
+.dash-bw-metric--right {
+  border-top: 1px solid var(--border);
+}
+
+/* Wrapper info: label + value + sub (kiri) */
+.dash-bw-metric-info {
+  flex-shrink: 0;
+  min-width: 160px;
+  max-width: 220px;
+  padding-right: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.dash-bw-metric-lbl {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 10px; color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px;
+}
+.dash-bw-metric-dot {
+  width: 10px; height: 3px; border-radius: 2px; flex-shrink: 0;
+}
+.dash-bw-metric-val {
+  font-size: 26px; font-weight: 700;
+  font-family: var(--heading); color: var(--text); line-height: 1.1;
+  white-space: nowrap;
+}
+.dash-bw-metric-sub {
+  font-size: 10.5px; color: var(--text-dim); margin-top: 4px; min-height: 15px;
+  font-weight: 500;
+}
+.dash-bw-metric-sub.up { color: var(--green); }
+.dash-bw-metric-sub.dn { color: var(--red); }
+
+/* Chart utama BW — tinggi responsif */
+.dash-bw-main-chart { height: 180px; }
+@media (max-width: 768px) { .dash-bw-main-chart { height: 150px; } }
+@media (max-width: 480px) { .dash-bw-main-chart { height: 120px; } }
+
+/* Sparkline — mengisi sisa ruang (kanan di desktop, bawah di mobile) */
+.dash-bw-sparkwrap {
+  flex: 1;
+  height: 54px;
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+}
+.dash-bw-sparkwrap canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Stat strip */
+.dash-bw-stats {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  border-bottom: 1px solid var(--border);
+}
+.dash-bw-stat {
+  padding: 7px var(--section-pad-h);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 1px;
+}
+.dash-bw-stat:last-child { border-right: none; }
+.dash-bw-stat-lbl {
+  font-size: 9px; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--text-dim);
+}
+.dash-bw-stat-val {
+  font-size: 13px; font-weight: 600; color: var(--text);
+}
+
+/* Footer legend */
+.dash-bw-foot {
+  display: flex; align-items: center; gap: 14px;
+  padding: 6px var(--section-pad-h) 10px;
+}
+.dash-bw-leg {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; color: var(--text-dim);
+}
+.dash-bw-leg-line {
+  width: 14px; height: 2.5px; border-radius: 2px; display: inline-block;
+}
+.dash-bw-foot-note {
+  margin-left: auto; font-size: 10px; color: var(--text-dim);
+}
+
+
+/* ══════════════════════════════════════════════════════════
+   RESOURCE MIKROTIK — Metric Cards + Sparkline + Stat Strip
+══════════════════════════════════════════════════════════ */
+.dash-res-section { padding: 0; overflow: hidden; }
+
+/* Stat strip auto-fit — menyesuaikan saat suhu disembunyikan */
+.dash-res-stats {
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  border-bottom: none;
+}
+
+/* Nilai panjang (board name, versi) di stat strip */
+.dash-bw-stat-val--sm {
+  font-size: 11px !important;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  display: block;
+}
+
+/* Warna status di dalam metric-sub (diset via _resStatus di JS) */
+.dash-res-status.ok     { color: var(--green); }
+.dash-res-status.warn   { color: var(--amber); }
+.dash-res-status.danger { color: var(--red); }
+
+.dash-res-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+}
+
+.dash-res-card {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 14px var(--section-pad-h);
+  border-right: 1px solid var(--border);
+  min-width: 0;
+}
+.dash-res-card:last-child { border-right: none; }
+
+.dash-res-icon {
+  width: 34px; height: 34px; flex-shrink: 0;
+  border-radius: var(--r-md);
+  background: var(--primary-light);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--primary);
+}
+.dash-res-icon .material-symbols-outlined { font-size: 18px; }
+
+.dash-res-body { flex: 1; min-width: 0; overflow: hidden; }
+.dash-res-lbl {
+  font-size: 9px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .07em; color: var(--text-dim); margin-bottom: 3px;
+  white-space: nowrap;
+}
+.dash-res-val {
+  font-size: 20px; font-weight: 700;
+  font-family: var(--heading); color: var(--text); line-height: 1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dash-res-val--sm {
+  font-size: 13px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dash-res-unit {
+  font-size: 11px; font-weight: 500; color: var(--text-dim); margin-left: 1px;
+}
+.dash-res-bar-wrap {
+  height: 4px; border-radius: 2px; background: var(--border);
+  margin: 7px 0 4px; overflow: hidden;
+}
+.dash-res-bar {
+  height: 100%; border-radius: 2px; width: 0%;
+  background: var(--primary);
+  transition: width .7s ease, background .3s;
+}
+.dash-res-bar--full { width: 100%; background: var(--green); }
+.dash-res-bar.ok     { background: var(--green); }
+.dash-res-bar.warn   { background: var(--amber); }
+.dash-res-bar.danger { background: var(--red); }
+
+.dash-res-status {
+  font-size: 11px; font-weight: 600; color: var(--text-dim);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dash-res-status.ok     { color: var(--green); }
+.dash-res-status.warn   { color: var(--amber); }
+.dash-res-status.danger { color: var(--red); }
+.dash-res-updated { font-size: 10px; color: rgba(255,255,255,.4); }
+
+/* Tablet landscape 1024px: 3 kolom */
+@media (max-width: 1100px) {
+  .dash-res-grid { grid-template-columns: repeat(3, 1fr); }
+  .dash-res-card {
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  .dash-res-card:nth-child(3n) { border-right: none; }
+  .dash-res-card:nth-last-child(-n+3):nth-child(3n+1),
+  .dash-res-card:nth-last-child(-n+3):nth-child(3n+2),
+  .dash-res-card:nth-last-child(-n+3) { border-bottom: none; }
+  .dash-res-card:last-child { border-bottom: none; }
+}
+
+/* Tablet portrait 768px: 2 kolom */
+@media (max-width: 768px) {
+  .dash-res-grid { grid-template-columns: repeat(2, 1fr); }
+  .dash-res-card {
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  .dash-res-card:nth-child(2n) { border-right: none; }
+  .dash-res-card:nth-last-child(-n+2) { border-bottom: none; }
+  .dash-res-card:last-child { border-bottom: none; }
+  /* Card sendirian di baris terakhir */
+  .dash-res-card:last-child:nth-child(odd) { grid-column: span 2; }
+
+  /* BW base responsive */
+  .dash-bw-head { flex-wrap: wrap; gap: 8px; }
+  .dash-bw-head-right { width: 100%; justify-content: space-between; }
+  .dash-bw-metric-info { min-width: 130px; max-width: 160px; padding-right: 12px; }
+  .dash-bw-stats   { grid-template-columns: repeat(3,1fr); }
+
+  .dash-res-section .dash-bw-head        { flex-wrap: wrap; gap: 6px; }
+}
+
+/* Mobile 480px: 1 kolom */
+@media (max-width: 480px) {
+  .dash-res-grid { grid-template-columns: 1fr; }
+  .dash-res-card {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    padding: 11px 14px;
+  }
+  .dash-res-card:last-child { border-bottom: none; }
+  .dash-res-val     { font-size: 18px; }
+  .dash-res-val--sm { font-size: 13px; }
+  .dash-res-stats   { grid-template-columns: repeat(2, 1fr) !important; }
+
+  /* BW mobile */
+  .dash-bw-metric { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .dash-bw-metric-info { max-width: 100%; min-width: 0; padding-right: 0; width: 100%; }
+  .dash-bw-sparkwrap { flex: none; width: 100%; height: 38px; }
+  .dash-bw-stats { grid-template-columns: 1fr 1fr; }
+  .dash-bw-stat:last-child { border-right: none; grid-column: span 2; }
+  .dash-bw-metric-val { font-size: 20px; }
+  .dash-bw-head { padding: 10px 12px; }
+
+  .dash-res-section .dash-bw-head        { padding: 9px 12px; }
+}
+
+
+/* ══════════════════════════════════════════════════════════
+   BANDWIDTH SECTION — selaras Resource MikroTik
+   Warna menggunakan --bw-rx / --bw-tx dari global.css
+══════════════════════════════════════════════════════════ */
+
+/* Metric: 2-kolom sisi sisi (Download | Upload) */
+.dash-bw-section .dash-bw-metrics {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Layout kolom dalam tiap metric: label → angka → trend → sparkline */
+.dash-bw-section .dash-bw-metric {
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 18px var(--section-pad-h) 14px;
+}
+.dash-bw-section .dash-bw-metric-info {
+  max-width: 100%;
+  padding-right: 0;
+  width: 100%;
+}
+.dash-bw-section .dash-bw-metric--right {
+  border-top: none;
+  border-left: 1px solid var(--border);
+}
+
+/* Label */
+.dash-bw-section .dash-bw-metric-lbl {
+  font-size: 11.5px; font-weight: 600;
+  color: var(--text-dim);
+  text-transform: none;
+  letter-spacing: .02em;
+  margin-bottom: 5px;
+}
+
+/* Nilai besar + unit */
+.dash-bw-section .dash-bw-metric-val {
+  font-size: 38px;
+  color: var(--text);
+  line-height: 1.1;
+  white-space: nowrap;
+}
+.bw-val-num {
+  display: inline-block;
+  font-feature-settings: "tnum";
+  transition: opacity .18s ease;
+}
+.bw-val-unit {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text-dim);
+  margin-left: 4px;
+  letter-spacing: -.01em;
+}
+
+/* Warna angka — biru Download, teal Upload (selaras CPU & Memory Resource) */
+.dash-bw-section .dash-bw-metric:first-child .bw-val-num { color: var(--bw-rx); }
+.dash-bw-section .dash-bw-metric--right .bw-val-num       { color: var(--bw-tx); }
+
+/* Trend sub-text */
+.dash-bw-section .dash-bw-metric-sub {
+  font-size: 11.5px; font-weight: 600;
+  color: var(--text-dim);
+  margin-top: 5px; min-height: 16px;
+}
+.dash-bw-section .dash-bw-metric-sub.up { color: var(--green); }
+.dash-bw-section .dash-bw-metric-sub.dn { color: var(--red); }
+
+/* Sparkline full-width di bawah metric */
+.dash-bw-section .dash-bw-sparkwrap {
+  flex: unset;
+  width: 100%;
+  height: 50px;
+  margin-top: 12px;
+  min-width: 0;
+}
+
+/* ── Animasi Profesional ── */
+
+/* 1. Entrance: fade-in + slide-up */
+@keyframes bwEnter {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.bw-entered { animation: bwEnter .45s cubic-bezier(.22,.68,0,1.2) both; }
+
+/* 2. Flash angka saat nilai berubah signifikan */
+@keyframes bwNumFlash {
+  0%   { opacity: 1; }
+  30%  { opacity: .28; }
+  100% { opacity: 1; }
+}
+.bw-flash { animation: bwNumFlash .38s ease; }
+
+/* 3. Live dot glow pulse (rgba dari --bw-live-dot: #4ade80 = 74,222,128) */
+.dash-bw-section .dash-bw-live-dot {
+  animation: bwGlowPulse 1.6s ease-in-out infinite;
+}
+@keyframes bwGlowPulse {
+  0%   { box-shadow: 0 0 0 0   rgba(74,222,128,.65); opacity: 1; }
+  60%  { box-shadow: 0 0 0 6px rgba(74,222,128,.0);  opacity: .8; }
+  100% { box-shadow: 0 0 0 0   rgba(74,222,128,.0);  opacity: 1; }
+}
+
+/* ── Responsive BW Section ─────────────────────────────
+   Di-scope ke .dash-bw-section agar tidak mempengaruhi
+   Resource section yang berbagi class yang sama.
+─────────────────────────────────────────────────────── */
+
+/* Tablet: 2-kolom → 1 kolom */
+@media (max-width: 768px) {
+  .dash-bw-section .dash-bw-metrics      { grid-template-columns: 1fr !important; }
+  .dash-bw-section .dash-bw-metric--right {
+    border-left: none;
+    border-top: 1px solid var(--border);
+  }
+  .dash-bw-section .dash-bw-metric       { padding: 12px 16px 10px; }
+  .dash-bw-section .dash-bw-metric-val   { font-size: 26px; }
+  .dash-bw-section .bw-val-unit          { font-size: 13px; }
+  .dash-bw-section .dash-bw-metric-lbl   { font-size: 10.5px; margin-bottom: 3px; }
+  .dash-bw-section .dash-bw-metric-sub   { font-size: 10.5px; margin-top: 3px; }
+  .dash-bw-section .dash-bw-sparkwrap    { height: 38px; margin-top: 8px; }
+  .dash-bw-section .dash-bw-stats        { grid-template-columns: repeat(3,1fr); }
+  .dash-bw-section .dash-bw-stat         { padding-top: 6px; padding-bottom: 6px; }
+}
+
+/* Mobile 480px: kompak maksimal */
+@media (max-width: 480px) {
+  .dash-bw-section .dash-bw-head         { padding: 8px 12px; }
+  .dash-bw-section .dash-bw-head-right   { width: 100%; justify-content: space-between; }
+  .dash-bw-section .dash-bw-metric       { padding: 10px 12px 8px; }
+  .dash-bw-section .dash-bw-metric-val   { font-size: 22px; }
+  .dash-bw-section .bw-val-unit          { font-size: 12px; }
+  .dash-bw-section .dash-bw-sparkwrap    { flex: none; height: 32px; margin-top: 6px; }
+  .dash-bw-section .dash-bw-metric-lbl   { font-size: 10px; margin-bottom: 2px; }
+  .dash-bw-section .dash-bw-metric-sub   { font-size: 10px; margin-top: 2px; }
+  .dash-bw-section .dash-bw-stats        { grid-template-columns: repeat(3,1fr); }
+  .dash-bw-section .dash-bw-stat         { padding: 5px 8px; }
+  .dash-bw-section .dash-bw-stat:last-child { grid-column: auto; border-right: none; }
+  .dash-bw-section .dash-bw-stat-lbl     { font-size: 8.5px; }
+  .dash-bw-section .dash-bw-stat-val     {
+    font-size: 11px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .dash-bw-section .dash-chart-wrap      { padding: 8px 12px; }
+  .dash-bw-section .dash-bw-foot         { padding: 5px 12px 8px; flex-wrap: wrap; gap: 5px; }
+  .dash-bw-section .dash-bw-foot-note    { margin-left: 0; width: 100%; }
+}
+
+
+/* ══════════════════════════════════════════════════════════
+   LIVE TICKER
+══════════════════════════════════════════════════════════ */
+.dash-ticker-live {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 700; color: var(--green);
+}
+.dash-ticker-live-dot {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--green);
+  animation: bwPulse .9s infinite;
+}
+.dash-ticker-list {
+  display: flex; flex-direction: column;
+  max-height: 260px; overflow-y: auto;
+  scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+}
+.dash-ticker-item {
+  display: grid; grid-template-columns: 30px 1fr auto;
+  align-items: center; gap: 10px;
+  padding: 9px var(--section-pad-h);
+  border-bottom: 1px solid var(--border);
+  animation: tickerIn .3s ease;
+}
+.dash-ticker-item:last-child { border-bottom: none; }
+@keyframes tickerIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
+
+.dash-ticker-icon {
+  width: 28px; height: 28px; border-radius: var(--r-sm);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.dash-ticker-icon .material-symbols-outlined { font-size: 15px; }
+.dash-ticker-icon.connect    { background: var(--green-bg);   color: var(--green); }
+.dash-ticker-icon.disconnect { background: var(--red-bg);     color: var(--red); }
+.dash-ticker-icon.payment    { background: var(--primary-light); color: var(--primary); }
+.dash-ticker-icon.add        { background: var(--primary-light); color: var(--primary); }
+.dash-ticker-icon.warning    { background: var(--amber-bg);   color: var(--amber); }
+
+.dash-ticker-msg {
+  font-size: 12.5px; color: var(--text-muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.dash-ticker-msg strong { color: var(--text); font-weight: 700; }
+.dash-ticker-time {
+  font-size: 10.5px; color: var(--text-dim); white-space: nowrap; flex-shrink: 0;
+}

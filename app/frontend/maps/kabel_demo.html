@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Demo Light-Trail Kabel — TechnoFix</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Poppins',sans-serif; color:#e2e8f0; padding:24px 16px 48px; min-height:100vh;
+    background:
+      radial-gradient(55% 80% at 82% 50%, rgba(40,70,110,.6), transparent 60%),
+      repeating-linear-gradient(50deg, #3a4a32 0 22px, #45402f 22px 44px, #2f3b46 44px 60px),
+      #2c3528;
+  }
+  h1 { font-family:'Plus Jakarta Sans'; font-size:20px; font-weight:800; text-align:center; margin-bottom:4px; text-shadow:0 2px 6px rgba(0,0,0,.6); }
+  .sub { text-align:center; font-size:13px; color:#cbd5e1; margin-bottom:24px; text-shadow:0 1px 4px rgba(0,0,0,.6); }
+
+  .demo { max-width:680px; margin:0 auto 16px; background:rgba(10,16,28,.45);
+    border:1px solid rgba(255,255,255,.12); border-radius:16px; padding:16px 20px; box-shadow:0 8px 28px rgba(0,0,0,.35); }
+  .demo-head { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+  .demo-num { width:26px; height:26px; border-radius:8px; flex-shrink:0; color:#fff; font-weight:800; font-size:13px; display:flex; align-items:center; justify-content:center; }
+  .demo-title { font-family:'Plus Jakarta Sans'; font-weight:700; font-size:15px; }
+  .demo-sub { font-size:11px; color:#94a3b8; margin-left:auto; }
+
+  .stage { position:relative; height:80px; }
+  svg { width:100%; height:100%; display:block; overflow:visible; }
+  .node-label { font-size:9px; font-weight:700; fill:#e2e8f0; text-anchor:middle; }
+  .base { stroke-width:6; fill:none; opacity:.38; }
+
+  .pick { max-width:680px; margin:22px auto 0; text-align:center; font-size:13px; color:#e2e8f0; text-shadow:0 1px 4px rgba(0,0,0,.6); }
+  .pick b { color:#fff; }
+</style>
+</head>
+<body>
+
+<h1>Demo Kabel — Cahaya Beriringan (Light Trail)</h1>
+<div class="sub">Router → OLT · kondisi "Baik" · bola cahaya ber-glow meluncur + ekor</div>
+
+<!-- ===== 1. BIRU ===== -->
+<div class="demo">
+  <div class="demo-head"><div class="demo-num" style="background:#2563eb">1</div><div class="demo-title">Biru</div><div class="demo-sub">#3b82f6</div></div>
+  <div class="stage">
+    <svg viewBox="0 0 600 80" preserveAspectRatio="none">
+      <defs>
+        <filter id="glowB" x="-50%" y="-400%" width="200%" height="900%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <path id="pB" d="M70,40 L530,40"/>
+      </defs>
+      <line class="base" x1="70" y1="40" x2="530" y2="40" stroke="#3b82f6"/>
+      <g filter="url(#glowB)" fill="#dbeafe">
+        <circle r="7"><animateMotion dur="1.8s" repeatCount="indefinite"><mpath href="#pB"/></animateMotion></circle>
+        <circle r="5.2" opacity=".7"><animateMotion dur="1.8s" begin="-.07s" repeatCount="indefinite"><mpath href="#pB"/></animateMotion></circle>
+        <circle r="3.5" opacity=".45"><animateMotion dur="1.8s" begin="-.14s" repeatCount="indefinite"><mpath href="#pB"/></animateMotion></circle>
+        <circle r="7"><animateMotion dur="1.8s" begin="-.9s" repeatCount="indefinite"><mpath href="#pB"/></animateMotion></circle>
+        <circle r="5.2" opacity=".7"><animateMotion dur="1.8s" begin="-.97s" repeatCount="indefinite"><mpath href="#pB"/></animateMotion></circle>
+        <circle r="3.5" opacity=".45"><animateMotion dur="1.8s" begin="-1.04s" repeatCount="indefinite"><mpath href="#pB"/></animateMotion></circle>
+      </g>
+      <circle cx="70" cy="40" r="15" fill="#1d4ed8" stroke="#fff" stroke-width="2.5"/><text x="70" y="69" class="node-label">ROUTER</text>
+      <circle cx="530" cy="40" r="15" fill="#7c3aed" stroke="#fff" stroke-width="2.5"/><text x="530" y="69" class="node-label">OLT</text>
+    </svg>
+  </div>
+</div>
+
+<!-- ===== 2. CYAN ===== -->
+<div class="demo">
+  <div class="demo-head"><div class="demo-num" style="background:#0891b2">2</div><div class="demo-title">Cyan (rekomendasi)</div><div class="demo-sub">#22d3ee</div></div>
+  <div class="stage">
+    <svg viewBox="0 0 600 80" preserveAspectRatio="none">
+      <defs>
+        <filter id="glowC" x="-50%" y="-400%" width="200%" height="900%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <path id="pC" d="M70,40 L530,40"/>
+      </defs>
+      <line class="base" x1="70" y1="40" x2="530" y2="40" stroke="#22d3ee"/>
+      <g filter="url(#glowC)" fill="#cffafe">
+        <circle r="7"><animateMotion dur="1.8s" repeatCount="indefinite"><mpath href="#pC"/></animateMotion></circle>
+        <circle r="5.2" opacity=".7"><animateMotion dur="1.8s" begin="-.07s" repeatCount="indefinite"><mpath href="#pC"/></animateMotion></circle>
+        <circle r="3.5" opacity=".45"><animateMotion dur="1.8s" begin="-.14s" repeatCount="indefinite"><mpath href="#pC"/></animateMotion></circle>
+        <circle r="7"><animateMotion dur="1.8s" begin="-.9s" repeatCount="indefinite"><mpath href="#pC"/></animateMotion></circle>
+        <circle r="5.2" opacity=".7"><animateMotion dur="1.8s" begin="-.97s" repeatCount="indefinite"><mpath href="#pC"/></animateMotion></circle>
+        <circle r="3.5" opacity=".45"><animateMotion dur="1.8s" begin="-1.04s" repeatCount="indefinite"><mpath href="#pC"/></animateMotion></circle>
+      </g>
+      <circle cx="70" cy="40" r="15" fill="#1d4ed8" stroke="#fff" stroke-width="2.5"/><text x="70" y="69" class="node-label">ROUTER</text>
+      <circle cx="530" cy="40" r="15" fill="#7c3aed" stroke="#fff" stroke-width="2.5"/><text x="530" y="69" class="node-label">OLT</text>
+    </svg>
+  </div>
+</div>
+
+<!-- ===== 3. HIJAU ===== -->
+<div class="demo">
+  <div class="demo-head"><div class="demo-num" style="background:#16a34a">3</div><div class="demo-title">Hijau</div><div class="demo-sub">#22c55e</div></div>
+  <div class="stage">
+    <svg viewBox="0 0 600 80" preserveAspectRatio="none">
+      <defs>
+        <filter id="glowG" x="-50%" y="-400%" width="200%" height="900%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <path id="pG" d="M70,40 L530,40"/>
+      </defs>
+      <line class="base" x1="70" y1="40" x2="530" y2="40" stroke="#22c55e"/>
+      <g filter="url(#glowG)" fill="#dcfce7">
+        <circle r="7"><animateMotion dur="1.8s" repeatCount="indefinite"><mpath href="#pG"/></animateMotion></circle>
+        <circle r="5.2" opacity=".7"><animateMotion dur="1.8s" begin="-.07s" repeatCount="indefinite"><mpath href="#pG"/></animateMotion></circle>
+        <circle r="3.5" opacity=".45"><animateMotion dur="1.8s" begin="-.14s" repeatCount="indefinite"><mpath href="#pG"/></animateMotion></circle>
+        <circle r="7"><animateMotion dur="1.8s" begin="-.9s" repeatCount="indefinite"><mpath href="#pG"/></animateMotion></circle>
+        <circle r="5.2" opacity=".7"><animateMotion dur="1.8s" begin="-.97s" repeatCount="indefinite"><mpath href="#pG"/></animateMotion></circle>
+        <circle r="3.5" opacity=".45"><animateMotion dur="1.8s" begin="-1.04s" repeatCount="indefinite"><mpath href="#pG"/></animateMotion></circle>
+      </g>
+      <circle cx="70" cy="40" r="15" fill="#1d4ed8" stroke="#fff" stroke-width="2.5"/><text x="70" y="69" class="node-label">ROUTER</text>
+      <circle cx="530" cy="40" r="15" fill="#7c3aed" stroke="#fff" stroke-width="2.5"/><text x="530" y="69" class="node-label">OLT</text>
+    </svg>
+  </div>
+</div>
+
+<div class="pick">Sekarang cahayanya benar-benar meluncur + ber-glow + ekor (2 bola beriringan).<br>Pilih: <b>"warna nomor X"</b> → langsung saya terapkan ke Maps asli.</div>
+</body>
+</html>

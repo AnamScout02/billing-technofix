@@ -25,10 +25,18 @@ let editingId  = null;
 let syncingIds = new Set();
 
 
+// ── HELPER: Cari elemen list/count — dukung kedua ID ──────
+// HTML lama pakai 'device-list/count', HTML baru pakai 'olt-list/count'
+function _listEl()  { return document.getElementById('olt-list')  || document.getElementById('device-list'); }
+function _countEl() { return document.getElementById('olt-count') || document.getElementById('device-count'); }
+
+
 // ── HELPERS ────────────────────────────────────────────────────
 
 function showListLoading() {
-  document.getElementById('device-list').innerHTML = `
+  const el = _listEl();
+  if (!el) return;   // Defensive: kalau halaman bukan input_olt, skip
+  el.innerHTML = `
     <div class="empty-state">
       <span class="material-symbols-outlined spin" style="font-size:32px;">refresh</span>
       <p>Memuat perangkat OLT...</p>
@@ -44,7 +52,7 @@ function updateStats() {
   animNum('stat-failed',    devices.filter(d => d.status === 'failed').length);
   animNum('stat-pending',   devices.filter(d => d.status === 'pending').length);
 
-  const el = document.getElementById('device-count');
+  const el = _countEl();
   if (el) el.textContent = `${devices.length} perangkat`;
 }
 
@@ -54,17 +62,20 @@ function updateStats() {
 async function loadDevices() {
   showListLoading();
   try {
-    const res  = await fetch(`${API_BASE}/olt`);
+    const res  = await fetch(`${API_BASE}/olt`, { credentials: 'include', headers: getAuthHeaders() });
     const data = await res.json();
     devices    = Array.isArray(data) ? data : (data.devices || []);
     renderDevices();
   } catch (e) {
-    document.getElementById('device-list').innerHTML = `
-      <div class="empty-state">
-        <span class="material-symbols-outlined" style="font-size:40px;color:var(--red);">wifi_off</span>
-        <p style="font-weight:600;color:var(--text);">Tidak bisa terhubung ke server</p>
-        <p style="font-size:12px;color:var(--text-muted);">Pastikan backend Flask sudah berjalan.</p>
-      </div>`;
+    const errEl = _listEl();
+    if (errEl) {
+      errEl.innerHTML = `
+        <div class="empty-state">
+          <span class="material-symbols-outlined" style="font-size:40px;color:var(--red);">wifi_off</span>
+          <p style="font-weight:600;color:var(--text);">Tidak bisa terhubung ke server</p>
+          <p style="font-size:12px;color:var(--text-muted);">Pastikan backend Flask sudah berjalan.</p>
+        </div>`;
+    }
     updateStats();
   }
 }
@@ -79,9 +90,14 @@ async function addDevice() {
   const snmp       = val('f-snmp');
   const lokasi     = val('f-lokasi');
   const keterangan = val('f-keterangan');
+  const epon_ports = val('f-epon-ports') || '4';
 
   if (!name || !ip || !user || !pass) {
     toast('Mohon isi semua field yang wajib diisi.', 'warning');
+    return;
+  }
+  if (!tipe) {
+    toast('Pilih Tipe OLT terlebih dahulu (GPON/EPON)', 'warning');
     return;
   }
 
@@ -94,8 +110,8 @@ async function addDevice() {
   try {
     const res  = await fetch(`${API_BASE}/olt`, {
       method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ name, tipe, ip, port, username: user, password: pass, snmp, lokasi, keterangan }),
+      credentials: 'include', headers: getAuthHeaders(),
+      body:    JSON.stringify({ name, tipe, ip, port, username: user, password: pass, snmp, lokasi, koordinat: val('f-koordinat'), keterangan, epon_ports }),
     });
     const data = await res.json();
 
@@ -127,6 +143,7 @@ async function saveEdit() {
   const snmp       = val('f-snmp');
   const lokasi     = val('f-lokasi');
   const keterangan = val('f-keterangan');
+  const epon_ports = val('f-epon-ports') || '4';
 
   if (!name || !ip || !user) {
     toast('Mohon isi semua field yang wajib diisi.', 'warning');
@@ -142,8 +159,8 @@ async function saveEdit() {
   try {
     const res  = await fetch(`${API_BASE}/olt/${editingId}`, {
       method:  'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ name, tipe, ip, port, username: user, password: pass, snmp, lokasi, keterangan }),
+      credentials: 'include', headers: getAuthHeaders(),
+      body:    JSON.stringify({ name, tipe, ip, port, username: user, password: pass, snmp, lokasi, koordinat: val('f-koordinat'), keterangan, epon_ports }),
     });
     const data = await res.json();
 
@@ -166,7 +183,7 @@ async function saveEdit() {
 async function doDelete(id) {
   closeModalForm();
   try {
-    const res = await fetch(`${API_BASE}/olt/${id}`, { method: 'DELETE' });
+    const res = await fetch(`${API_BASE}/olt/${id}`, { method: 'DELETE', credentials: 'include', headers: getAuthHeaders() });
     if (res.ok) {
       devices = devices.filter(x => x.id !== id);
       renderDevices();
@@ -186,7 +203,7 @@ async function syncDevice(id) {
   renderDevices();
 
   try {
-    const res  = await fetch(`${API_BASE}/olt/${id}/sync`, { method: 'POST' });
+    const res  = await fetch(`${API_BASE}/olt/${id}/sync`, { method: 'POST', credentials: 'include', headers: getAuthHeaders() });
     const data = await res.json();
     const d    = devices.find(x => x.id === id);
     if (d) {
@@ -206,6 +223,19 @@ async function syncDevice(id) {
   renderDevices();
 }
 
+async function syncOnu(id) {
+  const btn = document.getElementById(`sync-onu-btn-${id}`);
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="material-symbols-outlined spin">sensors</span> Memproses…'; }
+  try {
+    const res  = await fetch(`${API_BASE}/olt/${id}/sync-onu`, { method: 'POST', credentials: 'include', headers: getAuthHeaders() });
+    const data = await res.json();
+    toast(data.message || (res.ok ? 'Sync ONU dimulai' : 'Gagal'), res.ok ? 'success' : 'danger');
+  } catch (e) {
+    toast('Tidak bisa menghubungi server.', 'danger');
+  }
+  if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-outlined">sensors</span> Sync ONU'; }
+}
+
 async function syncAll() {
   const icon    = document.getElementById('sync-all-icon');
   const pending = devices.filter(d => !syncingIds.has(d.id));
@@ -218,7 +248,7 @@ async function syncAll() {
 
   await Promise.all(pending.map(async d => {
     try {
-      const res  = await fetch(`${API_BASE}/olt/${d.id}/sync`, { method: 'POST' });
+      const res  = await fetch(`${API_BASE}/olt/${d.id}/sync`, { method: 'POST', credentials: 'include', headers: getAuthHeaders() });
       const data = await res.json();
       d.status   = data.connected ? 'connected' : 'failed';
     } catch (e) { d.status = 'failed'; }
@@ -234,7 +264,8 @@ async function syncAll() {
 // ── RENDER ─────────────────────────────────────────────────────
 
 function renderDevices() {
-  const container = document.getElementById('device-list');
+  const container = _listEl();
+  if (!container) return;   // Defensive: jangan crash kalau elemen tidak ada
 
   if (!devices.length) {
     container.innerHTML = `
@@ -285,6 +316,14 @@ function renderDevices() {
             ${d.lokasi ? `<span class="device-meta-item"><span class="material-symbols-outlined">location_on</span>${escHtml(d.lokasi)}</span>` : ''}
           </div>
           ${d.keterangan ? `<p class="device-keterangan">${escHtml(d.keterangan)}</p>` : ''}
+          ${d.koordinat ? `
+          <div class="device-profile-row" style="margin-top:6px">
+            <a href="https://www.google.com/maps?q=${encodeURIComponent(d.koordinat)}"
+               target="_blank" class="koordinat-badge">
+              <span class="material-symbols-outlined">location_on</span>
+              ${escHtml(d.koordinat)}
+            </a>
+          </div>` : ''}
         </div>
 
         <div class="device-actions">
@@ -292,6 +331,11 @@ function renderDevices() {
                   onclick="syncDevice(${d.id})" ${isSyncing ? 'disabled' : ''}>
             <span class="material-symbols-outlined ${isSyncing ? 'spin' : ''}">refresh</span>
             Sinkron
+          </button>
+          <button class="btn btn-green btn-sm" id="sync-onu-btn-${d.id}"
+                  onclick="syncOnu(${d.id})" title="Ambil data ONU (SN, VLAN, redaman) dari OLT">
+            <span class="material-symbols-outlined">sensors</span>
+            Sync ONU
           </button>
           <button class="btn btn-amber btn-sm" onclick="editDevice(${d.id})">
             <span class="material-symbols-outlined">edit</span> Edit
@@ -313,7 +357,7 @@ function renderDevices() {
 function showForm(prefill = null) {
   editingId    = prefill ? prefill.id : null;
   const isEdit = !!prefill;
-  const v      = k => prefill ? escHtml(prefill[k] || '') : '';
+  const v      = k => prefill ? escHtml(String(prefill[k] || '')) : '';
 
   const html = `
     <div class="form-modal" style="width:560px;">
@@ -338,16 +382,41 @@ function showForm(prefill = null) {
 
       <div class="form-grid">
 
-        <div class="form-group">
+        <div class="form-group full">
           <label class="form-label">Nama OLT <span class="req">*</span></label>
           <input class="form-input" type="text" id="f-name"
                  placeholder="cth: OLT-Pusat-01" value="${v('name')}">
         </div>
 
-        <div class="form-group">
-          <label class="form-label">Tipe / Merek</label>
-          <input class="form-input" type="text" id="f-tipe"
-                 placeholder="cth: Huawei MA5800 / ZTE C600" value="${v('tipe')}">
+        <div class="form-group full">
+          <label class="form-label">Tipe / Merk OLT <span class="req">*</span></label>
+          <select class="form-input" id="f-tipe">
+            <option value="">— Pilih Tipe OLT —</option>
+            <optgroup label="GPON">
+              <option value="zte"    ${v('tipe')==='zte'    ?'selected':''}>ZTE GPON (C300 / C600 / C650)</option>
+              <option value="huawei" ${v('tipe')==='huawei' ?'selected':''}>Huawei GPON (MA5800 / MA5600)</option>
+              <option value="vsol"   ${v('tipe')==='vsol'   ?'selected':''}>V-Sol GPON (V1600D / V1600G)</option>
+            </optgroup>
+            <optgroup label="EPON">
+              <option value="epon"   ${v('tipe')==='epon'   ?'selected':''}>HSGQ EPON (E04ID / E08ID)</option>
+              <option value="hsgq"   ${v('tipe')==='hsgq'   ?'selected':''}>HSGQ EPON (spesifik)</option>
+            </optgroup>
+            <optgroup label="Lainnya">
+              <option value="generic" ${v('tipe')==='generic'?'selected':''}>Generic / Tidak dikenal</option>
+            </optgroup>
+          </select>
+          <span class="form-hint">
+            GPON: pakai SN (serial number 16 karakter) ·
+            EPON: pakai MAC address sebagai SN
+          </span>
+        </div>
+
+        <div class="form-group full" id="epon-ports-wrap" style="display:none">
+          <label class="form-label">Jumlah PON Port EPON</label>
+          <input class="form-input" type="number" id="f-epon-ports"
+                 placeholder="4" min="1" max="16"
+                 value="${v('epon_ports') || 4}">
+          <span class="form-hint">Jumlah port fisik EPON di OLT (umumnya 4 atau 8)</span>
         </div>
 
         <div class="form-group full">
@@ -362,13 +431,13 @@ function showForm(prefill = null) {
           <span class="form-hint">Port default: 23 (Telnet) · 22 (SSH) · 161 (SNMP)</span>
         </div>
 
-        <div class="form-group">
+        <div class="form-group full">
           <label class="form-label">Username <span class="req">*</span></label>
           <input class="form-input" type="text" id="f-user"
                  placeholder="admin" value="${v('username')}">
         </div>
 
-        <div class="form-group">
+        <div class="form-group full">
           <label class="form-label">Password ${isEdit ? '' : '<span class="req">*</span>'}</label>
           <div class="form-pwd-wrap">
             <input class="form-input" type="password" id="f-pass"
@@ -380,22 +449,26 @@ function showForm(prefill = null) {
           </div>
         </div>
 
-        <div class="form-group">
-          <label class="form-label">SNMP Community String</label>
-          <input class="form-input" type="text" id="f-snmp"
-                 placeholder="cth: public" value="${v('snmp')}">
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Lokasi</label>
-          <input class="form-input" type="text" id="f-lokasi"
-                 placeholder="cth: Gedung Pusat Lt.2" value="${v('lokasi')}">
-        </div>
-
         <div class="form-group full">
-          <label class="form-label">Keterangan</label>
-          <textarea class="form-input" id="f-keterangan" rows="2"
-                    placeholder="Catatan tambahan tentang perangkat ini...">${prefill ? escHtml(prefill.keterangan || '') : ''}</textarea>
+          <label class="form-label">
+            <span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;color:var(--primary)">location_on</span>
+            Titik Koordinat
+            <span style="font-size:10px;font-weight:400;color:var(--text-dim);margin-left:4px">(untuk halaman Maps)</span>
+          </label>
+          <div class="koordinat-row">
+            <input class="form-input" type="text" id="f-koordinat"
+                   placeholder="-6.200000, 106.816666"
+                   value="${prefill ? escHtml(prefill.koordinat || '') : ''}"
+                   oninput="previewKoordinat()">
+            <button type="button" class="koordinat-btn" onclick="deteksiLokasi()">
+              <span class="material-symbols-outlined">my_location</span>
+              Deteksi
+            </button>
+          </div>
+          <span class="form-hint">Format: latitude, longitude</span>
+          <div class="koordinat-preview" id="koordinat-preview">
+            <iframe id="koordinat-iframe" src="" loading="lazy"></iframe>
+          </div>
         </div>
 
       </div>
@@ -414,9 +487,21 @@ function showForm(prefill = null) {
 
   openModalForm(html);
 
-  requestAnimationFrame(() => {
+  requestAnimationFrame(function() {
     const el = document.getElementById('f-name');
     if (el) el.focus();
+
+    // Show/hide EPON ports field based on tipe selection
+    const tipeEl = document.getElementById('f-tipe');
+    const eponWrap = document.getElementById('epon-ports-wrap');
+    function toggleEponPorts() {
+      const isEpon = tipeEl && (tipeEl.value === 'epon' || tipeEl.value === 'hsgq');
+      if (eponWrap) eponWrap.style.display = isEpon ? '' : 'none';
+    }
+    if (tipeEl) {
+      tipeEl.addEventListener('change', toggleEponPorts);
+      toggleEponPorts(); // run immediately for edit mode
+    }
   });
 }
 
@@ -460,4 +545,31 @@ function confirmDelete(id) {
 
 
 // ── INIT ───────────────────────────────────────────────────────
-loadDevices();
+
+// ── KOORDINAT HELPERS ─────────────────────────────────────────
+function deteksiLokasi() { geoDetectKoordinat(); }  /* pakai fungsi bersama di global.js */
+
+function previewKoordinat() {
+  const raw     = (document.getElementById('f-koordinat')?.value || '').trim();
+  const preview = document.getElementById('koordinat-preview');
+  const iframe  = document.getElementById('koordinat-iframe');
+  if (!preview || !iframe) return;
+  const parts = raw.split(',').map(s => s.trim());
+  if (parts.length === 2 && !isNaN(parseFloat(parts[0])) && !isNaN(parseFloat(parts[1]))) {
+    iframe.src = `https://maps.google.com/maps?q=${parseFloat(parts[0])},${parseFloat(parts[1])}&z=15&output=embed`;
+    preview.classList.add('show');
+  } else {
+    preview.classList.remove('show');
+    iframe.src = '';
+  }
+}
+
+
+// ── INIT ─────────────────────────────────────────────────────
+// Pastikan DOM siap sebelum loadDevices() — jika script di-load di <head>
+// atau ada race condition, ini mencegah crash "Cannot set null"
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', loadDevices);
+} else {
+  loadDevices();
+}

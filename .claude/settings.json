@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell -Command \"Select-String -Path 'c:\\\\xampp\\\\htdocs\\\\billing\\\\app\\\\backend\\\\api.py' -Pattern 'register_blueprint' | Select-Object -First 5 LineNumber, Line; Write-Host '---'; Get-ChildItem 'c:\\\\xampp\\\\htdocs\\\\billing\\\\' -Filter '*.py' | Select-Object Name; Get-ChildItem 'c:\\\\xampp\\\\htdocs\\\\billing\\\\' -Filter 'app.py' | Select-Object Name\")",
+      "Bash(powershell -Command \"Get-ChildItem 'c:\\\\xampp\\\\htdocs\\\\billing\\\\' -Filter '*.py' | Select-Object Name\")",
+      "Bash(powershell -Command \"Get-ChildItem 'c:\\\\xampp\\\\htdocs\\\\billing\\\\app\\\\' -Filter '*.py' | Select-Object FullName; Get-ChildItem 'c:\\\\xampp\\\\htdocs\\\\billing\\\\app\\\\' -Filter 'app.py' | Select-Object FullName\")",
+      "Bash(dir /s /b \"c:\\\\xampp\\\\htdocs\\\\billing\\\\*.py\")",
+      "Bash(findstr /i \"app.py main.py run.py server.py wsgi.py\")",
+      "Bash(powershell -Command ' *)",
+      "Bash(python -c ' *)",
+      "Bash(cd \"/c/xampp/htdocs/billing/app/frontend\" && grep -rn \"input_mikrotik.js?v\\\\|input_mikrotik.js\\\\\"\" input_perangkat/input_mikrotik.html 2>/dev/null | head -5; echo \"---olt---\"; grep -n \"?v=\" input_perangkat/input_olt.html | head; echo \"---maps---\"; grep -n \"?v=\" maps/maps.html | head -2)",
+      "Read(//c/c/xampp/htdocs/billing/app/frontend/input_perangkat/**)"
+    ]
+  }
+}
