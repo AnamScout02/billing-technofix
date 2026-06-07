@@ -11,7 +11,7 @@ import logging
 from flask import Blueprint, request, jsonify, g
 
 # ── Shared helpers ─────────────────────────────────────────────
-from utils import get_db, olt_to_dict, try_connect_olt
+from utils import get_db, olt_to_dict, try_connect_olt, get_olt_uplinks
 
 # ── Blueprint ──────────────────────────────────────────────────
 olt_bp = Blueprint('olt', __name__)
@@ -94,8 +94,59 @@ def get_olt():
     """
     conn = get_db()
     rows = conn.execute('SELECT * FROM olt ORDER BY id').fetchall()
+    result = []
+    for r in rows:
+        d = olt_to_dict(r)
+        d['uplinks'] = get_olt_uplinks(conn, r['id'])
+        result.append(d)
     conn.close()
-    return jsonify([olt_to_dict(r) for r in rows]), 200
+    return jsonify(result), 200
+
+
+# ── Helper: parse & simpan daftar uplink (router_id, interface, port) ──
+def _parse_uplinks(data: dict) -> list:
+    """
+    Body bisa kirim 'uplinks': [{router_id, router_interface, uplink_port, keterangan}, ...]
+    (form baru — multi uplink), atau field tunggal 'router_id'/'router_interface'/
+    'olt_uplink_port' (form lama — kompatibilitas selama transisi).
+    """
+    raw = data.get('uplinks')
+    if isinstance(raw, list):
+        out = []
+        for u in raw:
+            if not isinstance(u, dict):
+                continue
+            rid = u.get('router_id') or None
+            if not rid:
+                continue
+            out.append({
+                'router_id':        rid,
+                'router_interface': (u.get('router_interface') or '').strip(),
+                'uplink_port':      (u.get('uplink_port') or '').strip(),
+                'keterangan':       (u.get('keterangan') or '').strip(),
+            })
+        return out
+
+    rid = data.get('router_id') or None
+    if not rid:
+        return []
+    return [{
+        'router_id':        rid,
+        'router_interface': (data.get('router_interface') or '').strip(),
+        'uplink_port':      (data.get('olt_uplink_port') or '').strip(),
+        'keterangan':       '',
+    }]
+
+
+def _save_uplinks(conn, olt_id: int, uplinks: list) -> None:
+    """Ganti seluruh daftar uplink milik 1 OLT (hapus lalu tulis ulang)."""
+    conn.execute('DELETE FROM olt_uplink WHERE olt_id = ?', (olt_id,))
+    for u in uplinks:
+        conn.execute(
+            'INSERT INTO olt_uplink (olt_id, router_id, router_interface, uplink_port, keterangan) '
+            'VALUES (?, ?, ?, ?, ?)',
+            (olt_id, u['router_id'], u['router_interface'], u['uplink_port'], u['keterangan'])
+        )
 
 
 # ══════════════════════════════════════════════════════════════
@@ -133,9 +184,13 @@ def add_olt():
     koordinat        = data.get('koordinat',        '').strip()
     keterangan       = data.get('keterangan',       '').strip()
     epon_ports       = int(data.get('epon_ports') or 4)
-    router_id        = data.get('router_id')        or None
-    router_interface = data.get('router_interface', '').strip()
-    olt_uplink_port  = data.get('olt_uplink_port',  '').strip()
+    uplinks          = _parse_uplinks(data)
+    # Kolom legacy di 'olt' diisi dari uplink pertama — dipakai maps.py &
+    # monitoring bandwidth selama belum dipindah sepenuhnya ke tabel olt_uplink.
+    primary          = uplinks[0] if uplinks else {}
+    router_id        = primary.get('router_id')
+    router_interface = primary.get('router_interface', '')
+    olt_uplink_port  = primary.get('uplink_port', '')
 
     if not name:     return jsonify({'status': 'error', 'message': 'Nama OLT wajib diisi'}), 400
     if not ip:       return jsonify({'status': 'error', 'message': 'IP Address wajib diisi'}), 400
@@ -157,15 +212,18 @@ def add_olt():
          router_id, router_interface, olt_uplink_port, epon_ports)
     )
     new_id = cursor.lastrowid
+    _save_uplinks(conn, new_id, uplinks)
     conn.commit()
 
     row = conn.execute('SELECT * FROM olt WHERE id = ?', (new_id,)).fetchone()
+    device = olt_to_dict(row)
+    device['uplinks'] = get_olt_uplinks(conn, new_id)
     conn.close()
 
     return jsonify({
         'status':  'success' if ok else 'warning',
         'message': msg,
-        'device':  olt_to_dict(row)
+        'device':  device
     }), 201
 
 
@@ -194,9 +252,11 @@ def update_olt(olt_id):
     koordinat        = data.get('koordinat',        '').strip()
     keterangan       = data.get('keterangan',       '').strip()
     epon_ports       = int(data.get('epon_ports') or 4)
-    router_id        = data.get('router_id')        or None
-    router_interface = data.get('router_interface', '').strip()
-    olt_uplink_port  = data.get('olt_uplink_port',  '').strip()
+    uplinks          = _parse_uplinks(data)
+    primary          = uplinks[0] if uplinks else {}
+    router_id        = primary.get('router_id')
+    router_interface = primary.get('router_interface', '')
+    olt_uplink_port  = primary.get('uplink_port', '')
 
     if not name or not ip or not username:
         return jsonify({'status': 'error', 'message': 'Nama, IP, dan username wajib diisi'}), 400
@@ -221,15 +281,18 @@ def update_olt(olt_id):
          snmp, lokasi, koordinat, keterangan, 'pending',
          router_id, router_interface, olt_uplink_port, epon_ports, olt_id)
     )
+    _save_uplinks(conn, olt_id, uplinks)
     conn.commit()
 
     row = conn.execute('SELECT * FROM olt WHERE id = ?', (olt_id,)).fetchone()
+    device = olt_to_dict(row)
+    device['uplinks'] = get_olt_uplinks(conn, olt_id)
     conn.close()
 
     return jsonify({
         'status':  'success',
         'message': f'{name} berhasil diperbarui. Lakukan sinkronisasi untuk cek koneksi.',
-        'device':  olt_to_dict(row)
+        'device':  device
     }), 200
 
 
@@ -241,6 +304,7 @@ def delete_olt(olt_id):
     """Hapus perangkat OLT dari database."""
     conn     = get_db()
     affected = conn.execute('DELETE FROM olt WHERE id = ?', (olt_id,)).rowcount
+    conn.execute('DELETE FROM olt_uplink WHERE olt_id = ?', (olt_id,))
     conn.commit()
     conn.close()
 
@@ -309,19 +373,36 @@ def sync_onu_data(olt_id):
         return jsonify({'status': 'error', 'message': 'Sesi tidak valid'}), 401
 
     import threading
-    def _run(nid):
+    def _run(nid, oid):
         try:
-            from olt_sync import sync_all_olts
-            sync_all_olts(network_id=nid)
+            from olt_sync import sync_single_olt
+            sync_single_olt(network_id=nid, olt_id=oid)
         except Exception as e:
             logging.warning('[OLT sync-onu] error: %s', e)
 
-    threading.Thread(target=_run, args=(network_id,), daemon=True).start()
+    threading.Thread(target=_run, args=(network_id, olt_id), daemon=True).start()
 
     return jsonify({
         'status':  'success',
         'message': 'Sinkronisasi ONU dimulai di background. Tunggu ~30 detik lalu refresh halaman Pelanggan.',
     }), 202
+
+
+# ── GET /olt/<id>/unauthorized ────────────────────────────
+@olt_bp.route('/<int:olt_id>/unauthorized', methods=['GET'])
+def get_unauthorized_onus(olt_id):
+    """
+    Ambil daftar ONU yang konek ke OLT tapi belum diprovisi (dari tabel onu_liar).
+    Data diisi saat background sync ZTE GPON berjalan.
+    Response: [ { sn, port, detected_at }, ... ]
+    """
+    conn = get_db()
+    rows = conn.execute(
+        'SELECT sn, port, detected_at FROM onu_liar WHERE olt_id=? ORDER BY detected_at DESC',
+        (olt_id,)
+    ).fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows]), 200
 
 
 # ── POST /olt/<id>/scan-sn ────────────────────────────────
@@ -337,12 +418,6 @@ def scan_sn(olt_id):
       empty_slots:  {slot_port: [onu_id_kosong, ...]}
     }
     """
-    try:
-        from scrapli.driver.generic import GenericDriver
-        SCRAPLI_OK = True
-    except ImportError:
-        SCRAPLI_OK = False
-
     conn = get_db()
     olt = conn.execute('SELECT * FROM olt WHERE id=?', (olt_id,)).fetchone()
     if not olt:
@@ -352,10 +427,6 @@ def scan_sn(olt_id):
         conn.close()
         return jsonify({'error': 'OLT belum terhubung. Lakukan sync koneksi dulu.'}), 400
 
-    if not SCRAPLI_OK:
-        conn.close()
-        return jsonify({'error': 'scrapli tidak terpasang (pip install scrapli)'}), 500
-
     # Ambil SN yang sudah terdaftar di onu_mapping
     registered_map = {r['sn']: r['username'] for r in
                       conn.execute('SELECT sn, username FROM onu_mapping WHERE sn != ""').fetchall()
@@ -363,6 +434,24 @@ def scan_sn(olt_id):
     conn.close()
 
     tipe = (olt['tipe'] or '').lower()
+    is_hsgq = 'hsgq' in tipe or 'epon' in tipe
+
+    # ── HSGQ EPON: jalur telnet terpisah (sama seperti sync background) ──
+    # Scrapli/GenericDriver kurang cocok untuk negosiasi telnet (IAC) HSGQ —
+    # alasan yang sama kenapa sync_hsgq_epon_telnet() di olt_sync.py memakai
+    # SimpleTelnet (telnetlib). Pakai ulang alur & helper yang sudah terbukti.
+    if is_hsgq:
+        return _scan_hsgq_epon(olt, olt_id, registered_map)
+
+    try:
+        from scrapli.driver.generic import GenericDriver
+        SCRAPLI_OK = True
+    except ImportError:
+        SCRAPLI_OK = False
+
+    if not SCRAPLI_OK:
+        return jsonify({'error': 'scrapli tidak terpasang (pip install scrapli)'}), 500
+
     device_cfg = {
         'host': olt['ip'], 'port': int(olt['port']),
         'auth_username': olt['username'], 'auth_password': olt['password'],
@@ -388,7 +477,6 @@ def scan_sn(olt_id):
             is_zte     = 'zte' in tipe or 'zxan' in prompt.lower() or 'c300' in tipe or 'c600' in tipe
             is_huawei  = 'huawei' in tipe or 'ma5' in tipe
             is_vsol    = 'vsol' in tipe or 'v-sol' in tipe or 'v1600' in tipe
-            is_hsgq    = 'hsgq' in tipe or 'epon' in tipe
 
             if is_zte:
                 # ── ZTE GPON: gunakan show gpon onu uncfg per port ──
@@ -405,9 +493,11 @@ def scan_sn(olt_id):
                 # Coba show gpon onu uncfg (lebih cepat dari running-config)
                 try:
                     out = ssh.send_command('show gpon onu uncfg', timeout_ops=45).result
-                    # Format: gpon-onu_X/Y/Z:N SN:XXXXXX Type:XXXX
-                    for m in _re.finditer(r'gpon-onu_(\d+/\d+/\d+):(\d+)\s+SN:([\w]+)', out, _re.IGNORECASE):
-                        sn = m.group(3)
+                    # Format C300 (terverifikasi): "gpon-onu_1/3/7:1   ZICGCCF20855   unknown"
+                    # — kolom Sn TANPA label "SN:". Beberapa firmware lain memakai
+                    # label "SN:XXXX Type:XXXX" — keduanya ditangkap regex ini.
+                    for m in _re.finditer(r'gpon-onu_(\d+/\d+/\d+):(\d+)\s+(?:SN:)?([A-Z0-9]{8,})', out, _re.IGNORECASE):
+                        sn = m.group(3).upper()
                         slot_port = m.group(1) + ':' + m.group(2)
                         if sn not in registered_map:
                             unregistered.append({'sn': sn, 'slot_port': slot_port, 'tipe': 'gpon-uncfg'})
@@ -454,24 +544,106 @@ def scan_sn(olt_id):
                 except Exception:
                     pass
 
-            elif is_hsgq:
-                # HSGQ EPON — belum ada perintah standar yang universal
-                # Coba beberapa kemungkinan
-                cmds = ['show onu unauthorized all', 'show onu unregistered all', 'show onu unreg all']
-                for cmd in cmds:
-                    try:
-                        out = ssh.send_command(cmd, timeout_ops=30).result
-                        for m in _re.finditer(r'((?:[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}|[\w]{8,})\s+([\d]+/[\d]+)', out):
-                            sn, slot_port = m.group(1), m.group(2)
-                            if sn not in registered_map:
-                                unregistered.append({'sn': sn, 'slot_port': slot_port, 'tipe': 'epon-unreg'})
-                        if unregistered:
-                            break
-                    except Exception:
-                        continue
+    except Exception as e:
+        return jsonify({'error': 'Gagal konek ke OLT: {}'.format(str(e))}), 502
+
+    return jsonify({
+        'status': 'success',
+        'unregistered': unregistered,
+        'registered': registered_found,
+        'total_unregistered': len(unregistered),
+        'olt_id': olt_id,
+        'olt_name': olt['name'],
+    }), 200
+
+
+# ── Helper: scan ONU EPON belum terotorisasi via telnet (HSGQ) ────
+def _scan_hsgq_epon(olt, olt_id, registered_map):
+    """
+    Scan ONU EPON yang belum diotorisasi pada OLT HSGQ, memakai alur yang
+    sama persis dengan sync_hsgq_epon_telnet() di olt_sync.py (terbukti jalan):
+      login → enable (OLT#) → configure ((config)#)
+      → per port: interface epon <N> → show onu-info all
+    Kolom 'Auth' (TRUE/FALSE) pada output menentukan status registrasi ONU —
+    analog dengan 'show gpon onu uncfg' di ZTE. Auth: FALSE → belum terdaftar.
+    """
+    import re as _re
+    try:
+        from olt_sync import SimpleTelnet, _hsgq_read
+    except ImportError:
+        return jsonify({'error': 'Modul olt_sync tidak tersedia untuk scan EPON'}), 500
+
+    epon_ports = int(olt['epon_ports'] or 8)
+    unregistered = []
+    registered_found = []
+    tn = None
+    try:
+        tn = SimpleTelnet(olt['ip'], int(olt['port']), timeout=20)
+        tn.read_until(b'username:', timeout=30)
+        tn.write(olt['username'].encode('ascii') + b'\r\n')
+        tn.read_until(b'password:', timeout=10)
+        tn.write(olt['password'].encode('ascii') + b'\r\n')
+        tn.read_until(b'OLT>', timeout=15)
+
+        tn.write(b'enable\r\n')
+        _hsgq_read(tn, b'OLT#', timeout=15)
+
+        tn.write(b'configure\r\n')
+        cfg_resp = _hsgq_read(tn, b'(config)#', timeout=20)
+        if '(config)#' not in cfg_resp:
+            return jsonify({'error': 'Gagal masuk mode config pada OLT EPON'}), 502
+
+        for port_num in range(1, epon_ports + 1):
+            port_prompt = f'epon-{port_num})#'.encode()
+            cfg_prompt  = b'(config)#'
+            try:
+                tn.write(f'interface epon {port_num}\r\n'.encode('ascii'))
+                iface_resp = _hsgq_read(tn, port_prompt, timeout=10)
+                if port_prompt.decode() not in iface_resp:
+                    continue
+
+                tn.write(b'show onu-info all\r\n')
+                port_info = _hsgq_read(tn, port_prompt, timeout=30)
+
+                # Format: PON/ONU  Mac-Address  Status  Auth  Cfg  Reg-time  ONU-Name
+                # Contoh: 1/1  0c:37:47:77:a4:10  Online  TRUE  TRUE  2026/05/24 11:41:54  wiwik_tegaly
+                for m in _re.finditer(
+                    r'(\d+/\d+)\s+'
+                    r'((?:[0-9a-fA-F]{2}[:\-]){5}[0-9a-fA-F]{2})\s+'
+                    r'(?:Online|Offline)\s+'
+                    r'(TRUE|FALSE)\s+\w+\s+'   # Auth (ditangkap) + Cfg (diabaikan)
+                    r'[\d/\s:]+\s+'            # Reg-time
+                    r'(\S+)',                  # ONU-Name
+                    port_info, _re.IGNORECASE
+                ):
+                    pon_onu = m.group(1).strip()
+                    mac     = m.group(2).strip().lower()
+                    auth    = m.group(3).strip().upper()
+                    parts   = pon_onu.split('/')
+                    onu_id  = parts[1] if len(parts) > 1 else parts[0]
+                    slot_port = f'{port_num}/{onu_id}'
+                    sn = mac  # EPON: SN = MAC address (sama seperti sync)
+
+                    if auth == 'FALSE':
+                        if sn not in registered_map:
+                            unregistered.append({'sn': sn, 'slot_port': slot_port, 'tipe': 'epon-unauth'})
+                    elif sn in registered_map:
+                        registered_found.append({'sn': sn, 'slot_port': slot_port, 'username': registered_map[sn]})
+
+                tn.write(b'exit\r\n')
+                _hsgq_read(tn, cfg_prompt, timeout=8)
+            except Exception:
+                try:
+                    tn.write(b'exit\r\n')
+                    _hsgq_read(tn, cfg_prompt, timeout=5)
+                except Exception:
+                    pass
 
     except Exception as e:
         return jsonify({'error': 'Gagal konek ke OLT: {}'.format(str(e))}), 502
+    finally:
+        if tn is not None:
+            tn.close()
 
     return jsonify({
         'status': 'success',

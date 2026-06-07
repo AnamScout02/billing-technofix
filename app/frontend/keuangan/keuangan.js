@@ -89,6 +89,53 @@ async function loadKeuangan() {
 
 
 /* ══════════════════════════════════════════════════════════
+   1b. EKSPOR CSV (mengikuti filter yang sedang aktif)
+══════════════════════════════════════════════════════════ */
+
+async function eksporKeuangan() {
+  const btn = document.getElementById('btn-ekspor');
+  const bulan  = document.getElementById('input-bulan')?.value || '';
+  const status = document.getElementById('filter-status')?.value || '';
+  const q      = document.getElementById('input-search')?.value.trim() || '';
+
+  const params = new URLSearchParams();
+  if (bulan)      params.set('bulan',  bulan);
+  if (status)     params.set('status', status);
+  if (q)          params.set('q',      q);
+  if (_filterTipe) params.set('tipe',  _filterTipe);
+
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch(`${API_BASE}/api/keuangan/export?${params}`, {
+      credentials: 'include', headers: getAuthHeaders()
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    const blob = await res.blob();
+    const cd   = res.headers.get('Content-Disposition') || '';
+    const m    = cd.match(/filename="?([^"]+)"?/);
+    const filename = m ? m[1] : `keuangan_${bulan || 'export'}.csv`;
+
+    const url = URL.createObjectURL(blob);
+    const a   = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+
+    toast('Data keuangan berhasil diekspor', 'success');
+  } catch (err) {
+    console.error('[Keuangan] Ekspor error:', err);
+    toast('Gagal mengekspor data keuangan', 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+
+/* ══════════════════════════════════════════════════════════
    2. RENDER STAT CARDS
 ══════════════════════════════════════════════════════════ */
 
@@ -253,8 +300,8 @@ function renderTabel() {
 
     return `
       <tr>
-        <td style="text-align:center;font-size:12px;color:var(--text-dim);font-weight:600">${no}</td>
-        <td style="color:var(--text-muted);font-size:12px">${tgl}</td>
+        <td class="sticky-col-0" style="text-align:center;font-size:12px;color:var(--text-dim);font-weight:600">${no}</td>
+        <td class="sticky-col-1" style="color:var(--text-muted);font-size:12px">${tgl}</td>
         <td>
           <div class="tbl-keterangan">${escHtml(t.keterangan)}</div>
           ${t.username ? `<div class="tbl-username">${escHtml(t.username)}</div>` : ''}

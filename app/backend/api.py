@@ -21,11 +21,13 @@ Menggunakan utils.py untuk helper terpusat.
 
 import os
 import re
+import io
+import csv
 import logging
 from datetime import datetime, date
 import calendar
 
-from flask import Blueprint, jsonify, request, g
+from flask import Blueprint, jsonify, request, g, Response
 
 # ── Shared helpers ────────────────────────────────────────────
 from utils import get_db, get_onu_data
@@ -242,6 +244,29 @@ def _build_olt_cli(cli_type, slot_port, vlan, sn, username, profil, password, tc
             f'service-port vlan {vlan_val} gpon 0/{gpon_path} ont {onu_id} gemport 1 multi-service user-vlan {vlan_val} tag-transform translate',
             'quit',
             'save',
+        ]
+
+    # HSGQ EPON (E04ID / E08ID)
+    # slot_port format EPON: "2/3" → port=2, onu_id=3
+    # sn di EPON = MAC address tanpa titik dua (disimpan dari sync), mis: 0C3747A4B510
+    # mac diformatkan ulang: AABBCCDDEEFF → aa:bb:cc:dd:ee:ff untuk perintah OLT
+    if any(k in (cli_type or '').lower() for k in ('epon', 'hsgq', 'e04', 'e08')):
+        epon_parts = (slot_port or '1/1').split('/')
+        epon_port  = epon_parts[0] if len(epon_parts) > 0 else '1'
+        epon_onu   = epon_parts[1] if len(epon_parts) > 1 else '1'
+        # Normalkan MAC: strip titik dua/dash dulu, lalu format ulang xx:xx:xx:xx:xx:xx
+        mac_clean = sn.replace(':', '').replace('-', '').lower()
+        mac_fmt   = ':'.join(mac_clean[i:i+2] for i in range(0, 12, 2)) \
+                    if len(mac_clean) == 12 else sn.lower()
+        return [
+            'enable',
+            'configure',
+            f'interface epon {epon_port}',
+            f'onu {epon_onu} mac-address {mac_fmt}',
+            f'name {username}',
+            f'vlan pvid {vlan_val}',
+            'exit',
+            'write',
         ]
 
     # ZTE (default)
@@ -770,7 +795,6 @@ def tambah_pelanggan():
                 'password': password,
                 'profile':  profil,
                 'service':  'pppoe',
-                'comment':  nama,
             })
         steps['mikrotik'] = 'success'
     except MikroTikError as e:
@@ -806,6 +830,13 @@ def tambah_pelanggan():
         conn.commit()
         conn.close()
         steps['database'] = 'success'
+        # Auto-link device ke GenieACS (background, senyap)
+        if sn:
+            try:
+                from genieacs import link_device_by_serial
+                link_device_by_serial(sn, g.network_id)
+            except Exception:
+                pass
         # Auto-update port_terpakai ODP jika pelanggan pilih port
         if odp_id:
             try:
@@ -846,7 +877,12 @@ def tambah_pelanggan():
         olt = cari_olt(int(olt_id))
         if olt:
             tipe_olt = (olt.get('tipe') or '').lower()
-            cli_type = 'huawei' if 'huawei' in tipe_olt else 'zte'
+            if 'huawei' in tipe_olt:
+                cli_type = 'huawei'
+            elif any(k in tipe_olt for k in ('epon', 'hsgq', 'e04', 'e08')):
+                cli_type = 'epon'
+            else:
+                cli_type = 'zte'
             commands = _build_olt_cli(cli_type, slot_port, vlan, sn, username, profil, password, tcont_profile)
             ok, msg, _out = _kirim_olt_cli(olt, commands)
             steps['olt'] = 'success' if ok else 'warning'
@@ -1961,7 +1997,12 @@ def provision_pelanggan(pelanggan_id):
     # Tentukan cli_type dari tipe OLT jika tidak di-override
     if not cli_type:
         tipe_olt = (olt.get('tipe') or '').lower()
-        cli_type = 'huawei' if 'huawei' in tipe_olt else 'zte'
+        if 'huawei' in tipe_olt:
+            cli_type = 'huawei'
+        elif any(k in tipe_olt for k in ('epon', 'hsgq', 'e04', 'e08')):
+            cli_type = 'epon'
+        else:
+            cli_type = 'zte'
 
     # Build CLI script via helper bersama (password real, bukan sn[-8:])
     commands = _build_olt_cli(cli_type, slot_port, vlan, sn, username, profil, password_pel, tcont_profile)
@@ -2152,6 +2193,73 @@ def get_keuangan():
         'transaksi':  [keuangan_to_dict(r) for r in rows],
         'total_rows': total_rows,
     }), 200
+
+
+@api_bp.route('/keuangan/export', methods=['GET'])
+def export_keuangan():
+    """
+    Ekspor transaksi keuangan ke CSV — mengikuti filter yang sama
+    dengan GET /api/keuangan (q, tipe, status, bulan), tanpa paginasi.
+    """
+    q      = request.args.get('q',      '').strip()
+    tipe   = request.args.get('tipe',   '').strip().lower()
+    status = request.args.get('status', '').strip()
+    bulan  = request.args.get('bulan',  '').strip()
+
+    if bulan:
+        try:
+            y, m  = map(int, bulan.split('-'))
+            awal  = date(y, m, 1).isoformat()
+            akhir = date(y, m, calendar.monthrange(y, m)[1]).isoformat()
+        except Exception:
+            awal, akhir = _bulan_ini()
+    else:
+        awal, akhir = _bulan_ini()
+
+    where  = ['tanggal BETWEEN ? AND ?']
+    params = [awal, akhir]
+
+    if tipe in ('pemasukan', 'pengeluaran'):
+        where.append('tipe = ?')
+        params.append(tipe)
+    if status:
+        where.append('status = ?')
+        params.append(status)
+    if q:
+        where.append('(keterangan LIKE ? OR username LIKE ? OR catatan LIKE ?)')
+        like = f'%{q}%'
+        params.extend([like, like, like])
+
+    where_sql = 'WHERE ' + ' AND '.join(where)
+    conn = get_db()
+    rows = conn.execute(
+        f'SELECT * FROM keuangan {where_sql} ORDER BY tanggal DESC, id DESC', params
+    ).fetchall()
+    conn.close()
+
+    buf = io.StringIO()
+    buf.write('﻿')  # BOM agar Excel membaca UTF-8 dengan benar
+    writer = csv.writer(buf)
+    writer.writerow(['Tanggal', 'Keterangan', 'Tipe', 'Nominal', 'Status', 'Metode', 'Username', 'Catatan'])
+    for r in rows:
+        d = keuangan_to_dict(r)
+        writer.writerow([
+            d['tanggal'],
+            d['keterangan'],
+            'Pemasukan' if d['tipe'] == 'pemasukan' else 'Pengeluaran',
+            d['nominal'],
+            d['status'],
+            d['metode'] or '',
+            d['username'],
+            d['catatan'],
+        ])
+
+    filename = f"keuangan_{bulan or awal[:7]}.csv"
+    return Response(
+        buf.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': f'attachment; filename="{filename}"'},
+    )
 
 
 @api_bp.route('/keuangan', methods=['POST'])
@@ -2711,6 +2819,37 @@ def get_interfaces(device_id):
         return jsonify({'error': str(e)}), 500
 
 
+@api_bp.route('/mikrotik/<int:device_id>/vlans', methods=['GET'])
+def get_vlans(device_id):
+    """
+    Daftar VLAN ID yang dikonfigurasi di MikroTik (dari /interface/vlan),
+    dipakai untuk saran field VLAN di form pelanggan.
+    """
+    device = cari_device(device_id)
+    if not device:
+        return jsonify({'error': 'Perangkat tidak ditemukan'}), 404
+
+    try:
+        with MikroTikClient(device) as mt:
+            vlan_map = mt.get_vlan_map()
+
+        seen, result = set(), []
+        for iface, vid in vlan_map.items():
+            if vid in seen:
+                continue
+            seen.add(vid)
+            result.append({'vlan_id': vid, 'interface': iface})
+
+        result.sort(key=lambda x: (len(x['vlan_id']), x['vlan_id']))
+        return jsonify(result), 200
+
+    except MikroTikError as e:
+        return jsonify({'error': str(e)}), 502
+    except Exception as e:
+        logging.error(f'[vlans] device {device_id}: {e}')
+        return jsonify({'error': str(e)}), 500
+
+
 @api_bp.route('/mikrotik/<int:device_id>/bandwidth', methods=['GET'])
 def get_bandwidth(device_id):
     """
@@ -2891,7 +3030,7 @@ def trigger_sync(device_id):
                 to_insert = [(u,n,p,pr,sv,ak,oi,sp,vl,sn)
                              for (u,n,p,pr,sv,ak,oi,sp,vl,sn) in params
                              if u not in existing]
-                to_update = [(pr,sv,ak,p,n,u)
+                to_update = [(pr,sv,ak,p,n,oi,sp,sp,vl,sn,sn,u)
                              for (u,n,p,pr,sv,ak,oi,sp,vl,sn) in params
                              if u in existing]
 
@@ -2903,9 +3042,16 @@ def trigger_sync(device_id):
                         to_insert)
 
                 if to_update:
+                    # olt_id/slot_port/vlan/sn ikut dipatch dari onu_mapping (mis. saat
+                    # OLT-CANTUK disinkronkan, data ONU pelanggan Cantuk1 ikut terisi) —
+                    # pakai COALESCE/CASE supaya tidak menimpa data manual dgn nilai kosong.
                     conn.executemany(
                         'UPDATE pelanggan SET profil=?,service=?,aktif=?,password=?,'
-                        'nama=CASE WHEN nama IS NULL OR nama="" THEN ? ELSE nama END '
+                        'nama=CASE WHEN nama IS NULL OR nama="" THEN ? ELSE nama END,'
+                        'olt_id=COALESCE(?, olt_id),'
+                        "slot_port=CASE WHEN ? != '' THEN ? ELSE slot_port END,"
+                        'vlan=COALESCE(?, vlan),'
+                        "sn=CASE WHEN ? != '' THEN ? ELSE sn END "
                         'WHERE username=?',
                         to_update)
 

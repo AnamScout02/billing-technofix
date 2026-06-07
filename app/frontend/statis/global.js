@@ -473,6 +473,93 @@ function initHeaderCanvas() {
 
 
 /* ══════════════════════════════════════════════════════════
+   11b. initFiberStreaks — Garis cahaya melintas ala fiber optik
+   Dipakai sebagai lapisan tambahan di header & ambient di bottom-nav.
+   @param {string} selector  - elemen kontainer (.header / .bottom-nav)
+   @param {string} canvasCls - class unik utk elemen <canvas>
+   @param {object} opt       - { count, speed, hue, alpha, insertFirst }
+══════════════════════════════════════════════════════════ */
+function initFiberStreaks(selector, canvasCls, opt) {
+  const host = document.querySelector(selector);
+  if (!host) return;
+
+  let canvas = host.querySelector('.' + canvasCls);
+  if (!canvas) {
+    canvas = document.createElement('canvas');
+    canvas.className = canvasCls;
+    if (opt && opt.insertFirst) host.insertBefore(canvas, host.firstChild);
+    else host.appendChild(canvas);
+  }
+
+  const o = Object.assign({ count: 5, speed: 1, hue: 195, alpha: 1 }, opt || {});
+  const ctx = canvas.getContext('2d');
+  let W, H;
+
+  function resize() {
+    W = canvas.width  = host.offsetWidth;
+    H = canvas.height = host.offsetHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  function mkStreak() {
+    const angle = (-18 + Math.random() * 10) * Math.PI / 180; /* sedikit menanjak ke kanan */
+    const len   = (0.22 + Math.random() * 0.30) * W;
+    const sp    = (0.55 + Math.random() * 0.85) * o.speed;
+    const y0    = Math.random() * H;
+    return {
+      x: -len, y: y0, angle: angle, len: len,
+      spd: sp, w: 1.1 + Math.random() * 1.6,
+      a0: 0.30 + Math.random() * 0.40,
+      hue: o.hue + (Math.random() - 0.5) * 26,
+    };
+  }
+
+  const streaks = Array.from({ length: o.count }, function () {
+    const s = mkStreak();
+    s.x = Math.random() * (W + s.len) - s.len; /* sebar posisi awal */
+    return s;
+  });
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    streaks.forEach(function (s) {
+      s.x += s.spd;
+      const dx = Math.cos(s.angle) * s.len;
+      const dy = Math.sin(s.angle) * s.len;
+      const x2 = s.x + dx, y2 = s.y + dy;
+
+      const g = ctx.createLinearGradient(s.x, s.y, x2, y2);
+      g.addColorStop(0,   'hsla(' + s.hue + ',95%,72%,0)');
+      g.addColorStop(0.55,'hsla(' + s.hue + ',95%,74%,' + (s.a0 * o.alpha) + ')');
+      g.addColorStop(1,   'hsla(' + s.hue + ',95%,88%,' + (s.a0 * o.alpha * 1.15) + ')');
+
+      ctx.beginPath();
+      ctx.moveTo(s.x, s.y);
+      ctx.lineTo(x2, y2);
+      ctx.strokeStyle = g;
+      ctx.lineWidth = s.w;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+
+      /* Titik ujung berpijar — kepala "paket cahaya" */
+      ctx.beginPath();
+      ctx.arc(x2, y2, s.w * 1.4, 0, Math.PI * 2);
+      ctx.fillStyle = 'hsla(' + s.hue + ',100%,90%,' + (s.a0 * o.alpha) + ')';
+      ctx.fill();
+
+      if (s.x > W + 4) {
+        const fresh = mkStreak();
+        Object.assign(s, fresh, { x: -fresh.len });
+      }
+    });
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+}
+
+
+/* ══════════════════════════════════════════════════════════
    12. initDateBadge — isi tanggal ke semua #today-date
 ══════════════════════════════════════════════════════════ */
 function initDateBadge() {
@@ -498,6 +585,11 @@ function openPerangkatSheet(e) {
   const overlay = document.getElementById('psheet-overlay');
   const sheet   = document.getElementById('psheet');
   if (!sheet) return;
+
+  /* Tutup sheet lain dulu — kalau tidak, keduanya sama-sama berstatus
+     "open" dan saling tumpang tindih (overlay/body-scroll-lock bentrok),
+     sehingga sheet ini gagal muncul lagi saat dibuka berikutnya. */
+  closeKeuanganSheet();
 
   const isDesktop = window.innerWidth >= 769;
 
@@ -548,6 +640,9 @@ function openKeuanganSheet(e) {
   const overlay = document.getElementById('ksheet-overlay');
   const sheet   = document.getElementById('ksheet');
   if (!sheet) return;
+
+  /* Tutup sheet perangkat dulu — lihat catatan di openPerangkatSheet */
+  closePerangkatSheet();
 
   if (window.innerWidth >= 769) {
     const trigger = e && e.currentTarget ? e.currentTarget : null;
@@ -784,6 +879,8 @@ function geoDetectKoordinat() {
 document.addEventListener('DOMContentLoaded', function () {
   initBottomNav();
   initHeaderCanvas();
+  initFiberStreaks('.header', 'header-fiber', { count: 4, speed: 0.9, hue: 198, alpha: 0.55 });
+  initFiberStreaks('.bottom-nav', 'bnav-fiber', { count: 3, speed: 0.6, hue: 195, alpha: 0.7, insertFirst: true });
   initDateBadge();
 
   var _path = window.location.pathname;
@@ -880,8 +977,42 @@ function getAuthHeaders(extra = {}) {
     ...extra,
   };
 }
- 
- 
+
+
+/* ══════════════════════════════════════════════════════════
+   19b. Interceptor "session_replaced" — login hanya 1 perangkat.
+   Bila backend menolak request dengan 401 + code 'session_replaced'
+   (akun ini baru login ulang di perangkat/browser lain), paksa logout
+   lokal & arahkan ke halaman login agar user tidak nyangkut di UI lama.
+══════════════════════════════════════════════════════════ */
+(function () {
+  if (window._sessionReplacedHooked) return;
+  window._sessionReplacedHooked = true;
+  const _origFetch = window.fetch.bind(window);
+  window.fetch = function (...args) {
+    return _origFetch(...args).then(function (res) {
+      if (res.status === 401 && !window._forcingReLogin) {
+        res.clone().json().then(function (data) {
+          if (data && data.code === 'session_replaced' && !window._forcingReLogin) {
+            window._forcingReLogin = true;
+            ['technofix_user', 'tf_token', 'tf_user_id', 'tf_username',
+             'tf_role', 'tf_network_id', 'tf_isp_name', 'tf_permissions']
+              .forEach(function (k) { localStorage.removeItem(k); });
+            if (typeof toast === 'function') {
+              toast(data.message || 'Akun ini login di perangkat lain. Silakan login kembali.', 'warning');
+            }
+            setTimeout(function () {
+              window.location.href = '/app/frontend/auth/auth.html';
+            }, 1500);
+          }
+        }).catch(function () {});
+      }
+      return res;
+    });
+  };
+})();
+
+
 /* ══════════════════════════════════════════════════════════
    20. applyRbacUi — sembunyikan/tampilkan elemen UI
        berdasarkan role user yang sedang login.
@@ -980,10 +1111,23 @@ function logout() {
     'tf_role', 'tf_network_id', 'tf_isp_name',
     'tf_permissions',   // ← untuk applyUIPermissions()
   ];
-  keys.forEach(function (k) { localStorage.removeItem(k); });
-  window.location.href = '/app/frontend/auth/auth.html';
+  function finish() {
+    keys.forEach(function (k) { localStorage.removeItem(k); });
+    window.location.href = '/app/frontend/auth/auth.html';
+  }
+  // Beri tahu server agar session_token dihapus (penting untuk fitur 1-device-login —
+  // tanpa ini, token lama tetap valid sampai ada login baru yang menimpanya)
+  try {
+    fetch((typeof API_BASE !== 'undefined' ? API_BASE : '') + '/api/auth/logout', {
+      method: 'POST', credentials: 'include',
+      headers: typeof getAuthHeaders === 'function' ? getAuthHeaders() : {},
+    }).catch(function () {}).finally(finish);
+  } catch (_) {
+    finish();
+  }
 }
- 
+function doLogout() { logout(); }
+
  
 /* ══════════════════════════════════════════════════════════
    23. requireLogin — redirect ke auth jika belum login
@@ -1090,18 +1234,19 @@ async function submitGantiPassword() {
   }
 
   if (!lama)             return showHint('Password lama wajib diisi.');
-  if (baru.length < 8)   return showHint('Password baru minimal 8 karakter.');
+  if (baru.length < 6)   return showHint('Password baru minimal 6 karakter.');
   if (baru !== konfirm)  return showHint('Konfirmasi password tidak cocok.');
   if (hint) hint.style.display = 'none';
 
   try {
-    const res = await fetch(API_BASE + '/api/auth/ganti-password', {
-      method: 'POST',
+    const res = await fetch(API_BASE + '/api/auth/me', {
+      method: 'PUT',
+      credentials: 'include',
       headers: getAuthHeaders(),
       body: JSON.stringify({ password_lama: lama, password_baru: baru }),
     });
     const data = await res.json();
-    if (!res.ok) return showHint(data.message || 'Gagal mengganti password.');
+    if (!res.ok || data.status !== 'success') return showHint(data.message || 'Gagal mengganti password.');
     closeModalGantiPassword();
     toast('Password berhasil diperbarui.', 'success');
   } catch (_) {
@@ -1290,38 +1435,3 @@ function savePermissions(permissions) {
 
 window.applyUIPermissions = applyUIPermissions;
 window.savePermissions    = savePermissions;
-/* ══════════════════════════════════════════════════════════
-   DARK MODE
-══════════════════════════════════════════════════════════ */
-(function() {
-  // Halaman auth, landing, portal, superadmin → selalu light mode
-  var _noThemePaths = ['/auth/', '/landing/', '/portal/', '/superadmin/'];
-  var _pathNow = window.location.pathname;
-  if (_noThemePaths.some(function(p){ return _pathNow.includes(p); })) return;
-  var saved = localStorage.getItem('tf_theme') || 'light';
-  document.documentElement.setAttribute('data-theme', saved);
-})();
-
-function toggleDarkMode() {
-  var cur  = document.documentElement.getAttribute('data-theme') || 'light';
-  var next = cur === 'dark' ? 'light' : 'dark';
-  document.documentElement.setAttribute('data-theme', next);
-  localStorage.setItem('tf_theme', next);
-  document.querySelectorAll('.dark-toggle-input').forEach(function(el) {
-    el.checked = (next === 'dark');
-  });
-  var icon = document.getElementById('dark-mode-icon');
-  if (icon) icon.textContent = next === 'dark' ? 'light_mode' : 'dark_mode';
-}
-
-window.toggleDarkMode = toggleDarkMode;
-
-/* Sync toggle on DOM ready */
-document.addEventListener('DOMContentLoaded', function() {
-  var cur = localStorage.getItem('tf_theme') || 'light';
-  document.querySelectorAll('.dark-toggle-input').forEach(function(el) {
-    el.checked = (cur === 'dark');
-  });
-  var icon = document.getElementById('dark-mode-icon');
-  if (icon) icon.textContent = cur === 'dark' ? 'light_mode' : 'dark_mode';
-});

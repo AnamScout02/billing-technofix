@@ -34,6 +34,7 @@ Penggunaan Decorator:
 """
 
 import uuid
+import secrets
 import logging
 from functools import wraps
 
@@ -50,6 +51,10 @@ auth_bp = Blueprint('auth', __name__)
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 logger = logging.getLogger(__name__)
+
+# Batas durasi sesi sejak login pertama (bukan sejak request terakhir).
+# Lewat batas ini user harus login ulang meski masih aktif.
+SESSION_LEASE_HOURS = 1
 
 
 # ══════════════════════════════════════════════════════════════
@@ -103,6 +108,12 @@ def init_auth_tables():
             FOREIGN KEY(network_id) REFERENCES networks(network_id)
         )
     ''')
+    # Migrasi: token sesi aktif — dipakai untuk batasi login ke 1 perangkat.
+    # Login baru menulis token baru ke sini; sesi lama (token berbeda) ditolak.
+    try:
+        conn.execute("ALTER TABLE users ADD COLUMN session_token TEXT DEFAULT ''")
+    except Exception:
+        pass
 
     # Tabel permintaan upgrade paket (owner → superadmin approve)
     conn.execute('''
@@ -151,6 +162,32 @@ def init_superadmin_table():
 init_superadmin_table()
 
 
+def init_platform_tables():
+    """Tabel platform-level di master DB: platform_settings, genieacs_devices."""
+    conn = get_db()
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS platform_settings (
+            key        TEXT PRIMARY KEY,
+            value      TEXT DEFAULT '',
+            updated_at TEXT DEFAULT ''
+        )
+    ''')
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS genieacs_devices (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            device_id  TEXT NOT NULL UNIQUE,
+            serial     TEXT DEFAULT '',
+            network_id TEXT NOT NULL,
+            linked_at  TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+
+init_platform_tables()
+
+
 # ══════════════════════════════════════════════════════════════
 # HELPER — Ambil user dari session
 # ══════════════════════════════════════════════════════════════
@@ -159,6 +196,11 @@ def get_current_user() -> dict | None:
     """
     Baca session aktif dan kembalikan data user dari database.
     Return None jika tidak ada session valid.
+
+    Termasuk cek single-device login: token sesi yang tersimpan di
+    cookie harus cocok dengan token aktif di DB (`users.session_token`).
+    Token beda berarti akun sudah login ulang di perangkat/browser lain
+    — sesi ini otomatis dianggap habis (lihat g._session_replaced).
     """
     user_id    = session.get('user_id')
     network_id = session.get('network_id')
@@ -168,7 +210,7 @@ def get_current_user() -> dict | None:
 
     conn = get_db()
     row  = conn.execute(
-        '''SELECT u.id, u.username, u.role, u.network_id, n.isp_name
+        '''SELECT u.id, u.username, u.role, u.network_id, u.session_token, n.isp_name
            FROM users u
            JOIN networks n ON n.network_id = u.network_id
            WHERE u.id = ? AND u.network_id = ?''',
@@ -176,15 +218,36 @@ def get_current_user() -> dict | None:
     ).fetchone()
     conn.close()
 
-    if row:
-        return {
-            'id':         row['id'],
-            'username':   row['username'],
-            'role':       row['role'],
-            'network_id': row['network_id'],
-            'isp_name':   row['isp_name'],
-        }
-    return None
+    if not row:
+        return None
+
+    if row['session_token'] and session.get('session_token') != row['session_token']:
+        session.clear()
+        g._session_replaced = True
+        return None
+
+    return {
+        'id':         row['id'],
+        'username':   row['username'],
+        'role':       row['role'],
+        'network_id': row['network_id'],
+        'isp_name':   row['isp_name'],
+    }
+
+
+def _sesi_habis_response():
+    """
+    401 standar untuk sesi tidak valid — pesan disesuaikan bila
+    penyebabnya akun login ulang di perangkat lain (lihat g._session_replaced
+    yang diset get_current_user saat token sesi tidak cocok dengan DB).
+    """
+    if getattr(g, '_session_replaced', False):
+        return jsonify({
+            'status':  'error',
+            'code':    'session_replaced',
+            'message': 'Akun ini baru saja login di perangkat/browser lain. Silakan login kembali.',
+        }), 401
+    return jsonify({'status': 'error', 'message': 'Sesi habis, silakan login kembali'}), 401
 
 
 # ══════════════════════════════════════════════════════════════
@@ -207,7 +270,7 @@ def login_required(f):
     def decorated(*args, **kwargs):
         user = get_current_user()
         if not user:
-            return jsonify({'status': 'error', 'message': 'Sesi habis, silakan login kembali'}), 401
+            return _sesi_habis_response()
         g.current_user = user
         g.network_id   = user['network_id']   # → dipakai get_db() owner-aware
         return f(*args, **kwargs)
@@ -218,15 +281,28 @@ def guard_request(allow_locked: bool = False, perm: str = None):
     """
     Guard terpusat untuk before_request blueprint data.
       - Wajib login (set g.current_user, g.network_id)
+      - Tolak jika sesi melebihi SESSION_LEASE_HOURS sejak login (paksa login ulang)
       - Tolak jika langganan terkunci (trial habis / expired), kecuali
         allow_locked=True.
       - Jika `perm` diberikan: tolak bila peran user tidak punya permission
         tersebut (owner selalu lolos).
     Return None jika lolos, atau tuple (response, status) jika ditolak.
     """
+    from datetime import datetime, timedelta
     user = get_current_user()
     if not user:
-        return jsonify({'status': 'error', 'message': 'Sesi habis, silakan login kembali'}), 401
+        return _sesi_habis_response()
+
+    login_at = session.get('login_at')
+    if login_at:
+        try:
+            if datetime.now() - datetime.fromisoformat(login_at) > timedelta(hours=SESSION_LEASE_HOURS):
+                session.clear()
+                return jsonify({'status': 'error', 'code': 'session_expired',
+                                'message': 'Sesi login telah berakhir, silakan login kembali'}), 401
+        except (ValueError, TypeError):
+            session.clear()
+            return jsonify({'status': 'error', 'message': 'Sesi tidak valid, silakan login kembali'}), 401
     g.current_user = user
     g.network_id   = user['network_id']
 
@@ -267,7 +343,7 @@ def owner_required(f):
     def decorated(*args, **kwargs):
         user = get_current_user()
         if not user:
-            return jsonify({'status': 'error', 'message': 'Sesi habis, silakan login kembali'}), 401
+            return _sesi_habis_response()
         if user['role'] != 'owner':
             return jsonify({'status': 'error', 'message': 'Akses ditolak. Hanya Owner yang diizinkan'}), 403
         g.current_user = user
@@ -445,11 +521,23 @@ def login():
     except Exception:
         permissions = []
 
+    # Single-device login: buat token sesi baru & simpan ke DB.
+    # Sesi lama (di perangkat/browser lain) otomatis ditolak pada
+    # request berikutnya karena token-nya sudah tidak cocok lagi.
+    new_token = secrets.token_hex(32)
+    conn = get_db()
+    conn.execute('UPDATE users SET session_token = ? WHERE id = ?', (new_token, row['id']))
+    conn.commit()
+    conn.close()
+
     # Simpan ke session Flask (server-side, HttpOnly cookie otomatis)
     session.clear()
-    session['user_id']    = row['id']
-    session['network_id'] = row['network_id']
-    session.permanent     = True   # Durasi diatur di app.py via PERMANENT_SESSION_LIFETIME
+    session['user_id']       = row['id']
+    session['network_id']    = row['network_id']
+    session['session_token'] = new_token
+    from datetime import datetime as _dt
+    session['login_at']      = _dt.now().isoformat()
+    session.permanent        = True   # Durasi diatur di app.py via PERMANENT_SESSION_LIFETIME
 
     user_data = {
         'id':          row['id'],
@@ -475,10 +563,18 @@ def login():
 
 @auth_bp.route('/logout', methods=['POST'])
 def logout():
-    """Hapus session dan kembalikan response sukses."""
-    username = session.get('user_id', 'unknown')
+    """Hapus session, kosongkan token sesi di DB, lalu kembalikan response sukses."""
+    user_id = session.get('user_id', 'unknown')
+    if isinstance(user_id, int):
+        try:
+            conn = get_db()
+            conn.execute("UPDATE users SET session_token = '' WHERE id = ?", (user_id,))
+            conn.commit()
+            conn.close()
+        except Exception:
+            pass
     session.clear()
-    logger.info(f'[Auth] Logout: user_id={username}')
+    logger.info(f'[Auth] Logout: user_id={user_id}')
     return jsonify({'status': 'success', 'message': 'Berhasil logout'}), 200
 
 
@@ -1140,6 +1236,73 @@ def superadmin_setup():
 
     logger.info(f'[SuperAdmin] Akun pertama dibuat: {username}')
     return jsonify({'status': 'success', 'message': 'Superadmin berhasil dibuat. Setup endpoint telah dinonaktifkan.'}), 201
+
+
+# ── GET/POST /api/auth/admin/genieacs-config ──────────────────
+@auth_bp.route('/admin/genieacs-config', methods=['GET'])
+def admin_genieacs_get():
+    """Ambil config GenieACS platform (superadmin only)."""
+    if not session.get('superadmin_id'):
+        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT key, value FROM platform_settings WHERE key IN (?,?,?,?)",
+        ('genieacs_url', 'genieacs_user', 'genieacs_pass', 'genieacs_enabled')
+    ).fetchall()
+    conn.close()
+    d = {r['key']: r['value'] for r in rows}
+    return jsonify({
+        'url':          d.get('genieacs_url', ''),
+        'username':     d.get('genieacs_user', ''),
+        'has_password': bool(d.get('genieacs_pass', '')),
+        'enabled':      d.get('genieacs_enabled', '0') == '1',
+    }), 200
+
+
+@auth_bp.route('/admin/genieacs-config', methods=['POST'])
+def admin_genieacs_save():
+    """Simpan config GenieACS platform (superadmin only)."""
+    if not session.get('superadmin_id'):
+        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+    data = request.get_json(silent=True) or {}
+    now  = __import__('datetime').datetime.now().isoformat()
+    conn = get_db()
+    for key, val in [
+        ('genieacs_url',     (data.get('url') or '').strip().rstrip('/')),
+        ('genieacs_user',    (data.get('username') or '').strip()),
+        ('genieacs_enabled', '1' if data.get('enabled') else '0'),
+    ]:
+        conn.execute(
+            '''INSERT INTO platform_settings (key, value, updated_at) VALUES (?,?,?)
+               ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at''',
+            (key, val, now)
+        )
+    if data.get('password'):
+        conn.execute(
+            '''INSERT INTO platform_settings (key, value, updated_at) VALUES (?,?,?)
+               ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at''',
+            ('genieacs_pass', str(data['password']), now)
+        )
+    conn.commit()
+    conn.close()
+    logger.info('[SuperAdmin] GenieACS config diperbarui')
+    return jsonify({'status': 'success', 'message': 'Konfigurasi GenieACS tersimpan'}), 200
+
+
+@auth_bp.route('/admin/genieacs-devices', methods=['GET'])
+def admin_genieacs_devices():
+    """Daftar semua device yang sudah di-link ke owner (superadmin only)."""
+    if not session.get('superadmin_id'):
+        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+    conn = get_db()
+    rows = conn.execute(
+        '''SELECT gd.device_id, gd.serial, gd.network_id, gd.linked_at, n.isp_name
+           FROM genieacs_devices gd
+           LEFT JOIN networks n ON n.network_id = gd.network_id
+           ORDER BY gd.linked_at DESC'''
+    ).fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows]), 200
 
 
 # ══════════════════════════════════════════════════════════════

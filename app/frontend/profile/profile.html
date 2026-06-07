@@ -12,7 +12,7 @@
     rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
     rel="stylesheet" />
-  <link rel="stylesheet" href="/app/frontend/statis/global.css?v=22" />
+  <link rel="stylesheet" href="/app/frontend/statis/global.css?v=33" />
   <style>
     /* ── Profile page specific styles ── */
     .profile-page-card {
@@ -272,8 +272,9 @@
         </a>
       </nav>
       <div class="header-actions">
-                <a href="/app/frontend/panduan/panduan.html" target="_blank" class="icon-btn" title="Panduan Penggunaan" style="text-decoration:none"><span class="material-symbols-outlined">help</span></a>
-        <button class="icon-btn" onclick="toggleDarkMode()" title="Ganti tema gelap/terang" style="margin-right:2px"><span class="material-symbols-outlined" id="dark-mode-icon">dark_mode</span></button>
+                <button class="icon-btn" onclick="location.reload()" title="Refresh data">
+          <span class="material-symbols-outlined" id="refresh-icon">refresh</span>
+        </button>
         <div class="profile-wrap" id="profile-wrap">
           <button class="profile-btn" onclick="toggleProfileMenu()" title="Profil">
             <div class="avatar-circle" id="avatar-initials">AD</div>
@@ -301,9 +302,6 @@
           <div class="profile-menu-divider btn-owner-only"></div>
           <a href="/app/frontend/manajemen_user/manajemen_user.html" class="profile-menu-item btn-owner-only">
             <span class="material-symbols-outlined">manage_accounts</span>Manajemen user
-          </a>
-          <a href="/app/frontend/panduan/panduan.html" target="_blank" class="profile-menu-item">
-            <span class="material-symbols-outlined">menu_book</span>Panduan Penggunaan
           </a>
           <div class="profile-menu-divider"></div>
           <a href="#" class="profile-menu-item logout" onclick="showModalLogout();return false;">
@@ -449,7 +447,7 @@
             <div class="form-pwd-wrap">
               <input class="form-input" type="password" id="f-pass-lama" placeholder="••••••••"
                 autocomplete="current-password">
-              <button class="form-pwd-toggle" type="button" onclick="togglePwd('f-pass-lama','eye-lama')">
+              <button class="form-pwd-toggle" type="button" onclick="togglePwd('f-pass-lama','eye-lama-p')">
                 <span class="material-symbols-outlined" id="eye-lama-p">visibility</span>
               </button>
             </div>
@@ -457,9 +455,9 @@
           <div class="form-group">
             <label class="form-label">Password Baru</label>
             <div class="form-pwd-wrap">
-              <input class="form-input" type="password" id="f-pass-baru" placeholder="Min. 8 karakter"
+              <input class="form-input" type="password" id="f-pass-baru" placeholder="Min. 6 karakter"
                 autocomplete="new-password">
-              <button class="form-pwd-toggle" type="button" onclick="togglePwd('f-pass-baru','eye-baru')">
+              <button class="form-pwd-toggle" type="button" onclick="togglePwd('f-pass-baru','eye-baru-p')">
                 <span class="material-symbols-outlined" id="eye-baru-p">visibility</span>
               </button>
             </div>
@@ -469,7 +467,7 @@
             <div class="form-pwd-wrap">
               <input class="form-input" type="password" id="f-pass-konfirm" placeholder="Ulangi password baru"
                 autocomplete="new-password">
-              <button class="form-pwd-toggle" type="button" onclick="togglePwd('f-pass-konfirm','eye-konfirm')">
+              <button class="form-pwd-toggle" type="button" onclick="togglePwd('f-pass-konfirm','eye-konfirm-p')">
                 <span class="material-symbols-outlined" id="eye-konfirm-p">visibility</span>
               </button>
             </div>
@@ -479,61 +477,6 @@
           <button class="btn-primary" onclick="gantiPassword()">
             <span class="material-symbols-outlined">lock_reset</span> Perbarui Password
           </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- PENGATURAN SISTEM -->
-    <div class="settings-section">
-      <div class="settings-section-head">
-        <span class="material-symbols-outlined">tune</span>
-        <span class="settings-section-title">Pengaturan Sistem</span>
-      </div>
-      <div class="settings-section-body">
-        <div class="settings-row">
-          <div class="settings-row-left">
-            <div class="settings-label">Notifikasi Jatuh Tempo</div>
-            <div class="settings-desc">Kirim notifikasi WhatsApp H-3 sebelum jatuh tempo</div>
-          </div>
-          <div class="toggle-wrap">
-            <button class="toggle on" id="toggle-notif" onclick="toggleSetting('notif')"></button>
-          </div>
-        </div>
-        <div class="settings-row">
-          <div class="settings-row-left">
-            <div class="settings-label">Sinkronisasi Otomatis OLT</div>
-            <div class="settings-desc">Sinkronisasi data ONU setiap 3 menit (background worker)</div>
-          </div>
-          <div class="toggle-wrap">
-            <button class="toggle on" id="toggle-sync" onclick="toggleSetting('sync')"></button>
-          </div>
-        </div>
-        <div class="settings-row">
-          <div class="settings-row-left">
-            <div class="settings-label">Interval Refresh Dashboard</div>
-            <div class="settings-desc">Perbarui statistik secara otomatis</div>
-          </div>
-          <div class="settings-value">
-            <select class="filter-select" style="width:120px;">
-              <option value="60">1 menit</option>
-              <option value="300" selected>5 menit</option>
-              <option value="600">10 menit</option>
-              <option value="0">Manual</option>
-            </select>
-          </div>
-        </div>
-        <div class="settings-row">
-          <div class="settings-row-left">
-            <div class="settings-label">Mode Tampilan</div>
-            <div class="settings-desc">Tema aplikasi</div>
-          </div>
-          <div class="settings-value">
-            <select class="filter-select" style="width:120px;">
-              <option value="light" selected>Terang</option>
-              <option value="dark">Gelap</option>
-              <option value="auto">Otomatis</option>
-            </select>
-          </div>
         </div>
       </div>
     </div>
@@ -606,294 +549,6 @@
     </div>
   </div>
 
-  <!-- ══ MODAL: GANTI PASSWORD ══ -->
-  <div class="modal-overlay" id="modal-ganti-password" onclick="closeModalGantiPassword(event)">
-    <div class="modal-sheet" style="max-width:400px" onclick="event.stopPropagation()">
-      <div class="modal-handle"></div>
-      <div style="padding:20px 24px 0">
-        <h2 style="font-family:var(--heading);font-size:16px;font-weight:800;color:var(--text);margin-bottom:4px">
-          Ganti Password
-        </h2>
-        <p style="font-size:12px;color:var(--text-dim);margin-bottom:20px">
-          Gunakan minimal 8 karakter dengan kombinasi huruf dan angka.
-        </p>
-        <div class="form-group" style="margin-bottom:14px">
-          <label class="form-label">Password saat ini <span class="req">*</span></label>
-          <div class="form-pwd-wrap">
-            <input type="password" class="form-input" id="pwd-lama-profile" placeholder="Masukkan password lama" />
-            <button class="form-pwd-toggle" onclick="togglePwd('pwd-lama-profile','eye-lama-p')" tabindex="-1">
-              <span class="material-symbols-outlined" id="eye-lama-p">visibility</span>
-            </button>
-          </div>
-        </div>
-        <div class="form-group" style="margin-bottom:14px">
-          <label class="form-label">Password baru <span class="req">*</span></label>
-          <div class="form-pwd-wrap">
-            <input type="password" class="form-input" id="pwd-baru-profile" placeholder="Minimal 8 karakter" />
-            <button class="form-pwd-toggle" onclick="togglePwd('pwd-baru-profile','eye-baru-p')" tabindex="-1">
-              <span class="material-symbols-outlined" id="eye-baru-p">visibility</span>
-            </button>
-          </div>
-        </div>
-        <div class="form-group" style="margin-bottom:4px">
-          <label class="form-label">Konfirmasi password baru <span class="req">*</span></label>
-          <div class="form-pwd-wrap">
-            <input type="password" class="form-input" id="pwd-konfirm-profile" placeholder="Ulangi password baru" />
-            <button class="form-pwd-toggle" onclick="togglePwd('pwd-konfirm-profile','eye-konfirm-p')" tabindex="-1">
-              <span class="material-symbols-outlined" id="eye-konfirm-p">visibility</span>
-            </button>
-          </div>
-        </div>
-        <p class="form-hint" id="pwd-hint" style="min-height:16px;color:var(--red);display:none"></p>
-      </div>
-      <div class="form-actions" style="padding:16px 24px;margin-top:0">
-        <button class="btn btn-cancel" onclick="closeModalGantiPassword()">Batal</button>
-        <button class="btn-primary" onclick="gantiPasswordProfil()">
-          <span class="material-symbols-outlined">lock_reset</span>Simpan password
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ══ MODAL: SETTING ══ -->
-  <div class="modal-overlay" id="modal-setting" onclick="closeModalSetting(event)">
-    <div class="modal-sheet" style="max-width:420px" onclick="event.stopPropagation()">
-      <div class="modal-handle"></div>
-      <div style="padding:20px 24px 0;display:flex;align-items:center;justify-content:space-between">
-        <div>
-          <h2 style="font-family:var(--heading);font-size:16px;font-weight:800;color:var(--text);margin:0">Setting</h2>
-          <p style="font-size:12px;color:var(--text-dim);margin:2px 0 0">Preferensi aplikasi Anda</p>
-        </div>
-        <button onclick="closeModalSetting()"
-          style="width:30px;height:30px;border-radius:50%;border:1px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;flex-shrink:0">
-          <span class="material-symbols-outlined" style="font-size:16px;color:var(--text-muted)">close</span>
-        </button>
-      </div>
-      <div style="padding:16px 24px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;max-height:60vh">
-        <div>
-          <p
-            style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-dim);margin-bottom:10px">
-            Tampilan</p>
-          <div style="display:flex;flex-direction:column;gap:10px">
-            <div style="display:flex;align-items:center;justify-content:space-between">
-              <label style="font-size:13px;font-weight:600;color:var(--text)">Tema</label>
-              <select class="filter-select" id="setting-tema" style="width:140px">
-                <option value="auto">Ikuti sistem</option>
-                <option value="light">Terang</option>
-                <option value="dark">Gelap</option>
-              </select>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between">
-              <label style="font-size:13px;font-weight:600;color:var(--text)">Bahasa</label>
-              <select class="filter-select" id="setting-bahasa" style="width:140px">
-                <option value="id">Indonesia</option>
-                <option value="en">English</option>
-              </select>
-            </div>
-          </div>
-        </div>
-        <div>
-          <p
-            style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-dim);margin-bottom:10px">
-            Data & Refresh</p>
-          <div style="display:flex;flex-direction:column;gap:10px">
-            <div style="display:flex;align-items:center;justify-content:space-between">
-              <label style="font-size:13px;font-weight:600;color:var(--text)">Auto-refresh</label>
-              <select class="filter-select" id="setting-refresh" style="width:140px">
-                <option value="0">Nonaktif</option>
-                <option value="30">30 detik</option>
-                <option value="60">1 menit</option>
-                <option value="300">5 menit</option>
-              </select>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between">
-              <label style="font-size:13px;font-weight:600;color:var(--text)">Baris per halaman</label>
-              <select class="filter-select" id="setting-perpage" style="width:140px">
-                <option value="50">50 baris</option>
-                <option value="100">100 baris</option>
-                <option value="200">200 baris</option>
-              </select>
-            </div>
-          </div>
-        </div>
-        <div>
-          <p
-            style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-dim);margin-bottom:10px">
-            Notifikasi</p>
-          <div style="display:flex;flex-direction:column;gap:10px">
-            <div style="display:flex;align-items:center;justify-content:space-between">
-              <div>
-                <p style="font-size:13px;font-weight:600;color:var(--text);margin:0">Pelanggan offline</p>
-                <p style="font-size:11px;color:var(--text-dim);margin:0">Notif saat ada pelanggan putus</p>
-              </div>
-              <label style="position:relative;display:inline-block;width:40px;height:22px;cursor:pointer">
-                <input type="checkbox" id="notif-offline" style="opacity:0;width:0;height:0"
-                  onchange="toggleNotif(this,'notif-offline')">
-                <span id="track-offline"
-                  style="position:absolute;inset:0;background:var(--border);border-radius:11px;transition:background .2s"></span>
-                <span id="thumb-offline"
-                  style="position:absolute;top:3px;left:3px;width:16px;height:16px;background:#fff;border-radius:50%;transition:transform .2s"></span>
-              </label>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between">
-              <div>
-                <p style="font-size:13px;font-weight:600;color:var(--text);margin:0">Sinyal lemah (RX)</p>
-                <p style="font-size:11px;color:var(--text-dim);margin:0">Alert saat sinyal di bawah -30 dBm</p>
-              </div>
-              <label style="position:relative;display:inline-block;width:40px;height:22px;cursor:pointer">
-                <input type="checkbox" id="notif-rx" style="opacity:0;width:0;height:0"
-                  onchange="toggleNotif(this,'notif-rx')">
-                <span id="track-rx"
-                  style="position:absolute;inset:0;background:var(--border);border-radius:11px;transition:background .2s"></span>
-                <span id="thumb-rx"
-                  style="position:absolute;top:3px;left:3px;width:16px;height:16px;background:#fff;border-radius:50%;transition:transform .2s"></span>
-              </label>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="form-actions" style="padding:16px 24px;margin-top:0">
-        <button class="btn btn-cancel" onclick="closeModalSetting()">Batal</button>
-        <button class="btn-primary" onclick="simpanSetting()">
-          <span class="material-symbols-outlined">save</span>Simpan setting
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <div id="toast"></div>
-
-  <!-- Perangkat Sheet -->
-  <!-- ══ MODAL LOGOUT ══ -->
-  <div class="modal-overlay" id="modal-logout" onclick="closeModalLogout(event)">
-    <div class="modal">
-      <div class="modal-header">
-        <h3 class="modal-title">Konfirmasi Keluar</h3>
-      </div>
-      <div class="modal-body">
-        <p style="color:var(--text-muted);font-size:14px">Apakah Anda yakin ingin keluar dari sesi ini?</p>
-      </div>
-      <div class="form-actions">
-        <button class="btn btn-cancel" onclick="closeModalLogout(event)">Batal</button>
-        <button class="btn-primary" style="background:var(--red)" onclick="doLogout()">
-          <span class="material-symbols-outlined">logout</span>Keluar
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ══ MODAL GANTI PASSWORD ══ -->
-  <div class="modal-overlay" id="modal-ganti-password" onclick="closeModalGantiPassword(event)">
-    <div class="modal">
-      <div class="modal-header">
-        <h3 class="modal-title">Ganti Password</h3>
-      </div>
-      <div class="modal-body" style="display:flex;flex-direction:column;gap:12px">
-        <div class="form-group">
-          <label class="form-label">Password Lama</label>
-          <div class="pwd-wrap">
-            <input type="password" class="form-input" id="pwd-lama-profile" placeholder="Password saat ini" />
-            <button type="button" class="pwd-eye" onclick="togglePwd('pwd-lama-profile','eye-lama-p')">
-              <span class="material-symbols-outlined" id="eye-lama-p">visibility</span>
-            </button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Password Baru</label>
-          <div class="pwd-wrap">
-            <input type="password" class="form-input" id="pwd-baru-profile" placeholder="Min. 8 karakter" />
-            <button type="button" class="pwd-eye" onclick="togglePwd('pwd-baru-profile','eye-baru-p')">
-              <span class="material-symbols-outlined" id="eye-baru-p">visibility</span>
-            </button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Konfirmasi Password Baru</label>
-          <div class="pwd-wrap">
-            <input type="password" class="form-input" id="pwd-konfirm-profile" placeholder="Ulangi password baru" />
-            <button type="button" class="pwd-eye" onclick="togglePwd('pwd-konfirm-profile','eye-konfirm-p')">
-              <span class="material-symbols-outlined" id="eye-konfirm-p">visibility</span>
-            </button>
-          </div>
-        </div>
-        <p class="form-hint" id="pwd-hint" style="display:none"></p>
-      </div>
-      <div class="form-actions">
-        <button class="btn btn-cancel" onclick="closeModalGantiPassword(event)">Batal</button>
-        <button class="btn-primary" onclick="gantiPasswordProfil()">
-          <span class="material-symbols-outlined">save</span>Simpan
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ══ MODAL SETTING ══ -->
-  <div class="modal-overlay" id="modal-setting" onclick="closeModalSetting(event)">
-    <div class="modal" style="max-width:420px">
-      <div class="modal-header">
-        <h3 class="modal-title">Setting</h3>
-      </div>
-      <div class="modal-body" style="display:flex;flex-direction:column;gap:16px">
-        <div>
-          <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-dim);margin-bottom:10px">Tampilan</p>
-          <div style="display:flex;flex-direction:column;gap:10px">
-            <div style="display:flex;align-items:center;justify-content:space-between">
-              <label style="font-size:13px;font-weight:600;color:var(--text)">Auto-refresh</label>
-              <select class="filter-select" id="setting-refresh" style="width:140px">
-                <option value="0">Nonaktif</option>
-                <option value="30">30 detik</option>
-                <option value="60">1 menit</option>
-                <option value="300">5 menit</option>
-              </select>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between">
-              <label style="font-size:13px;font-weight:600;color:var(--text)">Baris per halaman</label>
-              <select class="filter-select" id="setting-perpage" style="width:140px">
-                <option value="50">50 baris</option>
-                <option value="100">100 baris</option>
-                <option value="200">200 baris</option>
-              </select>
-            </div>
-          </div>
-        </div>
-        <div>
-          <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-dim);margin-bottom:10px">Notifikasi</p>
-          <div style="display:flex;flex-direction:column;gap:10px">
-            <div style="display:flex;align-items:center;justify-content:space-between">
-              <div>
-                <p style="font-size:13px;font-weight:600;color:var(--text);margin:0">Pelanggan offline</p>
-                <p style="font-size:11px;color:var(--text-dim);margin:0">Notif saat ada pelanggan putus</p>
-              </div>
-              <label style="position:relative;display:inline-block;width:40px;height:22px;cursor:pointer">
-                <input type="checkbox" id="notif-offline" style="opacity:0;width:0;height:0" onchange="toggleNotif(this,'notif-offline')">
-                <span id="track-offline" style="position:absolute;inset:0;background:var(--border);border-radius:11px;transition:background .2s"></span>
-                <span id="thumb-offline" style="position:absolute;top:3px;left:3px;width:16px;height:16px;background:#fff;border-radius:50%;transition:transform .2s"></span>
-              </label>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between">
-              <div>
-                <p style="font-size:13px;font-weight:600;color:var(--text);margin:0">Sinyal lemah (RX)</p>
-                <p style="font-size:11px;color:var(--text-dim);margin:0">Alert saat sinyal di bawah -30 dBm</p>
-              </div>
-              <label style="position:relative;display:inline-block;width:40px;height:22px;cursor:pointer">
-                <input type="checkbox" id="notif-rx" style="opacity:0;width:0;height:0" onchange="toggleNotif(this,'notif-rx')">
-                <span id="track-rx" style="position:absolute;inset:0;background:var(--border);border-radius:11px;transition:background .2s"></span>
-                <span id="thumb-rx" style="position:absolute;top:3px;left:3px;width:16px;height:16px;background:#fff;border-radius:50%;transition:transform .2s"></span>
-              </label>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="form-actions" style="padding:16px 24px;margin-top:0">
-        <button class="btn btn-cancel" onclick="closeModalSetting(event)">Batal</button>
-        <button class="btn-primary" onclick="simpanSetting()">
-          <span class="material-symbols-outlined">save</span>Simpan setting
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ══ TOAST ══ -->
   <div id="toast"></div>
 
   <!-- ══ PERANGKAT SHEET ══ -->
@@ -960,15 +615,15 @@
       <button class="psheet-close" onclick="closeKeuanganSheet()"><span class="material-symbols-outlined">close</span></button>
     </div>
     <div class="psheet-list">
-      <a href="/app/frontend/keuangan/keuangan.html" class="psheet-item psheet-keuangan"><div class="psheet-item-icon"><span class="material-symbols-outlined">payments</span></div><div class="psheet-item-body"><div class="psheet-item-name">Keuangan</div><div class="psheet-item-desc">Pemasukan & pengeluaran</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
-      <a href="/app/frontend/tagihan/tagihan.html" class="psheet-item psheet-tagihan" data-perm="keuangan"><div class="psheet-item-icon"><span class="material-symbols-outlined">receipt_long</span></div><div class="psheet-item-body"><div class="psheet-item-name">Tagihan</div><div class="psheet-item-desc">Tagihan bulanan pelanggan</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
-      <a href="/app/frontend/loket/loket.html" class="psheet-item psheet-loket" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">point_of_sale</span></div><div class="psheet-item-body"><div class="psheet-item-name">Loket / Kasir</div><div class="psheet-item-desc">Terima bayar + komisi</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
-      <a href="/app/frontend/notifikasi/wa.html" class="psheet-item psheet-wa" data-perm="pelanggan"><div class="psheet-item-icon"><span class="material-symbols-outlined">chat</span></div><div class="psheet-item-body"><div class="psheet-item-name">Notifikasi WA</div><div class="psheet-item-desc">Pengingat tagihan WhatsApp</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
-      <a href="/app/frontend/pembayaran/payment.html" class="psheet-item psheet-payment" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">credit_card</span></div><div class="psheet-item-body"><div class="psheet-item-name">Bayar Online</div><div class="psheet-item-desc">Midtrans / Xendit</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/keuangan/keuangan.html" class="psheet-item psheet-keuangan"><div class="psheet-item-icon"><span class="material-symbols-outlined">payments</span></div><div class="psheet-item-body"><div class="psheet-item-name">Keuangan</div><div class="psheet-item-desc">Pemasukan & pengeluaran</div></div><div class="psheet-item-badge">Kas</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/tagihan/tagihan.html" class="psheet-item psheet-tagihan" data-perm="keuangan"><div class="psheet-item-icon"><span class="material-symbols-outlined">receipt_long</span></div><div class="psheet-item-body"><div class="psheet-item-name">Tagihan</div><div class="psheet-item-desc">Tagihan bulanan pelanggan</div></div><div class="psheet-item-badge">Invoice</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/loket/loket.html" class="psheet-item psheet-loket" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">point_of_sale</span></div><div class="psheet-item-body"><div class="psheet-item-name">Loket / Kasir</div><div class="psheet-item-desc">Terima bayar + komisi</div></div><div class="psheet-item-badge">Kasir</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/notifikasi/wa.html" class="psheet-item psheet-wa" data-perm="pelanggan"><div class="psheet-item-icon"><span class="material-symbols-outlined">chat</span></div><div class="psheet-item-body"><div class="psheet-item-name">Notifikasi WA</div><div class="psheet-item-desc">Pengingat tagihan WhatsApp</div></div><div class="psheet-item-badge">Reminder</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/pembayaran/payment.html" class="psheet-item psheet-payment" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">credit_card</span></div><div class="psheet-item-body"><div class="psheet-item-name">Bayar Online</div><div class="psheet-item-desc">Midtrans / Xendit</div></div><div class="psheet-item-badge">Gateway</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
     </div>
   </div>
-  <script src="/app/frontend/statis/global.js?v=21"></script>
-  <script src="/app/frontend/profile/profile.js?v=2"></script>
+  <script src="/app/frontend/statis/global.js?v=26"></script>
+  <script src="/app/frontend/profile/profile.js?v=3"></script>
 
 </body>
 </html>
