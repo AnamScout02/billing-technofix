@@ -8,8 +8,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
-  <link rel="stylesheet" href="/app/frontend/statis/global.css?v=22" />
-  <link rel="stylesheet" href="/app/frontend/loket/loket.css?v=1" />
+  <link rel="stylesheet" href="/app/frontend/statis/global.css?v=33" />
+  <link rel="stylesheet" href="/app/frontend/loket/loket.css?v=3" />
 </head>
 <body>
 
@@ -29,7 +29,9 @@
         <a href="/app/frontend/maps/maps.html" data-perm="maps"><span class="material-symbols-outlined">map</span>Maps</a>
       </nav>
       <div class="header-actions">
-        <button class="icon-btn" onclick="toggleDarkMode()" title="Ganti tema gelap/terang" style="margin-right:2px"><span class="material-symbols-outlined" id="dark-mode-icon">dark_mode</span></button>
+                <button class="icon-btn" onclick="location.reload()" title="Refresh data">
+          <span class="material-symbols-outlined" id="refresh-icon">refresh</span>
+        </button>
         <div class="profile-wrap" id="profile-wrap">
           <button class="profile-btn" onclick="toggleProfileMenu()"><div class="avatar-circle" id="avatar-initials">AD</div>
             <span class="profile-username" id="profile-username">Admin</span>
@@ -55,9 +57,6 @@
           <div class="profile-menu-divider btn-owner-only"></div>
           <a href="/app/frontend/manajemen_user/manajemen_user.html" class="profile-menu-item btn-owner-only">
             <span class="material-symbols-outlined">manage_accounts</span>Manajemen user
-          </a>
-          <a href="/app/frontend/panduan/panduan.html" target="_blank" class="profile-menu-item">
-            <span class="material-symbols-outlined">menu_book</span>Panduan Penggunaan
           </a>
           <div class="profile-menu-divider"></div>
           <a href="#" class="profile-menu-item logout" onclick="logout();return false;">
@@ -103,12 +102,26 @@
         <p class="page-sub">Terima pembayaran tagihan pelanggan & rekap komisi kolektor.</p>
       </div>
       <div class="page-top-actions">
-        <button class="btn-secondary" data-perm="keuangan" onclick="openKomisi()"><span class="material-symbols-outlined">percent</span>Atur Komisi</button>
-        <button class="btn-secondary" onclick="loadAll()"><span class="material-symbols-outlined">refresh</span>Refresh</button>
+        <button class="btn-secondary" id="btn-atur-komisi" data-perm="keuangan" onclick="openKomisi()"><span class="material-symbols-outlined">percent</span>Atur Komisi</button>
+        <button class="btn-secondary" onclick="loadStats();loadTagihan()"><span class="material-symbols-outlined">refresh</span>Refresh</button>
       </div>
     </div>
 
     <div id="komisi-banner" class="komisi-banner"><span class="material-symbols-outlined">redeem</span><span id="komisi-banner-text">Memuat komisi…</span></div>
+
+    <!-- STAT CARDS -->
+    <div class="stat-row-5">
+      <div class="stat-card stat-c-blue"><div class="stat-icon blue"><span class="material-symbols-outlined">group</span></div>
+        <div class="stat-body"><div class="stat-num" id="st-total">—</div><div class="stat-label">Total Pelanggan</div></div></div>
+      <div class="stat-card stat-c-green"><div class="stat-icon green"><span class="material-symbols-outlined">check_circle</span></div>
+        <div class="stat-body"><div class="stat-num" id="st-lunas">—</div><div class="stat-label">Lunas Bulan Ini</div></div></div>
+      <div class="stat-card stat-c-amber"><div class="stat-icon"><span class="material-symbols-outlined">pending</span></div>
+        <div class="stat-body"><div class="stat-num" id="st-belum">—</div><div class="stat-label">Belum Bayar</div><div class="stat-sub-val" id="st-belum-nom"></div></div></div>
+      <div class="stat-card stat-c-red"><div class="stat-icon"><span class="material-symbols-outlined">warning</span></div>
+        <div class="stat-body"><div class="stat-num" id="st-tung">—</div><div class="stat-label">Tunggakan</div><div class="stat-sub-val" id="st-tung-nom"></div></div></div>
+      <div class="stat-card stat-c-purple"><div class="stat-icon"><span class="material-symbols-outlined">today</span></div>
+        <div class="stat-body"><div class="stat-num" id="st-setor">—</div><div class="stat-label">Setoran Hari Ini</div><div class="stat-sub-val" id="st-setor-nom"></div></div></div>
+    </div>
 
     <!-- TABS -->
     <div class="tabs">
@@ -118,6 +131,15 @@
 
     <!-- ── PANEL LOKET ── -->
     <section id="panel-loket">
+      <!-- Filter kolektor (owner/admin only, disembunyikan JS untuk kolektor) -->
+      <div class="toolbar" id="lk-kol-filter-row" style="margin-bottom:8px">
+        <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:flex;align-items:center;gap:8px">
+          <span class="material-symbols-outlined" style="font-size:16px">person_pin</span>Filter Kolektor:
+        </label>
+        <select id="lk-filter-kol" class="filter-select" onchange="onKolFilterChange()">
+          <option value="">Semua Kolektor</option>
+        </select>
+      </div>
       <div class="toolbar">
         <div class="search-wrap"><span class="material-symbols-outlined">search</span>
           <input type="text" id="lk-search" placeholder="Cari nama / username pelanggan…" oninput="debLoad()" /></div>
@@ -127,11 +149,12 @@
         <div class="table-scroll">
           <table class="lk-table">
             <thead><tr>
+              <th class="sticky-col-0"><input type="checkbox" id="lk-cb-all" title="Pilih Semua" onchange="toggleLkSelectAll(this.checked)" /></th>
               <th class="sticky-col-1">#</th><th class="sticky-col-2">Pelanggan</th>
               <th>Profil</th><th>Periode</th><th>Nominal</th><th>Jatuh Tempo</th><th>Komisi</th><th>Aksi</th>
             </tr></thead>
             <tbody id="lk-tbody">
-              <tr><td colspan="8"><div class="state-box"><div class="spinner"></div><p class="state-title">Memuat…</p></div></td></tr>
+              <tr><td colspan="9"><div class="state-box"><div class="spinner"></div><p class="state-title">Memuat…</p></div></td></tr>
             </tbody>
           </table>
         </div>
@@ -155,7 +178,7 @@
       <div class="table-wrap">
         <div class="table-scroll">
           <table class="lk-table">
-            <thead><tr><th class="sticky-col-1">#</th><th class="sticky-col-2">Kolektor</th><th>Jumlah Tagihan</th><th>Total Setoran</th><th>Total Komisi</th></tr></thead>
+            <thead><tr><th class="rk-col-num">#</th><th class="rk-col-kol">Kolektor</th><th>Jumlah Tagihan</th><th>Total Setoran</th><th>Total Komisi</th></tr></thead>
             <tbody id="rk-tbody">
               <tr><td colspan="5"><div class="state-box"><div class="spinner"></div><p class="state-title">Memuat…</p></div></td></tr>
             </tbody>
@@ -164,6 +187,32 @@
       </div>
     </section>
   </main>
+
+  <!-- ══ MODAL BAYAR ══ -->
+  <div class="modal-overlay" id="bayar-overlay" onclick="closeBayar()"></div>
+  <div class="modal" id="bayar-modal" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <h2 class="modal-title" id="bayar-title">Terima Pembayaran</h2>
+      <button class="modal-close" onclick="closeBayar()"><span class="material-symbols-outlined">close</span></button>
+    </div>
+    <div class="modal-body">
+      <div id="bayar-info" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);padding:12px 14px;margin-bottom:16px;font-size:13px;line-height:1.6"></div>
+      <label class="field"><span>Metode Pembayaran</span>
+        <select id="bayar-metode" class="filter-select" style="height:42px">
+          <option value="Cash">Cash</option>
+          <option value="Transfer">Transfer Bank</option>
+          <option value="QRIS">QRIS</option>
+          <option value="E-Wallet">E-Wallet</option>
+        </select>
+      </label>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-secondary" onclick="closeBayar()">Batal</button>
+      <button class="btn-primary" id="bayar-submit" onclick="submitBayar()">
+        <span class="material-symbols-outlined">point_of_sale</span>Konfirmasi Terima
+      </button>
+    </div>
+  </div>
 
   <!-- ══ MODAL KOMISI ══ -->
   <div class="modal-overlay" id="km-overlay" onclick="closeKomisi()"></div>
@@ -199,7 +248,7 @@
       <a href="/app/frontend/input_perangkat/input_olt.html" class="psheet-item psheet-olt"><div class="psheet-item-icon"><span class="material-symbols-outlined">settings_input_antenna</span></div><div class="psheet-item-body"><div class="psheet-item-name">OLT</div><div class="psheet-item-desc">Optical Line Terminal</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
       <a href="/app/frontend/input_perangkat/input_odc.html" class="psheet-item psheet-odc"><div class="psheet-item-icon"><span class="material-symbols-outlined">storage</span></div><div class="psheet-item-body"><div class="psheet-item-name">ODC</div><div class="psheet-item-desc">Distribution Cabinet</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
       <a href="/app/frontend/input_perangkat/input_odp.html" class="psheet-item psheet-odp"><div class="psheet-item-icon"><span class="material-symbols-outlined">hub</span></div><div class="psheet-item-body"><div class="psheet-item-name">ODP</div><div class="psheet-item-desc">Distribution Point</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
-      <a href="/app/frontend/genieacs/onu.html" class="psheet-item psheet-onu" data-perm="perangkat"><div class="psheet-item-icon"><span class="material-symbols-outlined">wifi</span></div><div class="psheet-item-body"><div class="psheet-item-name">ONU / GenieACS</div><div class="psheet-item-desc">Monitoring & remote TR-069</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/genieacs/onu.html" class="psheet-item psheet-onu" data-perm="perangkat"><div class="psheet-item-icon"><span class="material-symbols-outlined">wifi</span></div><div class="psheet-item-body"><div class="psheet-item-name">ONU / GenieACS</div><div class="psheet-item-desc">Monitoring & remote TR-069</div></div><div class="psheet-item-badge">TR-069</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
     </div>
   </div>
 
@@ -213,14 +262,14 @@
       <button class="psheet-close" onclick="closeKeuanganSheet()"><span class="material-symbols-outlined">close</span></button>
     </div>
     <div class="psheet-list">
-      <a href="/app/frontend/keuangan/keuangan.html" class="psheet-item psheet-keuangan"><div class="psheet-item-icon"><span class="material-symbols-outlined">payments</span></div><div class="psheet-item-body"><div class="psheet-item-name">Keuangan</div><div class="psheet-item-desc">Pemasukan & pengeluaran</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
-      <a href="/app/frontend/tagihan/tagihan.html" class="psheet-item psheet-tagihan" data-perm="keuangan"><div class="psheet-item-icon"><span class="material-symbols-outlined">receipt_long</span></div><div class="psheet-item-body"><div class="psheet-item-name">Tagihan</div><div class="psheet-item-desc">Tagihan bulanan pelanggan</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
-      <a href="/app/frontend/loket/loket.html" class="psheet-item psheet-loket" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">point_of_sale</span></div><div class="psheet-item-body"><div class="psheet-item-name">Loket / Kasir</div><div class="psheet-item-desc">Terima bayar + komisi</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
-      <a href="/app/frontend/notifikasi/wa.html" class="psheet-item psheet-wa" data-perm="pelanggan"><div class="psheet-item-icon"><span class="material-symbols-outlined">chat</span></div><div class="psheet-item-body"><div class="psheet-item-name">Notifikasi WA</div><div class="psheet-item-desc">Pengingat tagihan WhatsApp</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
-      <a href="/app/frontend/pembayaran/payment.html" class="psheet-item psheet-payment" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">credit_card</span></div><div class="psheet-item-body"><div class="psheet-item-name">Bayar Online</div><div class="psheet-item-desc">Midtrans / Xendit</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/keuangan/keuangan.html" class="psheet-item psheet-keuangan"><div class="psheet-item-icon"><span class="material-symbols-outlined">payments</span></div><div class="psheet-item-body"><div class="psheet-item-name">Keuangan</div><div class="psheet-item-desc">Pemasukan & pengeluaran</div></div><div class="psheet-item-badge">Kas</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/tagihan/tagihan.html" class="psheet-item psheet-tagihan" data-perm="keuangan"><div class="psheet-item-icon"><span class="material-symbols-outlined">receipt_long</span></div><div class="psheet-item-body"><div class="psheet-item-name">Tagihan</div><div class="psheet-item-desc">Tagihan bulanan pelanggan</div></div><div class="psheet-item-badge">Invoice</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/loket/loket.html" class="psheet-item psheet-loket" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">point_of_sale</span></div><div class="psheet-item-body"><div class="psheet-item-name">Loket / Kasir</div><div class="psheet-item-desc">Terima bayar + komisi</div></div><div class="psheet-item-badge">Kasir</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/notifikasi/wa.html" class="psheet-item psheet-wa" data-perm="pelanggan"><div class="psheet-item-icon"><span class="material-symbols-outlined">chat</span></div><div class="psheet-item-body"><div class="psheet-item-name">Notifikasi WA</div><div class="psheet-item-desc">Pengingat tagihan WhatsApp</div></div><div class="psheet-item-badge">Reminder</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/pembayaran/payment.html" class="psheet-item psheet-payment" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">credit_card</span></div><div class="psheet-item-body"><div class="psheet-item-name">Bayar Online</div><div class="psheet-item-desc">Midtrans / Xendit</div></div><div class="psheet-item-badge">Gateway</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
     </div>
   </div>
-  <script src="/app/frontend/statis/global.js?v=21"></script>
-  <script src="/app/frontend/loket/loket.js?v=1"></script>
+  <script src="/app/frontend/statis/global.js?v=26"></script>
+  <script src="/app/frontend/loket/loket.js?v=4"></script>
 </body>
 </html>

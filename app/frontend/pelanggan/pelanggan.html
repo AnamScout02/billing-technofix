@@ -18,8 +18,8 @@
     rel="stylesheet" />
 
   <!-- global.css wajib di-load PERTAMA -->
-  <link rel="stylesheet" href="/app/frontend/statis/global.css?v=22" />
-  <link rel="stylesheet" href="/app/frontend/statis/pelanggan.css?v=1" />
+  <link rel="stylesheet" href="/app/frontend/statis/global.css?v=33" />
+  <link rel="stylesheet" href="/app/frontend/statis/pelanggan.css?v=3" />
 </head>
 
 <body>
@@ -61,8 +61,6 @@
         <button class="icon-btn" onclick="refreshRxTx()" title="Refresh sinyal RX/TX dari OLT">
           <span class="material-symbols-outlined">signal_cellular_alt</span>
         </button>
-                <a href="/app/frontend/panduan/panduan.html" target="_blank" class="icon-btn" title="Panduan Penggunaan" style="text-decoration:none"><span class="material-symbols-outlined">help</span></a>
-        <button class="icon-btn" onclick="toggleDarkMode()" title="Ganti tema gelap/terang" style="margin-right:2px"><span class="material-symbols-outlined" id="dark-mode-icon">dark_mode</span></button>
         <div class="profile-wrap" id="profile-wrap">
           <button class="profile-btn" onclick="toggleProfileMenu()" title="Profil">
             <div class="avatar-circle" id="avatar-initials">AD</div>
@@ -90,9 +88,6 @@
           <div class="profile-menu-divider btn-owner-only"></div>
           <a href="/app/frontend/manajemen_user/manajemen_user.html" class="profile-menu-item btn-owner-only">
             <span class="material-symbols-outlined">manage_accounts</span>Manajemen user
-          </a>
-          <a href="/app/frontend/panduan/panduan.html" target="_blank" class="profile-menu-item">
-            <span class="material-symbols-outlined">menu_book</span>Panduan Penggunaan
           </a>
           <div class="profile-menu-divider"></div>
           <a href="#" class="profile-menu-item logout" onclick="showModalLogout();return false;">
@@ -187,15 +182,24 @@
     <!-- TOOLBAR ROW: device-bar kiri + search/filter kanan -->
     <div class="toolbar-row">
 
-      <div class="device-bar">
-        <span class="material-symbols-outlined device-bar-icon">router</span>
-        <div class="device-bar-info">
-          <span class="device-bar-label">Perangkat</span>
-          <select id="select-device" class="device-select" onchange="loadPelanggan()">
-            <option value="">— Pilih Perangkat —</option>
-          </select>
+      <div class="dash-device-bar">
+        <div class="dash-device-bar-left">
+          <div class="dash-device-icon">
+            <span class="material-symbols-outlined">router</span>
+          </div>
+          <div class="dash-device-info">
+            <span class="dash-device-label">Perangkat</span>
+            <div class="g-select-wrap" style="margin-top:4px">
+              <select id="select-device" class="g-select primary" onchange="loadPelanggan()">
+                <option value="">— Pilih Perangkat —</option>
+              </select>
+              <span class="material-symbols-outlined g-select-icon">expand_more</span>
+            </div>
+          </div>
         </div>
-        <span id="sync-status" class="sync-status"></span>
+        <div class="dash-device-bar-right">
+          <span id="sync-status" class="sync-badge"></span>
+        </div>
       </div>
 
     <div class="toolbar">
@@ -259,19 +263,13 @@
         <table class="pelanggan-table" id="table-pelanggan">
           <thead>
             <tr>
-              <th class="sticky-col-0">
-                <input type="checkbox" id="cb-select-all"
-                  title="Pilih semua"
-                  onchange="toggleSelectAll(this.checked)"
-                  style="width:15px;height:15px;accent-color:var(--primary);cursor:pointer">
-              </th>
               <th class="sticky-col-1">#</th>
               <th class="sticky-col-2">Username</th>
               <th>No HP</th>
               <th>Profil</th>
               <th>Slot / Port ONU</th>
               <th>VLAN</th>
-              <th>SN</th>
+              <th>SN / MAC Address</th>
               <th>
                 <button id="sort-rx-btn" class="sort-th-btn" onclick="sortByRx()" title="Urutkan berdasarkan RX Signal">
                   Rx Signal
@@ -471,7 +469,7 @@
         <div class="psheet-item-badge">Distribusi</div>
         <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
       </a>
-      <a href="/app/frontend/genieacs/onu.html" class="psheet-item psheet-onu" data-perm="perangkat"><div class="psheet-item-icon"><span class="material-symbols-outlined">wifi</span></div><div class="psheet-item-body"><div class="psheet-item-name">ONU / GenieACS</div><div class="psheet-item-desc">Monitoring & remote TR-069</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/genieacs/onu.html" class="psheet-item psheet-onu" data-perm="perangkat"><div class="psheet-item-icon"><span class="material-symbols-outlined">wifi</span></div><div class="psheet-item-body"><div class="psheet-item-name">ONU / GenieACS</div><div class="psheet-item-desc">Monitoring & remote TR-069</div></div><div class="psheet-item-badge">TR-069</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
     </div>
   </div>
 
@@ -486,15 +484,15 @@
       <button class="psheet-close" onclick="closeKeuanganSheet()"><span class="material-symbols-outlined">close</span></button>
     </div>
     <div class="psheet-list">
-      <a href="/app/frontend/keuangan/keuangan.html" class="psheet-item psheet-keuangan"><div class="psheet-item-icon"><span class="material-symbols-outlined">payments</span></div><div class="psheet-item-body"><div class="psheet-item-name">Keuangan</div><div class="psheet-item-desc">Pemasukan & pengeluaran</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
-      <a href="/app/frontend/tagihan/tagihan.html" class="psheet-item psheet-tagihan" data-perm="keuangan"><div class="psheet-item-icon"><span class="material-symbols-outlined">receipt_long</span></div><div class="psheet-item-body"><div class="psheet-item-name">Tagihan</div><div class="psheet-item-desc">Tagihan bulanan pelanggan</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
-      <a href="/app/frontend/loket/loket.html" class="psheet-item psheet-loket" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">point_of_sale</span></div><div class="psheet-item-body"><div class="psheet-item-name">Loket / Kasir</div><div class="psheet-item-desc">Terima bayar + komisi</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
-      <a href="/app/frontend/notifikasi/wa.html" class="psheet-item psheet-wa" data-perm="pelanggan"><div class="psheet-item-icon"><span class="material-symbols-outlined">chat</span></div><div class="psheet-item-body"><div class="psheet-item-name">Notifikasi WA</div><div class="psheet-item-desc">Pengingat tagihan WhatsApp</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
-      <a href="/app/frontend/pembayaran/payment.html" class="psheet-item psheet-payment" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">credit_card</span></div><div class="psheet-item-body"><div class="psheet-item-name">Bayar Online</div><div class="psheet-item-desc">Midtrans / Xendit</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/keuangan/keuangan.html" class="psheet-item psheet-keuangan"><div class="psheet-item-icon"><span class="material-symbols-outlined">payments</span></div><div class="psheet-item-body"><div class="psheet-item-name">Keuangan</div><div class="psheet-item-desc">Pemasukan & pengeluaran</div></div><div class="psheet-item-badge">Kas</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/tagihan/tagihan.html" class="psheet-item psheet-tagihan" data-perm="keuangan"><div class="psheet-item-icon"><span class="material-symbols-outlined">receipt_long</span></div><div class="psheet-item-body"><div class="psheet-item-name">Tagihan</div><div class="psheet-item-desc">Tagihan bulanan pelanggan</div></div><div class="psheet-item-badge">Invoice</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/loket/loket.html" class="psheet-item psheet-loket" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">point_of_sale</span></div><div class="psheet-item-body"><div class="psheet-item-name">Loket / Kasir</div><div class="psheet-item-desc">Terima bayar + komisi</div></div><div class="psheet-item-badge">Kasir</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/notifikasi/wa.html" class="psheet-item psheet-wa" data-perm="pelanggan"><div class="psheet-item-icon"><span class="material-symbols-outlined">chat</span></div><div class="psheet-item-body"><div class="psheet-item-name">Notifikasi WA</div><div class="psheet-item-desc">Pengingat tagihan WhatsApp</div></div><div class="psheet-item-badge">Reminder</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/pembayaran/payment.html" class="psheet-item psheet-payment" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">credit_card</span></div><div class="psheet-item-body"><div class="psheet-item-name">Bayar Online</div><div class="psheet-item-desc">Midtrans / Xendit</div></div><div class="psheet-item-badge">Gateway</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
     </div>
   </div>
-  <script src="/app/frontend/statis/global.js?v=21"></script>
-  <script src="/app/frontend/pelanggan/pelanggan.js?v=8"></script>
+  <script src="/app/frontend/statis/global.js?v=26"></script>
+  <script src="/app/frontend/pelanggan/pelanggan.js?v=17"></script>
 
 </body>
 </html>

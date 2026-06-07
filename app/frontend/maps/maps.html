@@ -17,8 +17,8 @@
   <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
 
   <!-- Styles -->
-  <link rel="stylesheet" href="/app/frontend/statis/global.css?v=22" />
-  <link rel="stylesheet" href="/app/frontend/maps/maps.css?v=22" />
+  <link rel="stylesheet" href="/app/frontend/statis/global.css?v=33" />
+  <link rel="stylesheet" href="/app/frontend/maps/maps.css?v=36" />
 </head>
 
 <body>
@@ -55,8 +55,6 @@
         <button class="icon-btn" id="btn-refresh-map" title="Refresh peta topologi">
           <span class="material-symbols-outlined" id="map-refresh-icon">refresh</span>
         </button>
-        <a href="/app/frontend/panduan/panduan.html" target="_blank" class="icon-btn" title="Panduan Penggunaan" style="text-decoration:none"><span class="material-symbols-outlined">help</span></a>
-        <button class="icon-btn" onclick="toggleDarkMode()" title="Ganti tema gelap/terang" style="margin-right:2px"><span class="material-symbols-outlined" id="dark-mode-icon">dark_mode</span></button>
         <div class="profile-wrap" id="profile-wrap">
           <button class="profile-btn" onclick="toggleProfileMenu()" title="Profil">
             <div class="avatar-circle" id="avatar-initials">AD</div>
@@ -84,9 +82,6 @@
           <div class="profile-menu-divider btn-owner-only"></div>
           <a href="/app/frontend/manajemen_user/manajemen_user.html" class="profile-menu-item btn-owner-only">
             <span class="material-symbols-outlined">manage_accounts</span>Manajemen user
-          </a>
-          <a href="/app/frontend/panduan/panduan.html" target="_blank" class="profile-menu-item">
-            <span class="material-symbols-outlined">menu_book</span>Panduan Penggunaan
           </a>
           <div class="profile-menu-divider"></div>
           <a href="#" class="profile-menu-item logout" onclick="showModalLogout();return false;">
@@ -128,16 +123,6 @@
   <!-- ══ WRAPPER PETA ══ -->
   <div class="map-page-wrapper">
 
-    <!-- Banner info kolektor (hanya muncul saat login kolektor) -->
-    <div id="kol-maps-banner" style="display:none;align-items:center;gap:12px;padding:9px 16px;background:var(--amber-bg);border-bottom:1px solid var(--amber-border);font-size:12.5px;font-weight:600;color:var(--amber);">
-      <span class="material-symbols-outlined" style="font-size:18px">info</span>
-      <span id="kol-maps-banner-txt">—</span>
-      <span id="kol-maps-legend" style="display:none;margin-left:auto;gap:10px;font-size:11.5px">
-        <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:#dc2626;display:inline-block"></span>Belum Bayar</span>
-        <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:#16a34a;display:inline-block"></span>Lunas</span>
-      </span>
-    </div>
-
     <!-- Toolbar ringkasan -->
     <div class="map-toolbar">
       <div class="map-toolbar-title">
@@ -159,8 +144,14 @@
         <span id="stat-warning">– Redaman</span>
       </div>
 
-      <!-- Last update -->
-      <div class="map-last-update" id="map-last-update" style="margin-left:auto;flex-shrink:0">Belum disinkron</div>
+      <!-- Last update + Export -->
+      <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-shrink:0">
+        <div class="map-last-update" id="map-last-update">Belum disinkron</div>
+        <button class="map-export-btn" onclick="exportKML()" title="Export peta ke file KML (Google Maps / Earth)">
+          <span class="material-symbols-outlined">download</span>
+          <span class="map-export-label">KML</span>
+        </button>
+      </div>
     </div>
 
     <!-- Area Peta -->
@@ -175,60 +166,97 @@
       <!-- MapLibre container -->
       <div id="networkMap"></div>
 
-      <!-- ── FILTER PANEL ── -->
-      <div class="map-filter-panel" id="map-filter-panel">
-        <div class="mfp-header" onclick="toggleFilterPanel()">
-          <span class="material-symbols-outlined">tune</span>
-          <span>Filter Perangkat</span>
-          <span class="material-symbols-outlined mfp-chevron" id="mfp-chevron">expand_more</span>
+      <!-- ── PANEL TERPADU: Filter + Legenda ── -->
+      <div class="mlp" id="mlp">
+        <div class="mlp-header" onclick="toggleMLP()">
+          <span class="material-symbols-outlined">layers</span>
+          <span>Filter &amp; Legenda</span>
+          <span class="material-symbols-outlined mlp-chevron" id="mlp-chevron">expand_less</span>
         </div>
-        <div class="mfp-body" id="mfp-body" style="display:none">
-          <div class="mfp-section">Tipe Perangkat</div>
+        <div class="mlp-body" id="mlp-body">
 
-          <label class="mfp-row">
-            <input type="checkbox" id="f-olt" checked onchange="applyFilter()">
-            <span class="mfp-dot" style="background:#7c3aed"></span>
-            <span class="mfp-name">OLT</span>
-            <span class="mfp-count" id="fc-olt">0</span>
-          </label>
-          <label class="mfp-row">
-            <input type="checkbox" id="f-odc" checked onchange="applyFilter()">
-            <span class="mfp-dot" style="background:#0891b2"></span>
-            <span class="mfp-name">ODC</span>
-            <span class="mfp-count" id="fc-odc">0</span>
-          </label>
-          <label class="mfp-row">
-            <input type="checkbox" id="f-odp" checked onchange="applyFilter()">
-            <span class="mfp-dot" style="background:#d97706"></span>
-            <span class="mfp-name">ODP</span>
-            <span class="mfp-count" id="fc-odp">0</span>
-          </label>
-          <label class="mfp-row">
-            <input type="checkbox" id="f-router" checked onchange="applyFilter()">
-            <span class="mfp-dot" style="background:#1d4ed8"></span>
-            <span class="mfp-name">Router</span>
-            <span class="mfp-count" id="fc-router">0</span>
-          </label>
-          <label class="mfp-row">
-            <input type="checkbox" id="f-onu" checked onchange="applyFilter()">
-            <span class="mfp-dot" style="background:#16a34a;border-radius:50%"></span>
-            <span class="mfp-name">Pelanggan</span>
-            <span class="mfp-count" id="fc-onu">0</span>
-          </label>
+          <!-- Tab bar -->
+          <div class="mlp-tabs">
+            <button class="mlp-tab mlp-tab-active" id="mlp-tab-filter"  onclick="switchMLPTab('filter')">
+              <span class="material-symbols-outlined">tune</span>Filter
+            </button>
+            <button class="mlp-tab" id="mlp-tab-legenda" onclick="switchMLPTab('legenda')">
+              <span class="material-symbols-outlined">info</span>Legenda
+            </button>
+          </div>
 
-          <div class="mfp-divider"></div>
-          <div class="mfp-section">Status</div>
+          <!-- Pane: Filter -->
+          <div class="mlp-pane" id="mlp-pane-filter">
+            <div class="mlp-section">Tipe Perangkat</div>
+            <label class="mfp-row">
+              <input type="checkbox" id="f-router" checked onchange="applyFilter()">
+              <span class="mfp-dot" style="background:#1d4ed8"></span>
+              <span class="mfp-name">Router</span>
+              <span class="mfp-count" id="fc-router">0</span>
+            </label>
+            <label class="mfp-row">
+              <input type="checkbox" id="f-olt" checked onchange="applyFilter()">
+              <span class="mfp-dot" style="background:#f97316"></span>
+              <span class="mfp-name">OLT</span>
+              <span class="mfp-count" id="fc-olt">0</span>
+            </label>
+            <label class="mfp-row">
+              <input type="checkbox" id="f-odc" checked onchange="applyFilter()">
+              <span class="mfp-dot" style="background:#0891b2"></span>
+              <span class="mfp-name">ODC</span>
+              <span class="mfp-count" id="fc-odc">0</span>
+            </label>
+            <label class="mfp-row">
+              <input type="checkbox" id="f-odp" checked onchange="applyFilter()">
+              <span class="mfp-dot" style="background:#db2777"></span>
+              <span class="mfp-name">ODP</span>
+              <span class="mfp-count" id="fc-odp">0</span>
+            </label>
+            <label class="mfp-row">
+              <input type="checkbox" id="f-onu" checked onchange="applyFilter()">
+              <span class="mfp-dot" style="background:#16a34a;border-radius:50%"></span>
+              <span class="mfp-name">Pelanggan</span>
+              <span class="mfp-count" id="fc-onu">0</span>
+            </label>
+            <div id="fc-onu-zoom-hint" style="display:none;font-size:10px;color:var(--text-dim);padding:2px 8px 4px 26px;line-height:1.4">
+              Zoom in untuk lihat marker
+            </div>
+            <div class="mfp-divider"></div>
+            <div class="mlp-section">Status</div>
+            <label class="mfp-row">
+              <input type="checkbox" id="f-online" checked onchange="applyFilter()">
+              <span class="mfp-dot" style="background:#16a34a;border-radius:50%"></span>
+              <span class="mfp-name">Online</span>
+            </label>
+            <label class="mfp-row">
+              <input type="checkbox" id="f-offline" checked onchange="applyFilter()">
+              <span class="mfp-dot" style="background:#991b1b;border-radius:50%"></span>
+              <span class="mfp-name">Offline</span>
+            </label>
+          </div>
 
-          <label class="mfp-row">
-            <input type="checkbox" id="f-online" checked onchange="applyFilter()">
-            <span class="mfp-dot" style="background:#16a34a;border-radius:50%"></span>
-            <span class="mfp-name">Online</span>
-          </label>
-          <label class="mfp-row">
-            <input type="checkbox" id="f-offline" checked onchange="applyFilter()">
-            <span class="mfp-dot" style="background:#dc2626;border-radius:50%"></span>
-            <span class="mfp-name">Offline</span>
-          </label>
+          <!-- Pane: Legenda -->
+          <div class="mlp-pane" id="mlp-pane-legenda" style="display:none">
+            <div class="mlp-section">Marker Perangkat</div>
+            <div class="clg-row"><span class="mkr-dot" style="background:#1d4ed8"></span><div class="clg-text"><b>Router</b></div></div>
+            <div class="clg-row"><span class="mkr-dot" style="background:#f97316"></span><div class="clg-text"><b>OLT</b></div></div>
+            <div class="clg-row"><span class="mkr-dot" style="background:#0891b2"></span><div class="clg-text"><b>ODC</b></div></div>
+            <div class="clg-row"><span class="mkr-dot" style="background:#db2777"></span><div class="clg-text"><b>ODP</b></div></div>
+            <div class="mfp-divider"></div>
+            <div class="mlp-section">Marker ONU / Sinyal</div>
+            <div class="clg-row"><span class="mkr-dot" style="background:#16a34a"></span><div class="clg-text"><b>Baik</b><small>-20 ~ -8 dBm</small></div></div>
+            <div class="clg-row"><span class="mkr-dot" style="background:#d97706"></span><div class="clg-text"><b>Sedang</b><small>-26 ~ -20 dBm</small></div></div>
+            <div class="clg-row"><span class="mkr-dot" style="background:#ef4444"></span><div class="clg-text"><b>Buruk</b><small>&lt;-26 / &gt;-8 dBm</small></div></div>
+            <div class="clg-row"><span class="mkr-dot" style="background:#64748b"></span><div class="clg-text"><b>Belum Sync</b></div></div>
+            <div class="clg-row"><span class="mkr-dot mkr-dot-offline" style="background:#991b1b"></span><div class="clg-text"><b>Offline</b><small>ring berkedip</small></div></div>
+            <div class="mfp-divider"></div>
+            <div class="mlp-section">Kabel / Sinyal</div>
+            <div class="clg-row"><span class="clg-line clg-good"></span><div class="clg-text"><b>Baik</b><small>aliran cepat</small></div></div>
+            <div class="clg-row"><span class="clg-line clg-warn"></span><div class="clg-text"><b>Sedang</b><small>aliran pelan</small></div></div>
+            <div class="clg-row"><span class="clg-line clg-bad"></span><div class="clg-text"><b>Buruk</b><small>aliran lambat</small></div></div>
+            <div class="clg-row"><span class="clg-line clg-off"></span><div class="clg-text"><b>Terputus</b><small>berkedip</small></div></div>
+          </div>
+
         </div>
       </div>
 
@@ -245,32 +273,18 @@
         <div class="map-search-results" id="map-search-results" style="display:none"></div>
       </div>
 
-      <!-- ── KETERANGAN KABEL ── -->
-      <div class="cable-legend" id="cable-legend">
-        <div class="cable-legend-head" onclick="toggleCableLegend()">
-          <span class="material-symbols-outlined">cable</span>
-          <span>Keterangan Kabel</span>
-          <span class="material-symbols-outlined clg-chevron" id="clg-chevron">expand_less</span>
-        </div>
-        <div class="cable-legend-body" id="cable-legend-body">
-          <div class="clg-row">
-            <span class="clg-line clg-good"></span>
-            <div class="clg-text"><b>Baik</b><small>cahaya mengalir cepat</small></div>
-          </div>
-          <div class="clg-row">
-            <span class="clg-line clg-warn"></span>
-            <div class="clg-text"><b>Sedang</b><small>cahaya mengalir pelan</small></div>
-          </div>
-          <div class="clg-row">
-            <span class="clg-line clg-bad"></span>
-            <div class="clg-text"><b>Buruk</b><small>cahaya sangat pelan</small></div>
-          </div>
-          <div class="clg-row">
-            <span class="clg-line clg-off"></span>
-            <div class="clg-text"><b>Terputus</b><small>merah berkedip · aliran berhenti</small></div>
-          </div>
-        </div>
+      <!-- ── PILIH GAYA PETA ── -->
+      <div class="map-style-switcher" id="map-style-switcher">
+        <button class="msw-btn msw-active" id="msw-sat" onclick="setMapStyle('satellite')" title="Satelit">
+          <span class="material-symbols-outlined">satellite</span>
+          <span>Satelit</span>
+        </button>
+        <button class="msw-btn" id="msw-street" onclick="setMapStyle('street')" title="Peta Jalan">
+          <span class="material-symbols-outlined">map</span>
+          <span>Jalan</span>
+        </button>
       </div>
+
 
     </div><!-- /.map-inner -->
   </div><!-- /.map-page-wrapper -->
@@ -396,7 +410,7 @@
         <div class="psheet-item-badge">Distribusi</div>
         <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
       </a>
-      <a href="/app/frontend/genieacs/onu.html" class="psheet-item psheet-onu" data-perm="perangkat"><div class="psheet-item-icon"><span class="material-symbols-outlined">wifi</span></div><div class="psheet-item-body"><div class="psheet-item-name">ONU / GenieACS</div><div class="psheet-item-desc">Monitoring & remote TR-069</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/genieacs/onu.html" class="psheet-item psheet-onu" data-perm="perangkat"><div class="psheet-item-icon"><span class="material-symbols-outlined">wifi</span></div><div class="psheet-item-body"><div class="psheet-item-name">ONU / GenieACS</div><div class="psheet-item-desc">Monitoring & remote TR-069</div></div><div class="psheet-item-badge">TR-069</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
     </div>
   </div>
 
@@ -412,15 +426,15 @@
       <button class="psheet-close" onclick="closeKeuanganSheet()"><span class="material-symbols-outlined">close</span></button>
     </div>
     <div class="psheet-list">
-      <a href="/app/frontend/keuangan/keuangan.html" class="psheet-item psheet-keuangan"><div class="psheet-item-icon"><span class="material-symbols-outlined">payments</span></div><div class="psheet-item-body"><div class="psheet-item-name">Keuangan</div><div class="psheet-item-desc">Pemasukan & pengeluaran</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
-      <a href="/app/frontend/tagihan/tagihan.html" class="psheet-item psheet-tagihan" data-perm="keuangan"><div class="psheet-item-icon"><span class="material-symbols-outlined">receipt_long</span></div><div class="psheet-item-body"><div class="psheet-item-name">Tagihan</div><div class="psheet-item-desc">Tagihan bulanan pelanggan</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
-      <a href="/app/frontend/loket/loket.html" class="psheet-item psheet-loket" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">point_of_sale</span></div><div class="psheet-item-body"><div class="psheet-item-name">Loket / Kasir</div><div class="psheet-item-desc">Terima bayar + komisi</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
-      <a href="/app/frontend/notifikasi/wa.html" class="psheet-item psheet-wa" data-perm="pelanggan"><div class="psheet-item-icon"><span class="material-symbols-outlined">chat</span></div><div class="psheet-item-body"><div class="psheet-item-name">Notifikasi WA</div><div class="psheet-item-desc">Pengingat tagihan WhatsApp</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
-      <a href="/app/frontend/pembayaran/payment.html" class="psheet-item psheet-payment" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">credit_card</span></div><div class="psheet-item-body"><div class="psheet-item-name">Bayar Online</div><div class="psheet-item-desc">Midtrans / Xendit</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/keuangan/keuangan.html" class="psheet-item psheet-keuangan"><div class="psheet-item-icon"><span class="material-symbols-outlined">payments</span></div><div class="psheet-item-body"><div class="psheet-item-name">Keuangan</div><div class="psheet-item-desc">Pemasukan & pengeluaran</div></div><div class="psheet-item-badge">Kas</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/tagihan/tagihan.html" class="psheet-item psheet-tagihan" data-perm="keuangan"><div class="psheet-item-icon"><span class="material-symbols-outlined">receipt_long</span></div><div class="psheet-item-body"><div class="psheet-item-name">Tagihan</div><div class="psheet-item-desc">Tagihan bulanan pelanggan</div></div><div class="psheet-item-badge">Invoice</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/loket/loket.html" class="psheet-item psheet-loket" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">point_of_sale</span></div><div class="psheet-item-body"><div class="psheet-item-name">Loket / Kasir</div><div class="psheet-item-desc">Terima bayar + komisi</div></div><div class="psheet-item-badge">Kasir</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/notifikasi/wa.html" class="psheet-item psheet-wa" data-perm="pelanggan"><div class="psheet-item-icon"><span class="material-symbols-outlined">chat</span></div><div class="psheet-item-body"><div class="psheet-item-name">Notifikasi WA</div><div class="psheet-item-desc">Pengingat tagihan WhatsApp</div></div><div class="psheet-item-badge">Reminder</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/pembayaran/payment.html" class="psheet-item psheet-payment" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">credit_card</span></div><div class="psheet-item-body"><div class="psheet-item-name">Bayar Online</div><div class="psheet-item-desc">Midtrans / Xendit</div></div><div class="psheet-item-badge">Gateway</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
     </div>
   </div>
-  <script src="/app/frontend/statis/global.js?v=21"></script>
-  <script src="/app/frontend/maps/maps.js?v=25"></script>
+  <script src="/app/frontend/statis/global.js?v=26"></script>
+  <script src="/app/frontend/maps/maps.js?v=47"></script>
 
 </body>
 </html>

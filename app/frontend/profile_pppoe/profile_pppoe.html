@@ -15,7 +15,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
 
   <!-- global.css WAJIB pertama -->
-  <link rel="stylesheet" href="/app/frontend/statis/global.css?v=22" />
+  <link rel="stylesheet" href="/app/frontend/statis/global.css?v=33" />
 
   <style>
     /* ── Tambahan spesifik halaman profile_pppoe ── */
@@ -31,11 +31,19 @@
 
     .profile-table {
       width: 100%;
-      border-collapse: collapse;
+      /* separate + spacing:0, BUKAN collapse — border-collapse:collapse
+         membuat position:sticky pada <th> gagal nempel di banyak browser
+         (bug lama Chrome/WebKit). Pola sama seperti .wa-table yang sudah
+         freeze dgn benar. */
+      border-collapse: separate;
+      border-spacing: 0;
       font-size: 13px;
     }
 
     .profile-table thead th {
+      position: sticky;
+      top: 0;
+      z-index: 3;
       background: var(--header-bg);
       color: rgba(255,255,255,.9);
       font-size: 11px;
@@ -93,33 +101,7 @@
     /* Kolom aksi */
     .td-actions { white-space: nowrap; }
 
-    /* Device bar — sama persis dengan pelanggan.html */
-    .device-bar {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: var(--r-lg);
-      padding: 10px 14px;
-      margin-bottom: 16px;
-      box-shadow: var(--shadow-sm);
-    }
-    .device-bar-icon { color: var(--primary); font-size: 18px; flex-shrink: 0; }
-    .device-bar-info { display: flex; flex-direction: column; gap: 2px; flex: 1; }
-    .device-bar-label {
-      font-size: 10px; font-weight: 700; text-transform: uppercase;
-      letter-spacing: .06em; color: var(--text-dim);
-    }
-    .device-select {
-      border: none; background: transparent; font-size: 13px;
-      font-weight: 600; color: var(--text); font-family: var(--sans);
-      outline: none; cursor: pointer; width: 100%;
-    }
-    .sync-status {
-      font-size: 12px; display: flex; align-items: center; gap: 5px;
-      flex-shrink: 0;
-    }
+    /* Device bar pakai .dash-device-bar (komponen global di global.css) */
 
     /* Toolbar filter */
     .toolbar-profile {
@@ -215,8 +197,6 @@
         <button class="icon-btn" onclick="loadProfiles()" title="Refresh profile">
           <span class="material-symbols-outlined" id="refresh-icon">refresh</span>
         </button>
-        <a href="/app/frontend/panduan/panduan.html" target="_blank" class="icon-btn" title="Panduan Penggunaan" style="text-decoration:none"><span class="material-symbols-outlined">help</span></a>
-        <button class="icon-btn" onclick="toggleDarkMode()" title="Ganti tema gelap/terang" style="margin-right:2px"><span class="material-symbols-outlined" id="dark-mode-icon">dark_mode</span></button>
         <div class="profile-wrap" id="profile-wrap">
           <button class="profile-btn" onclick="toggleProfileMenu()" title="Profil">
             <div class="avatar-circle" id="avatar-initials">AD</div>
@@ -244,9 +224,6 @@
           <div class="profile-menu-divider btn-owner-only"></div>
           <a href="/app/frontend/manajemen_user/manajemen_user.html" class="profile-menu-item btn-owner-only">
             <span class="material-symbols-outlined">manage_accounts</span>Manajemen user
-          </a>
-          <a href="/app/frontend/panduan/panduan.html" target="_blank" class="profile-menu-item">
-            <span class="material-symbols-outlined">menu_book</span>Panduan Penggunaan
           </a>
           <div class="profile-menu-divider"></div>
           <a href="#" class="profile-menu-item logout" onclick="showModalLogout();return false;">
@@ -337,16 +314,25 @@
       </div>
     </div>
 
-    <!-- DEVICE BAR — sama persis dengan pelanggan.html -->
-    <div class="device-bar">
-      <span class="material-symbols-outlined device-bar-icon">router</span>
-      <div class="device-bar-info">
-        <span class="device-bar-label">Perangkat MikroTik</span>
-        <select id="select-device" class="device-select" onchange="onDeviceChange()">
-          <option value="">— Pilih Perangkat —</option>
-        </select>
+    <!-- DEVICE BAR — komponen .dash-device-bar global, sama persis dengan dashboard & pelanggan -->
+    <div class="dash-device-bar">
+      <div class="dash-device-bar-left">
+        <div class="dash-device-icon">
+          <span class="material-symbols-outlined">router</span>
+        </div>
+        <div class="dash-device-info">
+          <span class="dash-device-label">Perangkat MikroTik</span>
+          <div class="g-select-wrap" style="margin-top:4px">
+            <select id="select-device" class="g-select primary" onchange="onDeviceChange()">
+              <option value="">— Pilih Perangkat —</option>
+            </select>
+            <span class="material-symbols-outlined g-select-icon">expand_more</span>
+          </div>
+        </div>
       </div>
-      <span id="sync-status" class="sync-status"></span>
+      <div class="dash-device-bar-right">
+        <span id="sync-status" class="sync-badge"></span>
+      </div>
     </div>
 
     <!-- TOOLBAR: search + filter -->
@@ -398,7 +384,7 @@
       </div>
 
       <!-- Tabel profile -->
-      <div id="table-scroll" style="display:none;overflow-x:auto;">
+      <div id="table-scroll" style="display:none;overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 440px);min-height:160px;">
         <table class="profile-table" id="table-profile">
           <thead>
             <tr>
@@ -573,7 +559,7 @@
         <div class="psheet-item-badge">Distribusi</div>
         <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
       </a>
-      <a href="/app/frontend/genieacs/onu.html" class="psheet-item psheet-onu" data-perm="perangkat"><div class="psheet-item-icon"><span class="material-symbols-outlined">wifi</span></div><div class="psheet-item-body"><div class="psheet-item-name">ONU / GenieACS</div><div class="psheet-item-desc">Monitoring & remote TR-069</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/genieacs/onu.html" class="psheet-item psheet-onu" data-perm="perangkat"><div class="psheet-item-icon"><span class="material-symbols-outlined">wifi</span></div><div class="psheet-item-body"><div class="psheet-item-name">ONU / GenieACS</div><div class="psheet-item-desc">Monitoring & remote TR-069</div></div><div class="psheet-item-badge">TR-069</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
     </div>
   </div>
 
@@ -588,15 +574,15 @@
       <button class="psheet-close" onclick="closeKeuanganSheet()"><span class="material-symbols-outlined">close</span></button>
     </div>
     <div class="psheet-list">
-      <a href="/app/frontend/keuangan/keuangan.html" class="psheet-item psheet-keuangan"><div class="psheet-item-icon"><span class="material-symbols-outlined">payments</span></div><div class="psheet-item-body"><div class="psheet-item-name">Keuangan</div><div class="psheet-item-desc">Pemasukan & pengeluaran</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
-      <a href="/app/frontend/tagihan/tagihan.html" class="psheet-item psheet-tagihan" data-perm="keuangan"><div class="psheet-item-icon"><span class="material-symbols-outlined">receipt_long</span></div><div class="psheet-item-body"><div class="psheet-item-name">Tagihan</div><div class="psheet-item-desc">Tagihan bulanan pelanggan</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
-      <a href="/app/frontend/loket/loket.html" class="psheet-item psheet-loket" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">point_of_sale</span></div><div class="psheet-item-body"><div class="psheet-item-name">Loket / Kasir</div><div class="psheet-item-desc">Terima bayar + komisi</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
-      <a href="/app/frontend/notifikasi/wa.html" class="psheet-item psheet-wa" data-perm="pelanggan"><div class="psheet-item-icon"><span class="material-symbols-outlined">chat</span></div><div class="psheet-item-body"><div class="psheet-item-name">Notifikasi WA</div><div class="psheet-item-desc">Pengingat tagihan WhatsApp</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
-      <a href="/app/frontend/pembayaran/payment.html" class="psheet-item psheet-payment" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">credit_card</span></div><div class="psheet-item-body"><div class="psheet-item-name">Bayar Online</div><div class="psheet-item-desc">Midtrans / Xendit</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/keuangan/keuangan.html" class="psheet-item psheet-keuangan"><div class="psheet-item-icon"><span class="material-symbols-outlined">payments</span></div><div class="psheet-item-body"><div class="psheet-item-name">Keuangan</div><div class="psheet-item-desc">Pemasukan & pengeluaran</div></div><div class="psheet-item-badge">Kas</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/tagihan/tagihan.html" class="psheet-item psheet-tagihan" data-perm="keuangan"><div class="psheet-item-icon"><span class="material-symbols-outlined">receipt_long</span></div><div class="psheet-item-body"><div class="psheet-item-name">Tagihan</div><div class="psheet-item-desc">Tagihan bulanan pelanggan</div></div><div class="psheet-item-badge">Invoice</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/loket/loket.html" class="psheet-item psheet-loket" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">point_of_sale</span></div><div class="psheet-item-body"><div class="psheet-item-name">Loket / Kasir</div><div class="psheet-item-desc">Terima bayar + komisi</div></div><div class="psheet-item-badge">Kasir</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/notifikasi/wa.html" class="psheet-item psheet-wa" data-perm="pelanggan"><div class="psheet-item-icon"><span class="material-symbols-outlined">chat</span></div><div class="psheet-item-body"><div class="psheet-item-name">Notifikasi WA</div><div class="psheet-item-desc">Pengingat tagihan WhatsApp</div></div><div class="psheet-item-badge">Reminder</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/pembayaran/payment.html" class="psheet-item psheet-payment" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">credit_card</span></div><div class="psheet-item-body"><div class="psheet-item-name">Bayar Online</div><div class="psheet-item-desc">Midtrans / Xendit</div></div><div class="psheet-item-badge">Gateway</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
     </div>
   </div>
-  <script src="/app/frontend/statis/global.js?v=21"></script>
-  <script src="/app/frontend/profile_pppoe/profile_pppoe.js?v=2"></script>
+  <script src="/app/frontend/statis/global.js?v=26"></script>
+  <script src="/app/frontend/profile_pppoe/profile_pppoe.js?v=3"></script>
 
 </body>
 </html>
