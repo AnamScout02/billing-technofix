@@ -72,9 +72,8 @@ const API_BASE = (() => {
   const h = window.location.hostname;
   if (h === 'localhost' || h === '127.0.0.1') return 'http://127.0.0.1:5000';
   if (h === '192.168.70.7')                   return 'http://192.168.70.7:5000';
-  if (h === '103.194.175.54')                 return 'http://103.194.175.54:5000';
-  // 172.15.0.11, technofix-bill.com & lainnya → fallback di bawah:
-  // production (Proxmox): pakai Apache reverse proxy, same origin
+  // 172.15.0.11, 103.194.175.54, technofix-bill.com & lainnya → fallback di bawah:
+  // production (Proxmox): pakai Apache reverse proxy, same origin (port 5000 diblokir ufw dari luar)
   return '';
 })();
 // `const` di top-level TIDAK menjadi properti window — beberapa halaman
