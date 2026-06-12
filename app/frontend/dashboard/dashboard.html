@@ -1,28 +1,28 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="id">
 
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8" /><script>(function(){var t=localStorage.getItem("tf_theme");if(t)document.documentElement.dataset.theme=t;else if(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)document.documentElement.dataset.theme="dark";})();</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dashboard — TechnoFix Billing</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
-    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Poppins:wght@400;500;600&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Poppins:wght@300;400;500;600;700&display=swap"
     rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
     rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
   <!-- global.css WAJIB pertama -->
-  <link rel="stylesheet" href="/app/frontend/statis/global.css?v=33" />
-  <link rel="stylesheet" href="/app/frontend/dashboard/dashboard.css?v=3" />
+  <link rel="stylesheet" href="/app/frontend/statis/global.css?v=48" />
+  <link rel="stylesheet" href="/app/frontend/dashboard/dashboard.css?v=5454" />
 </head>
 
 <body>
 
-  <!-- ══ HEADER ══ -->
+  <!-- â•â• HEADER â•â• -->
   <header class="header">
     <canvas class="header-canvas" id="header-canvas"></canvas>
     <div class="header-inner">
@@ -44,7 +44,7 @@
         <a href="#" onclick="openPerangkatSheet(event)" data-perm="perangkat">
           <span class="material-symbols-outlined">router</span>Perangkat
         </a>
-        <a href="#" onclick="openKeuanganSheet(event)" data-perm="keuangan"><span class="material-symbols-outlined">payments</span>Keuangan</a>
+        <a href="#" onclick="openKeuanganSheet(event)" data-perm="keuangan"><span class="material-symbols-outlined">payments</span>Layanan</a>
         <a href="/app/frontend/maps/maps.html" data-perm="maps">
           <span class="material-symbols-outlined">map</span>Maps
         </a>
@@ -72,7 +72,7 @@
           <a href="/app/frontend/profile/profile.html" class="profile-menu-item">
             <span class="material-symbols-outlined">person</span>Profil saya
           </a>
-          <a href="/app/frontend/setting/setting.html" class="profile-menu-item">
+          <a href="/app/frontend/setting/setting.html" class="profile-menu-item btn-owner-only">
             <span class="material-symbols-outlined">settings</span>Setting
           </a>
           <a href="/app/frontend/langganan/langganan.html" class="profile-menu-item btn-owner-only">
@@ -92,7 +92,7 @@
     </div>
   </header>
 
-  <!-- ══ BOTTOM NAV ══ -->
+  <!-- â•â• BOTTOM NAV â•â• -->
   <nav class="bottom-nav">
     <div class="bottom-nav-inner">
       <div class="bottom-nav-indicator" id="bottom-nav-indicator"></div>
@@ -110,7 +110,7 @@
       </a>
       <a href="#" onclick="openKeuanganSheet(event)" class="bottom-nav-item" data-perm="keuangan">
         <div class="bottom-nav-icon"><span class="material-symbols-outlined">payments</span></div>
-        <span class="bottom-nav-label">Keuangan</span>
+        <span class="bottom-nav-label">Layanan</span>
       </a>
       <a href="/app/frontend/maps/maps.html" class="bottom-nav-item" data-perm="maps">
         <div class="bottom-nav-icon"><span class="material-symbols-outlined">map</span></div>
@@ -119,7 +119,7 @@
     </div>
   </nav>
 
-  <!-- ══ PAGE ══ -->
+  <!-- â•â• PAGE â•â• -->
   <main class="page">
 
     <!-- PAGE TOP (NORMAL DASHBOARD) -->
@@ -137,7 +137,7 @@
       </div>
     </div>
 
-    <!-- ══ DEVICE BAR — identik pola pelanggan.html ══ -->
+    <!-- â•â• DEVICE BAR — identik pola pelanggan.html â•â• -->
     <div class="dash-device-bar">
       <div class="dash-device-bar-left">
         <div class="dash-device-icon">
@@ -163,7 +163,7 @@
       </div>
     </div>
 
-    <!-- ══ STAT CARDS — 4 card, identik pelanggan.html + card keuangan ══ -->
+    <!-- â•â• STAT CARDS — 4 card, identik pelanggan.html + card keuangan â•â• -->
     <div class="stat-row-4">
 
       <div class="stat-card">
@@ -192,6 +192,7 @@
             <span id="stat-online-pct">—% dari total</span>
           </div>
         </div>
+        <div class="stat-prog"><div class="stat-prog-fill" id="prog-online" style="width:0%"></div></div>
       </div>
 
       <div class="stat-card">
@@ -206,6 +207,7 @@
             <span id="stat-offline-pct">—% dari total</span>
           </div>
         </div>
+        <div class="stat-prog"><div class="stat-prog-fill stat-prog-fill--red" id="prog-offline" style="width:0%"></div></div>
       </div>
 
       <div class="stat-card" id="card-keuangan" style="display:none">
@@ -224,7 +226,32 @@
 
     </div><!-- /.stat-row-4 -->
 
-    <!-- ══ RESOURCE MIKROTIK (realtime) ══ -->
+    <!-- â•â• RESOURCE MIKROTIK (realtime) â•â• -->
+    <!-- ══ ALERT SINYAL ONU ══ -->
+    <div id="onu-signal-alert" style="display:none;margin-bottom:16px">
+      <a href="/app/frontend/input_perangkat/input_olt.html"
+         id="onu-alert-card"
+         style="display:flex;align-items:center;gap:14px;
+                padding:14px 18px;border-radius:var(--r-lg,10px);
+                text-decoration:none;cursor:pointer;
+                border:1px solid var(--red-border,#fca5a5);
+                background:var(--red-bg,#fef2f2);
+                transition:opacity .15s">
+        <span class="material-symbols-outlined"
+              style="font-size:26px;color:var(--red,#dc2626);flex-shrink:0">warning</span>
+        <div style="flex:1;min-width:0">
+          <div id="onu-alert-title"
+               style="font-weight:700;font-size:14px;color:var(--red,#dc2626)">
+            Sinyal ONU Bermasalah
+          </div>
+          <div id="onu-alert-sub"
+               style="font-size:12px;color:var(--text-muted);margin-top:2px">—</div>
+        </div>
+        <span class="material-symbols-outlined"
+              style="font-size:18px;color:var(--red,#dc2626);flex-shrink:0">chevron_right</span>
+      </a>
+    </div>
+
     <div class="dash-section dash-res-section" id="resource-section" style="display:none">
 
       <div class="dash-bw-head">
@@ -309,14 +336,14 @@
 
     </div>
 
-    <!-- ══ BANDWIDTH REALTIME ══ -->
+    <!-- â•â• BANDWIDTH REALTIME â•â• -->
     <div class="dash-section dash-bw-section">
 
       <!-- Header navy -->
       <div class="dash-bw-head">
         <div class="dash-bw-head-left">
           <h2 class="dash-bw-title">
-            <span class="material-symbols-outlined">Swap_Horiz</span>
+            <span class="material-symbols-outlined">swap_horiz</span>
             Bandwidth Realtime
           </h2>
           <p class="dash-bw-sub" id="bw-iface-label">Pilih MikroTik dan interface</p>
@@ -387,7 +414,7 @@
       <div class="dash-chart-wrap dash-bw-main-chart">
         <canvas id="chart-bw" role="img" aria-label="Grafik area bandwidth download dan upload realtime">—</canvas>
         <div class="dash-chart-empty" id="bw-empty">
-          <span class="material-symbols-outlined">Swap_Horiz</span>
+          <span class="material-symbols-outlined">swap_horiz</span>
     
         </div>
       </div>
@@ -401,7 +428,7 @@
 
     </div>
 
-    <!-- ══ PROFIL PPPoE — Tabel profil dari MikroTik ══ -->
+    <!-- â•â• PROFIL PPPoE — Tabel profil dari MikroTik â•â• -->
     <div class="dash-section">
       <div class="dash-section-head">
         <div>
@@ -445,7 +472,7 @@
       </div>
     </div>
 
-    <!-- ══ GRID 2 KOLOM ══ -->
+    <!-- â•â• GRID 2 KOLOM â•â• -->
     <div class="dash-grid-2">
 
       <!-- Tren Pelanggan -->
@@ -502,7 +529,7 @@
 
     </div><!-- /.dash-grid-2 -->
 
-    <!-- ══ LIVE TICKER ══ -->
+    <!-- â•â• LIVE TICKER â•â• -->
     <div class="dash-section" id="ticker-section" style="display:none">
       <div class="dash-section-head">
         <div>
@@ -524,7 +551,7 @@
       </div>
     </div>
 
-    <!-- ══ AKTIVITAS TERBARU ══ -->
+    <!-- â•â• AKTIVITAS TERBARU â•â• -->
     <div class="dash-section">
       <div class="dash-section-head">
         <div>
@@ -550,10 +577,10 @@
 
   </main><!-- /.page -->
 
-  <!-- ══ TOAST ══ -->
+  <!-- â•â• TOAST â•â• -->
   <div id="toast"></div>
 
-  <!-- ══ MODAL LOGOUT ══ -->
+  <!-- â•â• MODAL LOGOUT â•â• -->
   <div class="modal-overlay" id="modal-logout" onclick="closeModalLogout(event)">
     <div class="modal" onclick="event.stopPropagation()">
       <div class="modal-header">
@@ -572,56 +599,9 @@
     </div>
   </div>
 
-  <!-- ══ MODAL GANTI PASSWORD ══ -->
-  <div class="modal-overlay" id="modal-ganti-password" onclick="closeModalGantiPassword(event)">
-    <div class="modal" onclick="event.stopPropagation()">
-      <div class="modal-header">
-        <h3 class="modal-title">
-          <span class="material-symbols-outlined" style="color:var(--primary)">lock_reset</span>
-          Ganti Password
-        </h3>
-      </div>
-      <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;margin-bottom:0">
-        <div class="form-group">
-          <label class="form-label">Password Lama</label>
-          <div class="pwd-wrap">
-            <input type="password" class="form-input" id="pwd-lama" placeholder="Password saat ini" />
-            <button type="button" class="pwd-eye" onclick="togglePwd('pwd-lama','eye-lama')">
-              <span class="material-symbols-outlined" id="eye-lama">visibility</span>
-            </button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Password Baru</label>
-          <div class="pwd-wrap">
-            <input type="password" class="form-input" id="pwd-baru" placeholder="Min. 8 karakter" />
-            <button type="button" class="pwd-eye" onclick="togglePwd('pwd-baru','eye-baru')">
-              <span class="material-symbols-outlined" id="eye-baru">visibility</span>
-            </button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Konfirmasi Password Baru</label>
-          <div class="pwd-wrap">
-            <input type="password" class="form-input" id="pwd-konfirm" placeholder="Ulangi password baru" />
-            <button type="button" class="pwd-eye" onclick="togglePwd('pwd-konfirm','eye-konfirm')">
-              <span class="material-symbols-outlined" id="eye-konfirm">visibility</span>
-            </button>
-          </div>
-        </div>
-        <p class="form-hint" id="pwd-hint" style="display:none;color:var(--red)"></p>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-cancel" onclick="closeModalGantiPassword(event)">Batal</button>
-        <button class="btn-primary" onclick="submitGantiPassword()">
-          <span class="material-symbols-outlined">save</span>Simpan
-        </button>
-      </div>
-    </div>
-  </div>
 
 
-  <!-- ══ PERANGKAT SHEET ══ -->
+  <!-- â•â• PERANGKAT SHEET â•â• -->
   <div class="psheet-overlay" id="psheet-overlay" onclick="closePerangkatSheet()"></div>
   <div class="psheet" id="psheet" role="dialog" aria-modal="true">
     <div class="psheet-handle"></div>
@@ -671,8 +651,7 @@
         <div class="psheet-item-badge">Distribusi</div>
         <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
       </a>
-      <a href="/app/frontend/genieacs/onu.html" class="psheet-item psheet-onu" data-perm="perangkat"><div class="psheet-item-icon"><span class="material-symbols-outlined">wifi</span></div><div class="psheet-item-body"><div class="psheet-item-name">ONU / GenieACS</div><div class="psheet-item-desc">Monitoring & remote TR-069</div></div><div class="psheet-item-badge">TR-069</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
-    </div>
+   </div>
   </div>
 
   <!-- global.js WAJIB sebelum dashboard.js -->
@@ -682,19 +661,20 @@
   <div class="psheet ksheet" id="ksheet" role="dialog" aria-modal="true">
     <div class="psheet-handle"></div>
     <div class="psheet-head">
-      <div><p class="psheet-eyebrow">Keuangan & Tagihan</p><h2 class="psheet-title">Pilih Fitur</h2></div>
+      <div><p class="psheet-eyebrow">Fitur & Layanan</p><h2 class="psheet-title">Pilih Halaman</h2></div>
       <button class="psheet-close" onclick="closeKeuanganSheet()"><span class="material-symbols-outlined">close</span></button>
     </div>
     <div class="psheet-list">
       <a href="/app/frontend/keuangan/keuangan.html" class="psheet-item psheet-keuangan"><div class="psheet-item-icon"><span class="material-symbols-outlined">payments</span></div><div class="psheet-item-body"><div class="psheet-item-name">Keuangan</div><div class="psheet-item-desc">Pemasukan & pengeluaran</div></div><div class="psheet-item-badge">Kas</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
       <a href="/app/frontend/tagihan/tagihan.html" class="psheet-item psheet-tagihan" data-perm="keuangan"><div class="psheet-item-icon"><span class="material-symbols-outlined">receipt_long</span></div><div class="psheet-item-body"><div class="psheet-item-name">Tagihan</div><div class="psheet-item-desc">Tagihan bulanan pelanggan</div></div><div class="psheet-item-badge">Invoice</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
       <a href="/app/frontend/loket/loket.html" class="psheet-item psheet-loket" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">point_of_sale</span></div><div class="psheet-item-body"><div class="psheet-item-name">Loket / Kasir</div><div class="psheet-item-desc">Terima bayar + komisi</div></div><div class="psheet-item-badge">Kasir</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
-      <a href="/app/frontend/notifikasi/wa.html" class="psheet-item psheet-wa" data-perm="pelanggan"><div class="psheet-item-icon"><span class="material-symbols-outlined">chat</span></div><div class="psheet-item-body"><div class="psheet-item-name">Notifikasi WA</div><div class="psheet-item-desc">Pengingat tagihan WhatsApp</div></div><div class="psheet-item-badge">Reminder</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/notifikasi/wa.html" class="psheet-item psheet-wa" data-perm="pelanggan_manage"><div class="psheet-item-icon"><span class="material-symbols-outlined">chat</span></div><div class="psheet-item-body"><div class="psheet-item-name">Notifikasi WA</div><div class="psheet-item-desc">Pengingat tagihan WhatsApp</div></div><div class="psheet-item-badge">Reminder</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
       <a href="/app/frontend/pembayaran/payment.html" class="psheet-item psheet-payment" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">credit_card</span></div><div class="psheet-item-body"><div class="psheet-item-name">Bayar Online</div><div class="psheet-item-desc">Midtrans / Xendit</div></div><div class="psheet-item-badge">Gateway</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/tiket/tiket.html" class="psheet-item psheet-tiket" data-perm="pelanggan"><div class="psheet-item-icon"><span class="material-symbols-outlined">support_agent</span></div><div class="psheet-item-body"><div class="psheet-item-name">Tiket Laporan <span id="tiket-badge-nav" style="display:none;background:#dc2626;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:6px;vertical-align:1px"></span></div><div class="psheet-item-desc">Laporan gangguan pelanggan</div></div><div class="psheet-item-badge">Support</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
     </div>
   </div>
-  <script src="/app/frontend/statis/global.js?v=26"></script>
-  <script src="/app/frontend/dashboard/dashboard.js"></script>
+  <script src="/app/frontend/statis/global.js?v=43"></script>
+  <script src="/app/frontend/dashboard/dashboard.js?v=8"></script>
 </body>
 
 </html>

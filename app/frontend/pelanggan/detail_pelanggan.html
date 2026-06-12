@@ -2,26 +2,26 @@
 <html lang="id">
 
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8" /><script>(function(){var t=localStorage.getItem("tf_theme");if(t)document.documentElement.dataset.theme=t;else if(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)document.documentElement.dataset.theme="dark";})();</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Detail Pelanggan — TechnoFix Billing</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
-    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Poppins:wght@400;500;600&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Poppins:wght@300;400;500;600;700&display=swap"
     rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
     rel="stylesheet" />
 
   <!-- global.css WAJIB pertama -->
-  <link rel="stylesheet" href="/app/frontend/statis/global.css?v=33" />
-  <link rel="stylesheet" href="/app/frontend/pelanggan/detail_pelanggan.css?v=2" />
+  <link rel="stylesheet" href="/app/frontend/statis/global.css?v=48" />
+  <link rel="stylesheet" href="/app/frontend/pelanggan/detail_pelanggan.css?v=5" />
 </head>
 
 <body>
 
-  <!-- ══ HEADER ══ -->
+  <!-- â•â• HEADER â•â• -->
   <header class="header">
     <div class="header-inner">
       <div class="header-brand">
@@ -42,7 +42,7 @@
         <a href="#" onclick="openPerangkatSheet(event)" data-perm="perangkat">
           <span class="material-symbols-outlined">router</span>Perangkat
         </a>
-        <a href="#" onclick="openKeuanganSheet(event)" data-perm="keuangan"><span class="material-symbols-outlined">payments</span>Keuangan</a>
+        <a href="#" onclick="openKeuanganSheet(event)" data-perm="keuangan"><span class="material-symbols-outlined">payments</span>Layanan</a>
         <a href="/app/frontend/maps/maps.html" data-perm="maps">
           <span class="material-symbols-outlined">map</span>Maps
         </a>
@@ -71,7 +71,7 @@
           <a href="/app/frontend/profile/profile.html" class="profile-menu-item">
             <span class="material-symbols-outlined">person</span>Profil saya
           </a>
-          <a href="/app/frontend/setting/setting.html" class="profile-menu-item">
+          <a href="/app/frontend/setting/setting.html" class="profile-menu-item btn-owner-only">
             <span class="material-symbols-outlined">settings</span>Setting
           </a>
           <a href="/app/frontend/langganan/langganan.html" class="profile-menu-item btn-owner-only">
@@ -91,7 +91,7 @@
   </header>
 
 
-    <!-- ══ BOTTOM NAVBAR — MOBILE ONLY ══ -->
+    <!-- â•â• BOTTOM NAVBAR — MOBILE ONLY â•â• -->
   <nav class="bottom-nav">
     <div class="bottom-nav-inner">
       <div class="bottom-nav-indicator" id="bottom-nav-indicator"></div>
@@ -109,7 +109,7 @@
       </a>
       <a href="#" onclick="openKeuanganSheet(event)" class="bottom-nav-item" data-perm="keuangan">
         <div class="bottom-nav-icon"><span class="material-symbols-outlined">payments</span></div>
-        <span class="bottom-nav-label">Keuangan</span>
+        <span class="bottom-nav-label">Layanan</span>
       </a>
       <a href="/app/frontend/maps/maps.html" class="bottom-nav-item " data-perm="maps">
         <div class="bottom-nav-icon"><span class="material-symbols-outlined">map</span></div>
@@ -119,7 +119,7 @@
   </nav>
 
 
-  <!-- ══ PAGE ══ -->
+  <!-- â•â• PAGE â•â• -->
   <main class="page">
 
     <!-- BREADCRUMB -->
@@ -150,10 +150,27 @@
       <!-- Info nama + chips -->
       <div class="dp-hero-info-body">
         <div class="dp-hero-name" id="dp-username">—</div>
+        <div class="dp-hero-meta">
+          <span class="dp-status-badge" id="dp-status-badge">
+            <span class="badge-dot"></span>
+            <span id="dp-status-label">—</span>
+          </span>
+          <span class="dp-meta-chip accent">
+            <span class="material-symbols-outlined">wifi</span>
+            <span id="dp-profil">—</span>
+          </span>
+          <span class="dp-meta-chip">
+            <span class="material-symbols-outlined">call</span>
+            <span id="dp-hp">—</span>
+          </span>
+          <span id="dp-badge-prioritas" style="display:none;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;font-size:11px;font-weight:700;padding:2px 10px;border-radius:99px;letter-spacing:.04em">
+            ★ PRIORITAS
+          </span>
+        </div>
       </div>
     </div>
 
-    <!-- ══ ACTION BUTTONS BAR ══ -->
+    <!-- â•â• ACTION BUTTONS BAR â•â• -->
     <div class="dp-action-bar" id="dp-action-bar-full">
       <!-- Grup 1: Enable + Disable -->
       <div class="dp-action-group">
@@ -173,10 +190,15 @@
           <span class="material-symbols-outlined">settings_remote</span>Remote Modem
         </button>
       </div>
-      <!-- Grup 3: Isolir + Hapus -->
+      <!-- Grup 3: Isolir + Piutang + Hapus -->
       <div class="dp-action-group">
         <button class="dp-action-btn amber"   onclick="aksiModem('isolir')"  title="Ubah profil ke Isolir & tendang sesi aktif">
           <span class="material-symbols-outlined">person_off</span>Isolir
+        </button>
+        <button class="dp-action-btn" id="btn-dp-piutang" onclick="aksiPiutang()"
+          title="Setujui piutang — aktifkan internet, pelanggan bayar nanti"
+          style="background:var(--purple-bg,#f3e8ff);color:var(--purple,#7c3aed);border:1.5px solid #ddd6fe;display:none">
+          <span class="material-symbols-outlined">handshake</span>Setujui Piutang
         </button>
         <button class="dp-action-btn red"     onclick="openModalHapusPelanggan()" title="Hapus data pelanggan">
           <span class="material-symbols-outlined">delete</span>Hapus Pelanggan
@@ -198,7 +220,7 @@
     <!-- DETAIL GRID -->
     <div class="dp-grid">
 
-      <!-- ─── KOLOM KIRI ─── -->
+      <!-- â”€â”€â”€ KOLOM KIRI â”€â”€â”€ -->
       <div class="dp-col">
 
         <!-- Info pelanggan ringkas KHUSUS KOLEKTOR -->
@@ -329,7 +351,7 @@
 
       </div><!-- /.dp-col kiri -->
 
-      <!-- ─── KOLOM KANAN — CLI OLT Registration ─── -->
+      <!-- â”€â”€â”€ KOLOM KANAN — CLI OLT Registration â”€â”€â”€ -->
       <div class="dp-col">
         <div class="dp-card dp-card-cli">
 
@@ -364,6 +386,11 @@
 
           <!-- Tombol Registrasi Ulang & help -->
           <div class="dp-cli-actions">
+            <!-- Catatan konfigurasi manual ONU (dari data OLT) -->
+            <div class="dp-cli-help" id="dp-cli-catatan" style="display:none;background:#fff7e6;border-color:rgba(245,158,11,.3);">
+              <span class="material-symbols-outlined" style="color:#f59e0b;">warning</span>
+              <span id="dp-cli-catatan-text"></span>
+            </div>
             <div class="dp-cli-help">
               <span class="material-symbols-outlined">info</span>
               <span>Salin perintah di atas dan jalankan di terminal OLT, atau klik <strong>Regis Ulang</strong> untuk provisioning otomatis via SSH ke OLT.</span>
@@ -409,9 +436,9 @@
   </main>
 
 
-  <!-- ══════════════════════════════════════════════════════════
+  <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
        MODAL: HAPUS PELANGGAN — Checkbox Billing / MikroTik / OLT
-  ══════════════════════════════════════════════════════════ -->
+  â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
   <div class="modal-overlay modal-hapus-bottom" id="modal-hapus-pelanggan" onclick="_closeModalOnOverlay(event,'modal-hapus-pelanggan')">
     <div class="modal-sheet modal-hapus-sheet" onclick="event.stopPropagation()">
       <div class="modal-handle"></div>
@@ -426,12 +453,12 @@
       <!-- Opsi target hapus -->
       <div class="hapus-options">
         <label class="hapus-option">
-          <input type="checkbox" id="hapus-billing" checked>
+          <input type="checkbox" id="hapus-billing" checked disabled>
           <div class="hapus-option-body">
             <span class="material-symbols-outlined">receipt_long</span>
             <div>
               <div class="hapus-option-title">Billing</div>
-              <div class="hapus-option-desc">Hapus data dari database billing TechnoFix</div>
+              <div class="hapus-option-desc">Hapus data dari database billing TechnoFix (selalu aktif)</div>
             </div>
           </div>
         </label>
@@ -474,9 +501,9 @@
   </div>
 
 
-  <!-- ══════════════════════════════════════════════════════════
+  <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
        MODAL: ISOLIR PELANGGAN
-  ══════════════════════════════════════════════════════════ -->
+  â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
   <div class="modal-overlay modal-bs" id="modal-isolir" onclick="_closeModalOnOverlay(event,'modal-isolir')">
     <div class="modal-sheet modal-bs-sheet small" onclick="event.stopPropagation()">
       <div class="modal-handle"></div>
@@ -499,9 +526,9 @@
   </div>
 
 
-  <!-- ══════════════════════════════════════════════════════════
+  <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
        MODAL: REMOTE MODEM — Input IP
-  ══════════════════════════════════════════════════════════ -->
+  â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
   <div class="modal-overlay modal-bs" id="modal-remote" onclick="_closeModalOnOverlay(event,'modal-remote')">
     <div class="modal-sheet modal-bs-sheet" onclick="event.stopPropagation()">
       <div class="modal-handle"></div>
@@ -544,9 +571,9 @@
   </div>
 
 
-  <!-- ══════════════════════════════════════════════════════════
+  <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
        MODAL: KONFIRMASI REBOOT
-  ══════════════════════════════════════════════════════════ -->
+  â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
   <div class="modal-overlay modal-bs" id="modal-reboot" onclick="_closeModalOnOverlay(event,'modal-reboot')">
     <div class="modal-sheet modal-bs-sheet small" onclick="event.stopPropagation()">
       <div class="modal-handle"></div>
@@ -569,9 +596,9 @@
   </div>
 
 
-  <!-- ══════════════════════════════════════════════════════════
+  <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
        MODAL: KONFIRMASI DISABLE
-  ══════════════════════════════════════════════════════════ -->
+  â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
   <div class="modal-overlay modal-bs" id="modal-disable" onclick="_closeModalOnOverlay(event,'modal-disable')">
     <div class="modal-sheet modal-bs-sheet small" onclick="event.stopPropagation()">
       <div class="modal-handle"></div>
@@ -594,9 +621,9 @@
   </div>
 
 
-  <!-- ══════════════════════════════════════════════════════════
+  <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
        MODAL: KONFIRMASI ENABLE
-  ══════════════════════════════════════════════════════════ -->
+  â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
   <div class="modal-overlay modal-bs" id="modal-enable" onclick="_closeModalOnOverlay(event,'modal-enable')">
     <div class="modal-sheet modal-bs-sheet small" onclick="event.stopPropagation()">
       <div class="modal-handle"></div>
@@ -618,7 +645,7 @@
   </div>
 
 
-  <!-- ══ MODAL: KONFIRMASI LOGOUT ══ -->
+  <!-- â•â• MODAL: KONFIRMASI LOGOUT â•â• -->
   <div class="modal-overlay" id="modal-logout" onclick="closeModalLogout(event)">
     <div class="modal-sheet small" onclick="event.stopPropagation()">
       <div class="modal-handle"></div>
@@ -637,128 +664,11 @@
     </div>
   </div>
 
-  <!-- ══ MODAL: GANTI PASSWORD ══ -->
-  <div class="modal-overlay" id="modal-ganti-password" onclick="closeModalGantiPassword(event)">
-    <div class="modal-sheet" style="max-width:400px" onclick="event.stopPropagation()">
-      <div class="modal-handle"></div>
-      <div style="padding:20px 24px 0">
-        <h2 style="font-family:var(--heading);font-size:16px;font-weight:800;color:var(--text);margin-bottom:4px">
-          Ganti Password
-        </h2>
-        <p style="font-size:12px;color:var(--text-dim);margin-bottom:20px">
-          Gunakan minimal 8 karakter dengan kombinasi huruf dan angka.
-        </p>
-        <div class="form-group" style="margin-bottom:14px">
-          <label class="form-label">Password saat ini <span class="req">*</span></label>
-          <div class="form-pwd-wrap">
-            <input type="password" class="form-input" id="pwd-lama" placeholder="Masukkan password lama" />
-            <button class="form-pwd-toggle" onclick="togglePwd('pwd-lama','eye-lama')" tabindex="-1">
-              <span class="material-symbols-outlined" id="eye-lama">visibility</span>
-            </button>
-          </div>
-        </div>
-        <div class="form-group" style="margin-bottom:14px">
-          <label class="form-label">Password baru <span class="req">*</span></label>
-          <div class="form-pwd-wrap">
-            <input type="password" class="form-input" id="pwd-baru" placeholder="Minimal 8 karakter" />
-            <button class="form-pwd-toggle" onclick="togglePwd('pwd-baru','eye-baru')" tabindex="-1">
-              <span class="material-symbols-outlined" id="eye-baru">visibility</span>
-            </button>
-          </div>
-        </div>
-        <div class="form-group" style="margin-bottom:4px">
-          <label class="form-label">Konfirmasi password baru <span class="req">*</span></label>
-          <div class="form-pwd-wrap">
-            <input type="password" class="form-input" id="pwd-konfirm" placeholder="Ulangi password baru" />
-            <button class="form-pwd-toggle" onclick="togglePwd('pwd-konfirm','eye-konfirm')" tabindex="-1">
-              <span class="material-symbols-outlined" id="eye-konfirm">visibility</span>
-            </button>
-          </div>
-        </div>
-        <p class="form-hint" id="pwd-hint" style="min-height:16px;color:var(--red);display:none"></p>
-      </div>
-      <div class="form-actions" style="padding:16px 24px;margin-top:0">
-        <button class="btn btn-cancel" onclick="closeModalGantiPassword()">Batal</button>
-        <button class="btn-primary" onclick="submitGantiPassword()">
-          <span class="material-symbols-outlined">lock_reset</span>Simpan password
-        </button>
-      </div>
-    </div>
-  </div>
 
   <!-- TOAST -->
   <div id="toast"></div>
 
-    <!-- Scripts: global.js WAJIB sebelum detail_pelanggan.js -->
-  <!-- ══ MODAL LOGOUT ══ -->
-  <div class="modal-overlay" id="modal-logout" onclick="closeModalLogout(event)">
-    <div class="modal">
-      <div class="modal-header">
-        <h3 class="modal-title">Konfirmasi Keluar</h3>
-      </div>
-      <div class="modal-body">
-        <p style="color:var(--text-muted);font-size:14px">Apakah Anda yakin ingin keluar dari sesi ini?</p>
-      </div>
-      <div class="form-actions">
-        <button class="btn btn-cancel" onclick="closeModalLogout(event)">Batal</button>
-        <button class="btn-primary" style="background:var(--red)" onclick="doLogout()">
-          <span class="material-symbols-outlined">logout</span>Keluar
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ══ MODAL GANTI PASSWORD ══ -->
-  <div class="modal-overlay" id="modal-ganti-password" onclick="closeModalGantiPassword(event)">
-    <div class="modal">
-      <div class="modal-header">
-        <h3 class="modal-title">Ganti Password</h3>
-      </div>
-      <div class="modal-body" style="display:flex;flex-direction:column;gap:12px">
-        <div class="form-group">
-          <label class="form-label">Password Lama</label>
-          <div class="pwd-wrap">
-            <input type="password" class="form-input" id="pwd-lama" placeholder="Password saat ini" />
-            <button type="button" class="pwd-eye" onclick="togglePwd('pwd-lama','eye-lama')">
-              <span class="material-symbols-outlined" id="eye-lama">visibility</span>
-            </button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Password Baru</label>
-          <div class="pwd-wrap">
-            <input type="password" class="form-input" id="pwd-baru" placeholder="Min. 8 karakter" />
-            <button type="button" class="pwd-eye" onclick="togglePwd('pwd-baru','eye-baru')">
-              <span class="material-symbols-outlined" id="eye-baru">visibility</span>
-            </button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Konfirmasi Password Baru</label>
-          <div class="pwd-wrap">
-            <input type="password" class="form-input" id="pwd-konfirm" placeholder="Ulangi password baru" />
-            <button type="button" class="pwd-eye" onclick="togglePwd('pwd-konfirm','eye-konfirm')">
-              <span class="material-symbols-outlined" id="eye-konfirm">visibility</span>
-            </button>
-          </div>
-        </div>
-        <p class="form-hint" id="pwd-hint" style="display:none"></p>
-      </div>
-      <div class="form-actions">
-        <button class="btn btn-cancel" onclick="closeModalGantiPassword(event)">Batal</button>
-        <button class="btn-primary" onclick="submitGantiPassword()">
-          <span class="material-symbols-outlined">save</span>Simpan
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ══ MODAL SETTING ══ -->
-
-  <!-- ══ TOAST ══ -->
-  <div id="toast"></div>
-
-  <!-- ══ PERANGKAT SHEET ══ -->
+  <!-- â•â• PERANGKAT SHEET â•â• -->
   <div class="psheet-overlay" id="psheet-overlay" onclick="closePerangkatSheet()"></div>
   <div class="psheet" id="psheet" role="dialog" aria-modal="true" aria-label="Pilih Perangkat">
     <div class="psheet-handle"></div>
@@ -808,8 +718,7 @@
         <div class="psheet-item-badge">Distribusi</div>
         <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
       </a>
-      <a href="/app/frontend/genieacs/onu.html" class="psheet-item psheet-onu" data-perm="perangkat"><div class="psheet-item-icon"><span class="material-symbols-outlined">wifi</span></div><div class="psheet-item-body"><div class="psheet-item-name">ONU / GenieACS</div><div class="psheet-item-desc">Monitoring & remote TR-069</div></div><div class="psheet-item-badge">TR-069</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
-    </div>
+   </div>
   </div>
 
   <!-- Scripts -->
@@ -826,12 +735,35 @@
       <a href="/app/frontend/keuangan/keuangan.html" class="psheet-item psheet-keuangan"><div class="psheet-item-icon"><span class="material-symbols-outlined">payments</span></div><div class="psheet-item-body"><div class="psheet-item-name">Keuangan</div><div class="psheet-item-desc">Pemasukan & pengeluaran</div></div><div class="psheet-item-badge">Kas</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
       <a href="/app/frontend/tagihan/tagihan.html" class="psheet-item psheet-tagihan" data-perm="keuangan"><div class="psheet-item-icon"><span class="material-symbols-outlined">receipt_long</span></div><div class="psheet-item-body"><div class="psheet-item-name">Tagihan</div><div class="psheet-item-desc">Tagihan bulanan pelanggan</div></div><div class="psheet-item-badge">Invoice</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
       <a href="/app/frontend/loket/loket.html" class="psheet-item psheet-loket" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">point_of_sale</span></div><div class="psheet-item-body"><div class="psheet-item-name">Loket / Kasir</div><div class="psheet-item-desc">Terima bayar + komisi</div></div><div class="psheet-item-badge">Kasir</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
-      <a href="/app/frontend/notifikasi/wa.html" class="psheet-item psheet-wa" data-perm="pelanggan"><div class="psheet-item-icon"><span class="material-symbols-outlined">chat</span></div><div class="psheet-item-body"><div class="psheet-item-name">Notifikasi WA</div><div class="psheet-item-desc">Pengingat tagihan WhatsApp</div></div><div class="psheet-item-badge">Reminder</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/notifikasi/wa.html" class="psheet-item psheet-wa" data-perm="pelanggan_manage"><div class="psheet-item-icon"><span class="material-symbols-outlined">chat</span></div><div class="psheet-item-body"><div class="psheet-item-name">Notifikasi WA</div><div class="psheet-item-desc">Pengingat tagihan WhatsApp</div></div><div class="psheet-item-badge">Reminder</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
       <a href="/app/frontend/pembayaran/payment.html" class="psheet-item psheet-payment" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">credit_card</span></div><div class="psheet-item-body"><div class="psheet-item-name">Bayar Online</div><div class="psheet-item-desc">Midtrans / Xendit</div></div><div class="psheet-item-badge">Gateway</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/tiket/tiket.html" class="psheet-item psheet-tiket" data-perm="pelanggan"><div class="psheet-item-icon"><span class="material-symbols-outlined">support_agent</span></div><div class="psheet-item-body"><div class="psheet-item-name">Tiket Laporan <span id="tiket-badge-nav" style="display:none;background:#dc2626;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:6px;vertical-align:1px"></span></div><div class="psheet-item-desc">Laporan gangguan pelanggan</div></div><div class="psheet-item-badge">Support</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
     </div>
   </div>
-  <script src="/app/frontend/statis/global.js?v=26"></script>
-  <script src="/app/frontend/pelanggan/detail_pelanggan.js?v=8"></script>
+  <!-- MODAL: SETUJUI PIUTANG (dari detail pelanggan) -->
+  <div class="modal-overlay" id="modal-dp-piutang" onclick="if(event.target===this)tutupModalDpPiutang()">
+    <div class="modal-sheet small" onclick="event.stopPropagation()">
+      <div class="modal-handle"></div>
+      <div class="hapus-icon-wrap" style="background:var(--purple-bg,#f3e8ff)">
+        <span class="material-symbols-outlined hapus-icon" style="color:var(--purple,#7c3aed)">handshake</span>
+      </div>
+      <div class="hapus-title">Setujui Piutang?</div>
+      <div class="hapus-sub">
+        Pelanggan <strong id="dp-piutang-nama">—</strong> akan diaktifkan kembali.<br>
+        Tagihan bulan ini menjadi <strong>piutang</strong> — internet aktif, bayar nanti.
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="tutupModalDpPiutang()">Batal</button>
+        <button class="btn" id="btn-dp-piutang-ok" onclick="eksekusiDpPiutang()"
+          style="background:var(--purple,#7c3aed);color:#fff;gap:6px;display:flex;align-items:center">
+          <span class="material-symbols-outlined">handshake</span>Ya, Setujui
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/app/frontend/statis/global.js?v=43"></script>
+  <script src="/app/frontend/pelanggan/detail_pelanggan.js?v=18"></script>
 
 </body>
 </html>

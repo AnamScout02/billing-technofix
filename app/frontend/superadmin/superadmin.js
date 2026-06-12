@@ -33,6 +33,9 @@ async function init(){
 
   loadOwners();
   loadRequests();
+  loadStats();
+  loadSuperadmins();
+  loadLogs();
 }
 
 /* ── Permintaan upgrade ── */
@@ -99,7 +102,7 @@ function renderStats(){
 
 function renderTable(list){
   const tb = document.getElementById('sa-tbody');
-  if(!list.length){ tb.innerHTML='<tr><td colspan="7" class="sa-loading">Belum ada owner.</td></tr>'; return; }
+  if(!list.length){ tb.innerHTML='<tr><td colspan="9" class="sa-loading">Belum ada owner.</td></tr>'; return; }
   tb.innerHTML = list.map(o=>{
     const s = o.status_efektif;
     const badge = `<span class="sa-badge ${s}"><span class="dot"></span>${({trial:'Trial',active:'Aktif',locked:'Terkunci',suspended:'Disuspend'}[s]||s)}</span>`;
@@ -110,9 +113,12 @@ function renderTable(list){
       <td><span class="sa-pkg">${esc(o.paket_nama||o.paket)}</span></td>
       <td>${badge}</td>
       <td>${o.jumlah_user}</td>
+      <td>${o.jumlah_user_aktif} aktif</td>
+      <td>${o.jumlah_pelanggan ?? 0}</td>
       <td>${berlaku}</td>
       <td>${fmtTgl(o.created_at)}</td>
       <td class="ta-right"><div class="sa-actions">
+        <button class="sa-ico" title="Lihat detail" onclick="openDetail('${nid}')"><span class="material-symbols-outlined">visibility</span></button>
         <button class="sa-ico green" title="Aktifkan paket" onclick="openActivate('${nid}')"><span class="material-symbols-outlined">bolt</span></button>
         <button class="sa-ico amber" title="Perpanjang trial" onclick="extendTrial('${nid}')"><span class="material-symbols-outlined">more_time</span></button>
         ${ s==='suspended'
@@ -182,6 +188,159 @@ async function hapus(nid, nama){
   const r = await fetch(`${ADMIN_API}/networks/${nid}`, { method:'DELETE', credentials:'include' });
   toast(r.ok?'Owner dihapus':'Gagal menghapus', r.ok?'success':'danger'); if(r.ok) loadOwners();
 }
+
+/* ── Statistik pendapatan & distribusi paket ── */
+function fmtRupiah(n){ return 'Rp ' + Number(n||0).toLocaleString('id-ID'); }
+
+async function loadStats(){
+  try{
+    const r = await fetch(`${ADMIN_API}/stats`, { credentials:'include' });
+    const d = await r.json();
+    if(!r.ok) return;
+    document.getElementById('rv-mrr').textContent  = fmtRupiah(d.mrr);
+    document.getElementById('rv-paid').textContent = d.paid_owners;
+    document.getElementById('rv-arpu').textContent = fmtRupiah(d.arpu);
+    const wrap = document.getElementById('sa-pkg-chips');
+    if(!d.distribusi || !d.distribusi.length){
+      wrap.innerHTML = '<div class="sa-loading">Belum ada owner berlangganan paket berbayar.</div>';
+      return;
+    }
+    wrap.innerHTML = d.distribusi.map(p => `
+      <div class="sa-req">
+        <div class="sa-req-info">
+          <div class="sa-req-isp">${esc(p.paket_nama)}</div>
+          <div class="sa-req-sub">${p.jumlah} owner × ${fmtRupiah(p.harga)} = ${fmtRupiah(p.subtotal)} /bln</div>
+        </div>
+      </div>`).join('');
+    /* render visual bar chart */
+    if (typeof renderPkgBarChart === 'function') {
+      renderPkgBarChart(d.distribusi.map(p => ({ paket: p.paket_nama, count: p.jumlah })));
+    }
+  }catch{ /* abaikan */ }
+}
+
+/* ── Manajemen akun Super Admin ── */
+let _admins = [];
+
+async function loadSuperadmins(){
+  try{
+    const r = await fetch(`${ADMIN_API}/superadmins`, { credentials:'include' });
+    const d = await r.json();
+    _admins = d.admins || [];
+    renderAdminTable();
+  }catch{
+    document.getElementById('sa-admin-tbody').innerHTML =
+      '<tr><td colspan="4" class="sa-loading">Gagal memuat data.</td></tr>';
+  }
+}
+
+function renderAdminTable(){
+  const tb = document.getElementById('sa-admin-tbody');
+  if(!_admins.length){ tb.innerHTML = '<tr><td colspan="4" class="sa-loading">Belum ada akun.</td></tr>'; return; }
+  tb.innerHTML = _admins.map(a => `
+    <tr>
+      <td>${esc(a.username)}</td>
+      <td>${fmtTgl(a.created_at)}</td>
+      <td>${a.last_login ? fmtTgl(a.last_login) : '-'}</td>
+      <td class="ta-right"><div class="sa-actions">
+        <button class="sa-ico red" title="Hapus akun" onclick="deleteSuperadmin(${a.id},'${esc(a.username)}')"><span class="material-symbols-outlined">delete</span></button>
+      </div></td>
+    </tr>`).join('');
+}
+
+function openAddSuperadmin(){
+  document.getElementById('sa-admin-username').value = '';
+  document.getElementById('sa-admin-password').value = '';
+  document.getElementById('sa-admin-modal').classList.add('open');
+}
+function closeAdminModal(e){ if(e && e.target!==e.currentTarget) return; document.getElementById('sa-admin-modal').classList.remove('open'); }
+
+async function doAddSuperadmin(){
+  const username = document.getElementById('sa-admin-username').value.trim();
+  const password = document.getElementById('sa-admin-password').value.trim();
+  if(!username) return toast('Username wajib diisi','danger');
+  if(password.length < 6) return toast('Password minimal 6 karakter','danger');
+  const btn = document.getElementById('sa-admin-confirm'); btn.disabled = true;
+  try{
+    const r = await fetch(`${ADMIN_API}/superadmins`, {
+      method:'POST', credentials:'include', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ username, password }),
+    });
+    const d = await r.json();
+    if(r.ok){ toast(d.message||'Akun ditambahkan','success'); closeAdminModal(); loadSuperadmins(); loadLogs(); }
+    else toast(d.message||'Gagal','danger');
+  }catch{ toast('Tidak bisa menghubungi server','danger'); }
+  btn.disabled = false;
+}
+
+async function deleteSuperadmin(id, username){
+  if(!confirm(`Hapus akun superadmin "${username}"?`)) return;
+  const r = await fetch(`${ADMIN_API}/superadmins/${id}`, { method:'DELETE', credentials:'include' });
+  const d = await r.json();
+  toast(r.ok?(d.message||'Akun dihapus'):(d.message||'Gagal'), r.ok?'success':'danger');
+  if(r.ok){ loadSuperadmins(); loadLogs(); }
+}
+
+/* ── Log aktivitas ── */
+async function loadLogs(){
+  try{
+    const r = await fetch(`${ADMIN_API}/logs`, { credentials:'include' });
+    const d = await r.json();
+    const tb = document.getElementById('sa-log-tbody');
+    const list = d.logs || [];
+    if(!list.length){ tb.innerHTML = '<tr><td colspan="5" class="sa-loading">Belum ada aktivitas.</td></tr>'; return; }
+    tb.innerHTML = list.map(l => `
+      <tr>
+        <td>${fmtTgl(l.created_at)}</td>
+        <td>${esc(l.admin)}</td>
+        <td>${esc(l.aksi)}</td>
+        <td>${esc(l.target)||'-'}</td>
+        <td>${esc(l.detail)||'-'}</td>
+      </tr>`).join('');
+  }catch{
+    document.getElementById('sa-log-tbody').innerHTML =
+      '<tr><td colspan="5" class="sa-loading">Gagal memuat log.</td></tr>';
+  }
+}
+
+/* ── Detail / drill-down owner ── */
+async function openDetail(nid){
+  const modal = document.getElementById('sa-detail-modal');
+  const body  = document.getElementById('sa-detail-body');
+  body.innerHTML = '<div class="sa-loading"><span class="material-symbols-outlined spin">progress_activity</span> Memuat…</div>';
+  modal.classList.add('open');
+  try{
+    const r = await fetch(`${ADMIN_API}/networks/${nid}/detail`, { credentials:'include' });
+    const d = await r.json();
+    if(!r.ok){ body.innerHTML = `<div class="sa-loading">${esc(d.message||'Gagal memuat detail')}</div>`; return; }
+    const teamRows = (d.team||[]).map(u => `
+      <tr>
+        <td>${esc(u.nama || u.username)}</td>
+        <td>${esc(u.role)}</td>
+        <td>${(u.aktif===null || u.aktif===1) ? 'Aktif' : 'Nonaktif'}</td>
+      </tr>`).join('') || '<tr><td colspan="3" class="sa-loading">Belum ada anggota tim.</td></tr>';
+    body.innerHTML = `
+      <div class="sa-owner-chip">${esc(d.isp_name)}</div>
+      <div class="sa-form-row" style="margin-top:14px">
+        <div class="sa-form-group"><label class="sa-label">Paket</label><div>${esc(d.paket)}</div></div>
+        <div class="sa-form-group"><label class="sa-label">Status</label><div>${esc(d.status)}</div></div>
+        <div class="sa-form-group"><label class="sa-label">Terdaftar</label><div>${fmtTgl(d.created_at)}</div></div>
+      </div>
+      <div class="sa-form-row" style="margin-top:6px">
+        <div class="sa-form-group"><label class="sa-label">Jumlah Pelanggan</label><div>${d.jumlah_pelanggan}</div></div>
+        <div class="sa-form-group"><label class="sa-label">Jumlah Perangkat</label><div>${d.jumlah_perangkat}</div></div>
+        <div class="sa-form-group"><label class="sa-label">Anggota Tim</label><div>${(d.team||[]).length}</div></div>
+      </div>
+      <label class="sa-label" style="margin-top:14px;display:block">Anggota Tim</label>
+      <div class="sa-table-wrap"><table class="sa-table">
+        <thead><tr><th>Nama</th><th>Peran</th><th>Status</th></tr></thead>
+        <tbody>${teamRows}</tbody>
+      </table></div>`;
+  }catch{
+    body.innerHTML = '<div class="sa-loading">Tidak bisa menghubungi server</div>';
+  }
+}
+function closeDetailModal(e){ if(e && e.target!==e.currentTarget) return; document.getElementById('sa-detail-modal').classList.remove('open'); }
 
 async function adminLogout(){
   try{ await fetch(`${ADMIN_API}/logout`, { method:'POST', credentials:'include' }); }catch{}

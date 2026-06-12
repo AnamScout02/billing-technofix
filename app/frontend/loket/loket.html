@@ -1,19 +1,19 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8" /><script>(function(){var t=localStorage.getItem("tf_theme");if(t)document.documentElement.dataset.theme=t;else if(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)document.documentElement.dataset.theme="dark";})();</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Loket / Kasir — TechnoFix</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
-  <link rel="stylesheet" href="/app/frontend/statis/global.css?v=33" />
-  <link rel="stylesheet" href="/app/frontend/loket/loket.css?v=3" />
+  <link rel="stylesheet" href="/app/frontend/statis/global.css?v=48" />
+  <link rel="stylesheet" href="/app/frontend/loket/loket.css?v=7" />
 </head>
 <body>
 
-  <!-- ══ HEADER ══ -->
+  <!-- â•â• HEADER â•â• -->
   <header class="header">
     <div class="header-inner">
       <div class="header-brand">
@@ -24,12 +24,12 @@
         <a href="/app/frontend/dashboard/dashboard.html"><span class="material-symbols-outlined">dashboard</span>Dashboard</a>
         <a href="/app/frontend/pelanggan/pelanggan.html"><span class="material-symbols-outlined">group</span>Pelanggan</a>
         <a href="#" onclick="openPerangkatSheet(event)" data-perm="perangkat"><span class="material-symbols-outlined">router</span>Perangkat</a>
-        <a href="#" onclick="openKeuanganSheet(event)" data-perm="keuangan"><span class="material-symbols-outlined">payments</span>Keuangan</a>
+        <a href="#" onclick="openKeuanganSheet(event)" data-perm="keuangan"><span class="material-symbols-outlined">payments</span>Layanan</a>
 
         <a href="/app/frontend/maps/maps.html" data-perm="maps"><span class="material-symbols-outlined">map</span>Maps</a>
       </nav>
       <div class="header-actions">
-                <button class="icon-btn" onclick="location.reload()" title="Refresh data">
+                <button class="icon-btn" onclick="loadKolektorList();loadStats();loadTagihan()" title="Refresh data">
           <span class="material-symbols-outlined" id="refresh-icon">refresh</span>
         </button>
         <div class="profile-wrap" id="profile-wrap">
@@ -48,7 +48,7 @@
           <a href="/app/frontend/profile/profile.html" class="profile-menu-item">
             <span class="material-symbols-outlined">person</span>Profil saya
           </a>
-          <a href="/app/frontend/setting/setting.html" class="profile-menu-item">
+          <a href="/app/frontend/setting/setting.html" class="profile-menu-item btn-owner-only">
             <span class="material-symbols-outlined">settings</span>Setting
           </a>
           <a href="/app/frontend/langganan/langganan.html" class="profile-menu-item btn-owner-only">
@@ -59,7 +59,7 @@
             <span class="material-symbols-outlined">manage_accounts</span>Manajemen user
           </a>
           <div class="profile-menu-divider"></div>
-          <a href="#" class="profile-menu-item logout" onclick="logout();return false;">
+          <a href="#" class="profile-menu-item logout" onclick="showModalLogout();return false;">
             <span class="material-symbols-outlined">logout</span>Keluar
           </a>
         </div>
@@ -68,7 +68,26 @@
     </div>
   </header>
 
-  <!-- ══ BOTTOM NAVBAR — MOBILE ONLY ══ -->
+  <!-- ══ MODAL LOGOUT ══ -->
+  <div class="modal-overlay" id="modal-logout" onclick="closeModalLogout(event)">
+    <div class="modal-sheet small" onclick="event.stopPropagation()">
+      <div class="modal-handle"></div>
+      <div class="hapus-icon-wrap" style="background:var(--amber-bg);color:var(--amber)">
+        <span class="material-symbols-outlined hapus-icon">logout</span>
+      </div>
+      <div class="hapus-title">Keluar dari akun?</div>
+      <div class="hapus-sub">Sesi Anda akan diakhiri.</div>
+      <div class="modal-footer">
+        <button class="btn btn-cancel" onclick="closeModalLogout()">Batal</button>
+        <button class="btn" onclick="logout()"
+          style="background:var(--amber-bg);border-color:var(--amber-border);color:var(--amber)">
+          <span class="material-symbols-outlined">logout</span>Ya, keluar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- â•â• BOTTOM NAVBAR — MOBILE ONLY â•â• -->
   <nav class="bottom-nav">
     <div class="bottom-nav-inner">
       <div class="bottom-nav-indicator" id="bottom-nav-indicator"></div>
@@ -86,7 +105,7 @@
       </a>
       <a href="#" class="bottom-nav-item active" onclick="openKeuanganSheet(event)" data-perm="keuangan">
         <div class="bottom-nav-icon"><span class="material-symbols-outlined">payments</span></div>
-        <span class="bottom-nav-label">Keuangan</span>
+        <span class="bottom-nav-label">Layanan</span>
       </a>
       <a href="/app/frontend/maps/maps.html" class="bottom-nav-item" data-perm="maps">
         <div class="bottom-nav-icon"><span class="material-symbols-outlined">map</span></div>
@@ -129,7 +148,7 @@
       <button class="tab" id="tab-rekap" onclick="switchTab('rekap')"><span class="material-symbols-outlined">leaderboard</span>Rekap Komisi</button>
     </div>
 
-    <!-- ── PANEL LOKET ── -->
+    <!-- â”€â”€ PANEL LOKET â”€â”€ -->
     <section id="panel-loket">
       <!-- Filter kolektor (owner/admin only, disembunyikan JS untuk kolektor) -->
       <div class="toolbar" id="lk-kol-filter-row" style="margin-bottom:8px">
@@ -144,6 +163,11 @@
         <div class="search-wrap"><span class="material-symbols-outlined">search</span>
           <input type="text" id="lk-search" placeholder="Cari nama / username pelanggan…" oninput="debLoad()" /></div>
         <input type="month" id="lk-periode" class="filter-select" onchange="loadTagihan()" />
+        <select class="filter-select" id="lk-per-page" onchange="ubahLkPerPage()" title="Baris per halaman" style="min-width:110px">
+          <option value="25">25 / halaman</option>
+          <option value="50" selected>50 / halaman</option>
+          <option value="100">100 / halaman</option>
+        </select>
       </div>
       <div class="table-wrap">
         <div class="table-scroll">
@@ -158,11 +182,14 @@
             </tbody>
           </table>
         </div>
-        <div class="table-footer"><span id="lk-count" style="font-size:12px;color:var(--text-dim)">—</span></div>
+        <div class="table-footer" style="display:flex;flex-direction:column;align-items:center;gap:10px">
+          <span id="lk-count" style="font-size:12px;color:var(--text-dim);align-self:flex-start">—</span>
+          <div id="lk-pagination" class="pagination" style="display:none"></div>
+        </div>
       </div>
     </section>
 
-    <!-- ── PANEL REKAP ── -->
+    <!-- â”€â”€ PANEL REKAP â”€â”€ -->
     <section id="panel-rekap" style="display:none">
       <div class="toolbar">
         <input type="month" id="rk-periode" class="filter-select" onchange="loadRekap()" />
@@ -188,7 +215,7 @@
     </section>
   </main>
 
-  <!-- ══ MODAL BAYAR ══ -->
+  <!-- â•â• MODAL BAYAR â•â• -->
   <div class="modal-overlay" id="bayar-overlay" onclick="closeBayar()"></div>
   <div class="modal" id="bayar-modal" role="dialog" aria-modal="true">
     <div class="modal-head">
@@ -214,7 +241,7 @@
     </div>
   </div>
 
-  <!-- ══ MODAL KOMISI ══ -->
+  <!-- â•â• MODAL KOMISI â•â• -->
   <div class="modal-overlay" id="km-overlay" onclick="closeKomisi()"></div>
   <div class="modal" id="km-modal" role="dialog" aria-modal="true">
     <div class="modal-head"><h2 class="modal-title">Pengaturan Komisi</h2>
@@ -244,12 +271,11 @@
     <div class="psheet-head"><div><p class="psheet-eyebrow">Manajemen Jaringan</p><h2 class="psheet-title">Pilih Perangkat</h2></div>
       <button class="psheet-close" onclick="closePerangkatSheet()"><span class="material-symbols-outlined">close</span></button></div>
     <div class="psheet-list">
-      <a href="/app/frontend/input_perangkat/input_mikrotik.html" class="psheet-item psheet-mikrotik"><div class="psheet-item-icon"><span class="material-symbols-outlined">router</span></div><div class="psheet-item-body"><div class="psheet-item-name">MikroTik</div><div class="psheet-item-desc">Router & bandwidth</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
-      <a href="/app/frontend/input_perangkat/input_olt.html" class="psheet-item psheet-olt"><div class="psheet-item-icon"><span class="material-symbols-outlined">settings_input_antenna</span></div><div class="psheet-item-body"><div class="psheet-item-name">OLT</div><div class="psheet-item-desc">Optical Line Terminal</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
-      <a href="/app/frontend/input_perangkat/input_odc.html" class="psheet-item psheet-odc"><div class="psheet-item-icon"><span class="material-symbols-outlined">storage</span></div><div class="psheet-item-body"><div class="psheet-item-name">ODC</div><div class="psheet-item-desc">Distribution Cabinet</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
-      <a href="/app/frontend/input_perangkat/input_odp.html" class="psheet-item psheet-odp"><div class="psheet-item-icon"><span class="material-symbols-outlined">hub</span></div><div class="psheet-item-body"><div class="psheet-item-name">ODP</div><div class="psheet-item-desc">Distribution Point</div></div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
-      <a href="/app/frontend/genieacs/onu.html" class="psheet-item psheet-onu" data-perm="perangkat"><div class="psheet-item-icon"><span class="material-symbols-outlined">wifi</span></div><div class="psheet-item-body"><div class="psheet-item-name">ONU / GenieACS</div><div class="psheet-item-desc">Monitoring & remote TR-069</div></div><div class="psheet-item-badge">TR-069</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
-    </div>
+      <a href="/app/frontend/input_perangkat/input_mikrotik.html" class="psheet-item psheet-mikrotik"><div class="psheet-item-icon"><span class="material-symbols-outlined">router</span></div><div class="psheet-item-body"><div class="psheet-item-name">MikroTik</div><div class="psheet-item-desc">Router & bandwidth</div></div><div class="psheet-item-badge">Router</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/input_perangkat/input_olt.html" class="psheet-item psheet-olt"><div class="psheet-item-icon"><span class="material-symbols-outlined">settings_input_antenna</span></div><div class="psheet-item-body"><div class="psheet-item-name">OLT</div><div class="psheet-item-desc">Optical Line Terminal</div></div><div class="psheet-item-badge">Fiber</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/input_perangkat/input_odc.html" class="psheet-item psheet-odc"><div class="psheet-item-icon"><span class="material-symbols-outlined">storage</span></div><div class="psheet-item-body"><div class="psheet-item-name">ODC</div><div class="psheet-item-desc">Distribution Cabinet</div></div><div class="psheet-item-badge">Cabinet</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/input_perangkat/input_odp.html" class="psheet-item psheet-odp"><div class="psheet-item-icon"><span class="material-symbols-outlined">hub</span></div><div class="psheet-item-body"><div class="psheet-item-name">ODP</div><div class="psheet-item-desc">Distribution Point</div></div><div class="psheet-item-badge">Point</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+   </div>
   </div>
 
 
@@ -265,11 +291,12 @@
       <a href="/app/frontend/keuangan/keuangan.html" class="psheet-item psheet-keuangan"><div class="psheet-item-icon"><span class="material-symbols-outlined">payments</span></div><div class="psheet-item-body"><div class="psheet-item-name">Keuangan</div><div class="psheet-item-desc">Pemasukan & pengeluaran</div></div><div class="psheet-item-badge">Kas</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
       <a href="/app/frontend/tagihan/tagihan.html" class="psheet-item psheet-tagihan" data-perm="keuangan"><div class="psheet-item-icon"><span class="material-symbols-outlined">receipt_long</span></div><div class="psheet-item-body"><div class="psheet-item-name">Tagihan</div><div class="psheet-item-desc">Tagihan bulanan pelanggan</div></div><div class="psheet-item-badge">Invoice</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
       <a href="/app/frontend/loket/loket.html" class="psheet-item psheet-loket" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">point_of_sale</span></div><div class="psheet-item-body"><div class="psheet-item-name">Loket / Kasir</div><div class="psheet-item-desc">Terima bayar + komisi</div></div><div class="psheet-item-badge">Kasir</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
-      <a href="/app/frontend/notifikasi/wa.html" class="psheet-item psheet-wa" data-perm="pelanggan"><div class="psheet-item-icon"><span class="material-symbols-outlined">chat</span></div><div class="psheet-item-body"><div class="psheet-item-name">Notifikasi WA</div><div class="psheet-item-desc">Pengingat tagihan WhatsApp</div></div><div class="psheet-item-badge">Reminder</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/notifikasi/wa.html" class="psheet-item psheet-wa" data-perm="pelanggan_manage"><div class="psheet-item-icon"><span class="material-symbols-outlined">chat</span></div><div class="psheet-item-body"><div class="psheet-item-name">Notifikasi WA</div><div class="psheet-item-desc">Pengingat tagihan WhatsApp</div></div><div class="psheet-item-badge">Reminder</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
       <a href="/app/frontend/pembayaran/payment.html" class="psheet-item psheet-payment" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">credit_card</span></div><div class="psheet-item-body"><div class="psheet-item-name">Bayar Online</div><div class="psheet-item-desc">Midtrans / Xendit</div></div><div class="psheet-item-badge">Gateway</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/tiket/tiket.html" class="psheet-item psheet-tiket" data-perm="pelanggan"><div class="psheet-item-icon"><span class="material-symbols-outlined">support_agent</span></div><div class="psheet-item-body"><div class="psheet-item-name">Tiket Laporan <span id="tiket-badge-nav" style="display:none;background:#dc2626;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:6px;vertical-align:1px"></span></div><div class="psheet-item-desc">Laporan gangguan pelanggan</div></div><div class="psheet-item-badge">Support</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
     </div>
   </div>
-  <script src="/app/frontend/statis/global.js?v=26"></script>
-  <script src="/app/frontend/loket/loket.js?v=4"></script>
+  <script src="/app/frontend/statis/global.js?v=43"></script>
+  <script src="/app/frontend/loket/loket.js?v=10"></script>
 </body>
 </html>

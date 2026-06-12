@@ -38,15 +38,19 @@ async function loadProfil() {
     setVal('f-hp-profile', u.hp || '');
 
     const displayName = u.nama || u.username;
+    const roleLabel = u.role ? (u.role.charAt(0).toUpperCase() + u.role.slice(1)) : '—';
+
     setText('profile-name-display', displayName);
     setText('profile-username', displayName);
     setText('dd-username', displayName);
+    setText('profile-username-display', u.username || '—');
+    setText('profile-role-display', roleLabel + (u.isp_name ? ' — ' + u.isp_name : ''));
     setText('profile-hp-display', u.hp || '—');
     setText('profile-paket', u.paket ? u.paket.toUpperCase() : '—');
     setText('profile-isp-name', u.isp_name || '—');
 
     const roleBadge = document.getElementById('dd-role-badge');
-    if (roleBadge && u.role) roleBadge.textContent = u.role.charAt(0).toUpperCase() + u.role.slice(1);
+    if (roleBadge) roleBadge.textContent = roleLabel;
 
     const initials = displayName.trim().slice(0, 2).toUpperCase();
     ['profile-avatar-big', 'avatar-initials', 'dd-avatar'].forEach(id => setText(id, initials));

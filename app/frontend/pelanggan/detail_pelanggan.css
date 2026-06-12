@@ -591,6 +591,9 @@
   user-select: none;
 }
 .hapus-option:hover { border-color: var(--primary); background: var(--primary-light); }
+.hapus-option:has(input[type="checkbox"]:disabled) { cursor: not-allowed; opacity: .75; }
+.hapus-option:has(input[type="checkbox"]:disabled):hover { border-color: var(--border); background: var(--surface); }
+.hapus-option input[type="checkbox"]:disabled { cursor: not-allowed; }
 
 /* Menyembunyikan checkbox asli lalu styling via sibling */
 .hapus-option input[type="checkbox"] {
@@ -899,8 +902,23 @@
 .rw-table .rw-col-periode { font-weight: 700; font-size: 13.5px; }
 .rw-table .rw-col-nominal { font-weight: 700; }
 .rw-table .rw-col-dim    { color: var(--text-dim); font-size: 12.5px; }
+/* Freeze kolom Periode */
+.rw-table .sticky-col-0,
+.rw-table thead .sticky-col-0 {
+  position: sticky; left: 0; z-index: 4; background: var(--bg);
+  min-width: 110px; border-right: 1px solid var(--border);
+  box-shadow: 2px 0 6px rgba(0,0,0,.05);
+}
+.rw-table thead .sticky-col-0 { background: var(--header-bg); z-index: 6; }
+.rw-table tbody tr:hover .sticky-col-0 { background: var(--surface); }
 
 .rw-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 99px; font-size: 11.5px; font-weight: 700; }
 .rw-badge .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
 .rw-lunas  { background: var(--green-bg); color: var(--green); } .rw-lunas .dot { background: var(--green); }
 .rw-belum  { background: var(--amber-bg); color: var(--amber); } .rw-belum .dot { background: var(--amber); }
+
+/* ── Row status subtle coloring ── */
+.row-online > td:first-child  { box-shadow: inset 3px 0 0 var(--green); }
+.row-offline > td:first-child { box-shadow: inset 3px 0 0 var(--red-border, #fca5a5); }
+tr.row-online:hover  > td { background: rgba(34,197,94,.04) !important; }
+tr.row-offline:hover > td { background: rgba(239,68,68,.04) !important; }

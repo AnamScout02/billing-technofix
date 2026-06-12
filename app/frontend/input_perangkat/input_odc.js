@@ -148,12 +148,13 @@ function renderOdc() {
         </div>
 
         <div class="device-actions">
+          ${(typeof hasPerm === 'function' ? hasPerm('perangkat_manage') : true) ? `
           <button class="btn btn-amber btn-sm" onclick="editOdc(${o.id})">
             <span class="material-symbols-outlined">edit</span> Edit
           </button>
           <button class="btn btn-red btn-sm" onclick="confirmDelete(${o.id})" title="Hapus ODC">
             <span class="material-symbols-outlined">delete</span>
-          </button>
+          </button>` : ''}
         </div>
 
       </div>`;
@@ -247,6 +248,18 @@ async function showForm(prefill = null) {
           <div class="koordinat-preview" id="koordinat-preview">
             <iframe id="koordinat-iframe" src="" loading="lazy"></iframe>
           </div>
+        </div>
+
+        <div class="form-group full">
+          <label class="form-label">Lokasi (alamat singkat, opsional)</label>
+          <input class="form-input" type="text" id="f-lokasi"
+                 placeholder="mis. Tiang depan Ruko Blok A No. 3" value="${v('lokasi')}">
+        </div>
+
+        <div class="form-group full">
+          <label class="form-label">Keterangan (opsional)</label>
+          <textarea class="form-input" id="f-keterangan" rows="3"
+                    placeholder="Catatan tambahan tentang ODC ini">${v('keterangan')}</textarea>
         </div>
 
       </div>
@@ -428,4 +441,4 @@ async function doDelete(id) {
 }
 
 // ── INIT ──────────────────────────────────────────────────────
-loadOdc();
+// (dipanggil via DOMContentLoaded di atas — jangan panggil ulang di sini)

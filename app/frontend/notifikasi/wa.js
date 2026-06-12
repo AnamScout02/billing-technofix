@@ -75,6 +75,7 @@ function openConfig() {
   document.getElementById('cfg-token').placeholder = _cfg.has_token ? '•••••• (tersimpan)' : 'token';
   document.getElementById('cfg-tpl').value = _cfg.template || '';
   document.getElementById('cfg-enabled').checked = !!_cfg.enabled;
+  document.getElementById('cfg-auto-enabled').checked = !!_cfg.auto_enabled;
   show('cfg');
 }
 function closeConfig() { hide('cfg'); }
@@ -83,6 +84,7 @@ async function saveConfig() {
     provider: document.getElementById('cfg-provider').value,
     url: document.getElementById('cfg-url').value.trim(),
     enabled: document.getElementById('cfg-enabled').checked,
+    auto_enabled: document.getElementById('cfg-auto-enabled').checked,
     template: document.getElementById('cfg-tpl').value.trim(),
   };
   const tk = document.getElementById('cfg-token').value; if (tk) body.token = tk;

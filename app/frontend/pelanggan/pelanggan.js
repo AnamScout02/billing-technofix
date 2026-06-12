@@ -12,7 +12,6 @@
       - openDetail()       → tampilkan No HP & Data OLT di detail
       - renderTabel()      → tampilkan kolom No HP dari data (sudah ada di HTML)
       - loadOltOptions()   → load OLT ke cache global (oltCache)
-      - generateCliScript()→ menggunakan data OLT terpilih
 
    Endpoint yang dipakai:
    GET    /devices                        → daftar perangkat
@@ -34,9 +33,7 @@ let _allData = [];
 let _filteredData = [];
 let currentPage = 1;
 let _editingId = null;
-let hapusTarget = null;
 let selectedDevice = null;
-let detailTarget = null;
 
 // Cache RX/TX dari endpoint terpisah
 let rxTxCache = {};
@@ -48,27 +45,28 @@ let sortDir = 'desc'; // 'asc' | 'desc'
 // ── BARU: Cache daftar OLT (agar tidak re-fetch setiap buka form) ──
 let oltCache = [];   // Array of { id, name, tipe, ip }
 
+// ── Pilihan massal checkbox ──
+let _selectedIds = new Set();   // Set berisi id pelanggan yang dicentang
+
 
 /* ══════════════════════════════════════════════════════════
    INIT
 ══════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', () => {
-  // Kolektor: sembunyikan tombol tambah, ganti header tabel
+  // Kolektor → halaman loket adalah satu-satunya workspace mereka
   const _role = localStorage.getItem('tf_role') || '';
   if (_role === 'kolektor') {
-    const btn = document.getElementById('btn-tambah-pelanggan');
-    if (btn) btn.style.display = 'none';
-    // Ganti header tabel ke versi kolektor
-    const thead = document.querySelector('#table-pelanggan thead tr');
-    if (thead) {
-      thead.innerHTML =
-        '<th class="sticky-col-1">#</th>' +
-        '<th class="sticky-col-2">Pelanggan</th>' +
-        '<th>No. HP</th>' +
-        '<th>Profil</th>' +
-        '<th>Tagihan</th>' +
-        '<th>Status</th>' +
-        '<th>Aksi</th>';
+    window.location.replace('/app/frontend/loket/loket.html');
+    return;
+  }
+
+  // Baca URL param ?status=offline dari dashboard → pre-set filter
+  const _urlStatus = new URLSearchParams(window.location.search).get('status');
+  if (_urlStatus) {
+    const _selStatus = document.getElementById('filter-status');
+    if (_selStatus) {
+      const _cap = _urlStatus.charAt(0).toUpperCase() + _urlStatus.slice(1).toLowerCase();
+      _selStatus.value = _cap;
     }
   }
 
@@ -104,29 +102,54 @@ document.addEventListener('DOMContentLoaded', () => {
    1. LOAD DAFTAR PERANGKAT
    GET /devices → isi <select id="select-device">
 ══════════════════════════════════════════════════════════ */
+const DEVICES_CACHE_KEY = 'tf_devices_cache';
+
+function _renderDeviceSelect(data) {
+  const selHeader = document.getElementById('select-device');
+  const prevValue = selHeader.value;
+  selHeader.innerHTML = '<option value="">— Pilih Perangkat —</option>';
+  data.forEach(d => {
+    selHeader.appendChild(new Option(`${d.name}  (${d.ip})`, d.id));
+  });
+
+  const savedDevice = localStorage.getItem('lastSelectedDevice');
+  if (prevValue && data.some(d => d.id == prevValue)) {
+    selHeader.value = prevValue;
+  } else if (savedDevice && data.some(d => d.id == savedDevice)) {
+    selHeader.value = savedDevice;
+  } else if (data.length === 1) {
+    selHeader.value = data[0].id;
+  } else {
+    selectedDevice = null;
+  }
+}
+
 async function loadDevices() {
+  // ── Stale-while-revalidate: tampilkan daftar perangkat dari cache
+  // localStorage dulu (instan), lalu refresh di background ──
+  let cached = null;
+  try {
+    const raw = localStorage.getItem(DEVICES_CACHE_KEY);
+    cached = raw ? JSON.parse(raw) : null;
+  } catch (e) { cached = null; }
+
+  if (cached && cached.length) {
+    _renderDeviceSelect(cached);
+    loadPelanggan();
+  }
+
   try {
     const res = await fetch(`${API_BASE}/devices`, { credentials: 'include', headers: getAuthHeaders() });
     const data = await res.json();
 
-    const selHeader = document.getElementById('select-device');
-    selHeader.innerHTML = '<option value="">— Pilih Perangkat —</option>';
-    data.forEach(d => {
-      selHeader.appendChild(new Option(`${d.name}  (${d.ip})`, d.id));
-    });
+    localStorage.setItem(DEVICES_CACHE_KEY, JSON.stringify(data));
 
-    const savedDevice = localStorage.getItem('lastSelectedDevice');
-    if (savedDevice && data.some(d => d.id == savedDevice)) {
-      selHeader.value = savedDevice;
-    } else if (data.length === 1) {
-      selHeader.value = data[0].id;
-    } else {
-      selectedDevice = null;
+    if (!cached || JSON.stringify(cached) !== JSON.stringify(data)) {
+      _renderDeviceSelect(data);
+      loadPelanggan();
     }
-
-    loadPelanggan();
   } catch (err) {
-    tampilError('Gagal memuat daftar perangkat. Pastikan server Python berjalan.');
+    if (!cached) tampilError('Gagal memuat daftar perangkat. Pastikan server Python berjalan.');
   }
 }
 
@@ -190,6 +213,12 @@ async function loadPelanggan() {
     const dataPelanggan = await resPelanggan.value.json();
     _allData = Array.isArray(dataPelanggan) ? dataPelanggan : [];
 
+    // Tandai mode fallback: MikroTik tidak bisa dihubungi (mis. mati lampu).
+    // Backend tetap mengirim data terakhir dari DB lokal (status dipaksa Offline).
+    if (resPelanggan.value.headers.get('X-Mikrotik-Connected') === '0') {
+      toast('Perangkat MikroTik sedang tidak bisa dihubungi — menampilkan data terakhir, status pelanggan dianggap offline.', 'warning');
+    }
+
     // Data RX/TX (opsional — tidak fatal jika gagal)
     rxTxCache = {};
     if (resRxTx.status === 'fulfilled' && resRxTx.value.ok) {
@@ -219,6 +248,10 @@ async function loadPelanggan() {
       }
       return p;
     });
+
+    // Reset pilihan massal setiap data segar di-load
+    _selectedIds.clear();
+    _updateBulkBar();
 
     updateStats();
     filterPelanggan();
@@ -287,8 +320,8 @@ function filterPelanggan() {
       (p.hp || '').toLowerCase().includes(keyword) ||
       (p.profil || '').toLowerCase().includes(keyword) ||
       (p.sn || '').toLowerCase().includes(keyword) ||
-      (p.slot_port || '').toLowerCase().includes(keyword) ||
-      (p.vlan || '').toLowerCase().includes(keyword) ||
+      String(p.slot_port || '').toLowerCase().includes(keyword) ||
+      String(p.vlan || '').toLowerCase().includes(keyword) ||
       (p.koordinat || '').toLowerCase().includes(keyword);
 
     const matchStatus =
@@ -298,7 +331,7 @@ function filterPelanggan() {
 
     let matchRedaman = true;
     if (redaman) {
-      const rxInfo = parseRxTx(p);
+      const rxInfo = parseRxTx(p, p.status === 'Online');
       const rxClass = rxInfo.rxClass;
       if      (redaman === 'bagus')  matchRedaman = rxClass === 'rx-bagus';
       else if (redaman === 'sedang') matchRedaman = rxClass === 'rx-sedang';
@@ -323,8 +356,8 @@ function filterPelanggan() {
 function applySort() {
   if (sortCol !== 'rx') return;
   _filteredData.sort((a, b) => {
-    const rxA = parseRxTx(a).rx;
-    const rxB = parseRxTx(b).rx;
+    const rxA = parseRxTx(a, a.status === 'Online').rx;
+    const rxB = parseRxTx(b, b.status === 'Online').rx;
     // null ke belakang selalu
     if (rxA === null && rxB === null) return 0;
     if (rxA === null) return 1;
@@ -365,7 +398,7 @@ function updateSortIcon() {
 function updateRedamanBadge() {
   let bagus = 0, sedang = 0, buruk = 0;
   _allData.forEach(p => {
-    const cls = parseRxTx(p).rxClass;
+    const cls = parseRxTx(p, p.status === 'Online').rxClass;
     if      (cls === 'rx-bagus')  bagus++;
     else if (cls === 'rx-sedang') sedang++;
     else if (cls === 'rx-buruk')  buruk++;
@@ -386,6 +419,22 @@ function updateRedamanBadge() {
      Data hp sudah disertakan di response /api/pelanggan (dari onu_mapping.phone).
      Tidak ada perubahan struktur HTML, cukup pastikan p.hp dirender.
 ══════════════════════════════════════════════════════════ */
+/* Format SN: jika 12 hex tanpa pemisah (EPON/MAC) → tambah titik dua, huruf besar */
+function formatSn(sn) {
+  if (!sn) return '—';
+  const clean = sn.replace(/[:\-]/g, '');
+  if (/^[0-9a-fA-F]{12}$/.test(clean)) {
+    return clean.toUpperCase().match(/.{2}/g).join(':');
+  }
+  return sn.toUpperCase();
+}
+
+function _isEpon(oltId) {
+  const olt = oltCache.find(function(o) { return String(o.id) === String(oltId); });
+  const tipe = (olt ? olt.tipe : '').toLowerCase();
+  return tipe === 'epon' || tipe === 'hsgq';
+}
+
 function renderTabel() {
   const tbody = document.getElementById('tbody-pelanggan');
   const tabel = document.getElementById('table-pelanggan');
@@ -416,16 +465,18 @@ function renderTabel() {
     else if (disconnected) { badgeClass = 'nonaktif'; badgeLabel = 'Router Off'; }
     else { badgeClass = 'nonaktif'; badgeLabel = p.status === 'Offline' ? 'Offline' : 'Nonaktif'; }
 
-    const rxInfo  = parseRxTx(p);
+    const rxInfo  = parseRxTx(p, online);
     const namaOlt = _getNamaOlt(p.olt_id);
     const rxBuruk = rxInfo.rxClass === 'rx-buruk';
-    const rowAttr = ` data-id="${p.id}" data-username="${escHtml(p.username || '')}"${rxBuruk ? ' class="row-rx-buruk"' : ''}`;
+    const rowStatusCls = online || aktif ? 'row-online' : 'row-offline';
+    const rowAttr = ` data-id="${p.id}" data-username="${escHtml(p.username || '')}" class="${rxBuruk ? 'row-rx-buruk ' : ''}${rowStatusCls}"`;
     const rp = n => 'Rp ' + (Number(n)||0).toLocaleString('id-ID');
 
     // ── Baris KOLEKTOR — lebih sederhana, tambah kolom Tagihan + Bayar ──
     if (_isKol) {
       return `
         <tr${rowAttr}>
+          <td class="sticky-col-0 col-cb"><input type="checkbox" class="row-cb" data-id="${p.id}" ${_selectedIds.has(String(p.id)) ? 'checked' : ''}></td>
           <td class="sticky-col-1">${no}</td>
           <td class="sticky-col-2">
             <div style="font-weight:700">${escHtml(p.nama || p.username || '—')}</div>
@@ -457,13 +508,7 @@ function renderTabel() {
     // ── Baris NORMAL (owner/admin/teknisi) ──
     return `
       <tr${rowAttr}>
-        <td class="sticky-col-0">
-          <input type="checkbox" class="cb-row"
-            data-id="${p.id}"
-            onchange="toggleSelect(${p.id}, this.checked)"
-            style="width:15px;height:15px;accent-color:var(--primary);cursor:pointer"
-            ${_selectedIds.has(p.id) ? 'checked' : ''}>
-        </td>
+        <td class="sticky-col-0 col-cb"><input type="checkbox" class="row-cb" data-id="${p.id}" ${_selectedIds.has(String(p.id)) ? 'checked' : ''}></td>
         <td class="sticky-col-1">${no}</td>
 
         <td class="sticky-col-2">
@@ -478,7 +523,7 @@ function renderTabel() {
 
         <td>${escHtml(p.vlan || '—')}</td>
 
-        <td>${escHtml(p.sn || '—')}</td>
+        <td>${escHtml(formatSn(p.sn))}</td>
 
         <td>
           <span class="tbl-rx ${rxInfo.rxClass}" title="TX: ${rxInfo.txFormatted}">
@@ -509,9 +554,154 @@ function renderTabel() {
   const deviceCount = document.getElementById('device-count');
   if (deviceCount) deviceCount.textContent = `${_filteredData.length} pelanggan`;
 
-  // Inject toolbar bulk setelah render selesai
-  _injectBulkToolbar();
-  _updateBulkToolbar();
+  // Perbarui state "check all" sesuai pilihan yang masih aktif
+  _updateCbAll();
+}
+
+
+/* ══════════════════════════════════════════════════════════
+   PILIHAN MASSAL — Checkbox & Floating Action Bar
+══════════════════════════════════════════════════════════ */
+
+/* Delegasi event checkbox baris — dipasang satu kali setelah DOM siap */
+(function _pasangDelegasiCb() {
+  document.addEventListener('DOMContentLoaded', function () {
+    const tbody = document.getElementById('tbody-pelanggan');
+    if (!tbody) return;
+    tbody.addEventListener('change', function (e) {
+      const cb = e.target;
+      if (!cb.classList.contains('row-cb')) return;
+      const id = String(cb.dataset.id);
+      if (cb.checked) _selectedIds.add(id);
+      else _selectedIds.delete(id);
+      _updateBulkBar();
+      _updateCbAll();
+    });
+  });
+})();
+
+/* Perbarui checkbox "Pilih semua" di thead */
+function _updateCbAll() {
+  const cbAll = document.getElementById('cb-all');
+  if (!cbAll) return;
+  // Id dari baris yang saat ini terrender
+  const visibleIds = Array.from(
+    document.querySelectorAll('#tbody-pelanggan .row-cb')
+  ).map(cb => String(cb.dataset.id));
+
+  if (visibleIds.length === 0) {
+    cbAll.checked = false;
+    cbAll.indeterminate = false;
+    return;
+  }
+  const checkedCount = visibleIds.filter(id => _selectedIds.has(id)).length;
+  if (checkedCount === 0) {
+    cbAll.checked = false;
+    cbAll.indeterminate = false;
+  } else if (checkedCount === visibleIds.length) {
+    cbAll.checked = true;
+    cbAll.indeterminate = false;
+  } else {
+    cbAll.checked = false;
+    cbAll.indeterminate = true;
+  }
+}
+
+/* Handler untuk checkbox "Pilih semua" di thead */
+function _cbAllChange(cbAll) {
+  const rowCbs = document.querySelectorAll('#tbody-pelanggan .row-cb');
+  rowCbs.forEach(function (cb) {
+    cb.checked = cbAll.checked;
+    const id = String(cb.dataset.id);
+    if (cbAll.checked) _selectedIds.add(id);
+    else _selectedIds.delete(id);
+  });
+  _updateBulkBar();
+}
+
+/* Tampilkan/sembunyikan floating action bar */
+function _updateBulkBar() {
+  const bar = document.getElementById('bulk-action-bar');
+  const label = document.getElementById('bulk-count-label');
+  if (!bar) return;
+  const n = _selectedIds.size;
+  if (n > 0) {
+    bar.style.display = 'flex';
+    if (label) label.textContent = `${n} dipilih`;
+  } else {
+    bar.style.display = 'none';
+  }
+}
+
+/* Batalkan semua pilihan */
+function _batalPilihan() {
+  _selectedIds.clear();
+  document.querySelectorAll('#tbody-pelanggan .row-cb').forEach(cb => { cb.checked = false; });
+  _updateCbAll();
+  _updateBulkBar();
+}
+
+/* ── Isolir massal ──
+   Kirim POST /api/pelanggan/{id}/isolir untuk tiap id yang dipilih,
+   jalankan paralel dengan Promise.allSettled, tampilkan hasil.
+*/
+async function _isolirMassal() {
+  const ids = Array.from(_selectedIds);
+  if (ids.length === 0) return;
+  toast(`Mengisolir ${ids.length} pelanggan...`, 'info');
+
+  const results = await Promise.allSettled(
+    ids.map(id =>
+      fetch(`${API_BASE}/api/pelanggan/${id}/isolir`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: getAuthHeaders(),
+      })
+    )
+  );
+
+  const berhasil = results.filter(r => r.status === 'fulfilled' && r.value.ok).length;
+  const gagal    = results.length - berhasil;
+
+  if (gagal === 0) {
+    toast(`${berhasil} pelanggan berhasil diisolir`, 'success');
+  } else {
+    toast(`${berhasil} berhasil, ${gagal} gagal diisolir`, 'warning');
+  }
+
+  _batalPilihan();
+  loadPelanggan();
+}
+
+/* ── Aktifkan massal ──
+   Kirim POST /api/pelanggan/{id}/aktif untuk tiap id yang dipilih.
+*/
+async function _aktifMassal() {
+  const ids = Array.from(_selectedIds);
+  if (ids.length === 0) return;
+  toast(`Mengaktifkan ${ids.length} pelanggan...`, 'info');
+
+  const results = await Promise.allSettled(
+    ids.map(id =>
+      fetch(`${API_BASE}/api/pelanggan/${id}/enable`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: getAuthHeaders(),
+      })
+    )
+  );
+
+  const berhasil = results.filter(r => r.status === 'fulfilled' && r.value.ok).length;
+  const gagal    = results.length - berhasil;
+
+  if (gagal === 0) {
+    toast(`${berhasil} pelanggan berhasil diaktifkan`, 'success');
+  } else {
+    toast(`${berhasil} berhasil, ${gagal} gagal diaktifkan`, 'warning');
+  }
+
+  _batalPilihan();
+  loadPelanggan();
 }
 
 
@@ -597,9 +787,10 @@ function showFormPelanggan(prefill) {
   let deviceOptions = '<option value="">— Pilih Perangkat —</option>';
   Array.from(devSel.options).forEach(function (o) {
     if (!o.value) return;
-    const sel = prefill
-      ? (String(prefill.device_id) === o.value ? 'selected' : '')
-      : (devSel.value === o.value ? 'selected' : '');
+    // Mode edit: ikuti device_id pelanggan. Mode tambah baru: JANGAN ikut
+    // filter header — biarkan kosong supaya staff wajib pilih perangkat
+    // secara sadar (mencegah secret baru ke-buat di device yang salah).
+    const sel = prefill ? (String(prefill.device_id) === o.value ? 'selected' : '') : '';
     deviceOptions += `<option value="${escHtml(o.value)}" ${sel}>${escHtml(o.text)}</option>`;
   });
 
@@ -611,15 +802,6 @@ function showFormPelanggan(prefill) {
     return escHtml(prefill[k] || '');
   };
 
-  // Checkbox re-provisioning (hanya mode edit & ada data OLT)
-  const reProvisionRow = isEdit ? `
-    <div class="form-group full" style="margin-top:4px;">
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;
-             font-size:13px;color:var(--text-muted);">
-        <input type="checkbox" id="f-reprovision" style="width:16px;height:16px;accent-color:var(--primary);">
-        Kirim ulang perintah provisioning ke OLT (re-provisioning)
-      </label>
-    </div>` : '';
 
   const html = `
     <div class="modal" style="max-width:560px;width:100%;max-height:90vh;overflow-y:auto;">
@@ -644,7 +826,7 @@ function showFormPelanggan(prefill) {
           <!-- Perangkat MikroTik -->
           <div class="form-group full">
             <label class="form-label">Perangkat MikroTik <span class="req">*</span></label>
-            <select class="form-input" id="f-device">${deviceOptions}</select>
+            <select class="form-input" id="f-device" onchange="_onDeviceChangeForm()">${deviceOptions}</select>
           </div>
 
           <!-- Username & Password -->
@@ -701,6 +883,30 @@ function showFormPelanggan(prefill) {
             </select>
           </div>
 
+          <!-- Titik Koordinat — dipindah ke sini agar bisa suggest ODP terdekat -->
+          <div class="form-group full">
+            <label class="form-label">
+              <span class="material-symbols-outlined"
+                    style="font-size:13px;vertical-align:middle;color:var(--primary)">location_on</span>
+              Titik Koordinat Rumah Pelanggan
+              <span style="font-size:10px;font-weight:400;color:var(--text-dim);margin-left:4px">(untuk Maps &amp; suggest ODP terdekat)</span>
+            </label>
+            <div class="koordinat-row">
+              <input class="form-input" id="f-koordinat" type="text"
+                placeholder="cth: -8.267870, 114.369284"
+                value="${prefill ? escHtml(prefill.titik_koordinat || prefill.koordinat || '') : ''}"
+                oninput="previewKoordinatPelanggan();_suggestOdpTerdekat()">
+              <button type="button" class="koordinat-btn" onclick="deteksiLokasiPelanggan()">
+                <span class="material-symbols-outlined">my_location</span>
+                Deteksi
+              </button>
+            </div>
+            <span class="form-hint">Format: latitude, longitude — gunakan tombol Deteksi untuk isi otomatis</span>
+            <div class="koordinat-preview" id="koordinat-preview-pel">
+              <iframe id="koordinat-iframe-pel" src="" loading="lazy"></iframe>
+            </div>
+          </div>
+
           <!-- ODP — titik distribusi ke pelanggan ini -->
           <div class="form-group full">
             <label class="form-label">
@@ -710,6 +916,7 @@ function showFormPelanggan(prefill) {
             <select class="form-input" id="f-odp" onchange="_loadOdpPortsIntoForm()">
               <option value="">-- Pilih ODP (opsional) --</option>
             </select>
+            <div id="odp-suggest-strip" style="display:none;margin-top:6px;font-size:11.5px;color:var(--text-dim)"></div>
           </div>
 
           <!-- Port ODP -->
@@ -730,22 +937,25 @@ function showFormPelanggan(prefill) {
           </div>
 
           <div class="form-group">
-            <label class="form-label">VLAN</label>
-            <input class="form-input" id="f-vlan" type="text"
-              placeholder="cth: 100" value="${v('vlan')}">
+            <label class="form-label">VLAN
+              <span style="font-size:10px;font-weight:400;color:var(--text-dim);margin-left:4px">(sesuai interface VLAN di MikroTik)</span>
+            </label>
+            <select class="form-input" id="f-vlan">
+              <option value="">— Pilih VLAN —</option>
+            </select>
           </div>
 
-          <!-- Serial Number + Scan OLT -->
+          <!-- Serial Number + Scan SN -->
           <div class="form-group full">
             <label class="form-label">Serial Number (SN) Modem/ONU</label>
             <div style="display:flex;gap:8px;align-items:center">
               <input class="form-input" id="f-sn" type="text"
                 placeholder="cth: ZTEG1A2B3C4D atau HWTC1A2B3C4D" value="${v('sn')}" style="flex:1">
               <button type="button" class="btn btn-sm btn-blue" onclick="_scanSnOlt()" title="Scan SN dari OLT yang dipilih">
-                <span class="material-symbols-outlined">wifi_find</span>Scan OLT
+                <span class="material-symbols-outlined">wifi_find</span>Scan SN
               </button>
             </div>
-            <span class="form-hint">Atau klik "Scan OLT" untuk mendeteksi ONU yang belum terdaftar</span>
+            <span class="form-hint">Atau klik "Scan SN" untuk mendeteksi ONU yang belum terdaftar</span>
             <!-- Hasil scan SN -->
             <div id="scan-sn-result" style="display:none;margin-top:8px;border:1px solid var(--border);border-radius:var(--r-md);max-height:200px;overflow-y:auto">
             </div>
@@ -761,7 +971,29 @@ function showFormPelanggan(prefill) {
             </select>
           </div>
 
-          ${reProvisionRow}
+          <!-- Pelanggan Prioritas -->
+          <div class="form-group full">
+            <label class="form-label">Status Khusus</label>
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;
+                   border:1.5px solid var(--border);border-radius:var(--r-md);background:var(--bg);
+                   transition:border-color .15s" id="lbl-prioritas-wrap">
+              <input type="checkbox" id="f-is-prioritas" ${prefill && prefill.is_prioritas ? 'checked' : ''}
+                style="width:17px;height:17px;accent-color:var(--purple,#7c3aed);cursor:pointer"
+                onchange="document.getElementById('lbl-prioritas-wrap').style.borderColor=this.checked?'var(--purple,#7c3aed)':'var(--border)'">
+              <span>
+                <strong style="font-size:13px">Pelanggan Prioritas</strong>
+                <span style="display:block;font-size:11.5px;color:var(--text-dim);font-weight:400">Tidak ditagih & tidak diisolir otomatis (bebas biaya)</span>
+              </span>
+            </label>
+          </div>
+
+          <!-- Catatan Khusus -->
+          <div class="form-group full">
+            <label class="form-label">Catatan Khusus <span style="font-size:10px;font-weight:400;color:var(--text-dim)">(opsional)</span></label>
+            <input class="form-input" id="f-catatan-khusus" type="text"
+              placeholder="cth: Keluarga owner, sponsor, dll"
+              value="${prefill ? escHtml(prefill.catatan_khusus || '') : ''}">
+          </div>
 
           <!-- Separator Info Tambahan -->
           <div class="form-group full" style="margin:4px 0 0;">
@@ -783,37 +1015,13 @@ function showFormPelanggan(prefill) {
             <input class="form-input" id="f-tgl-jatuh" type="date" value="${v('tgl_jatuh')}">
           </div>
 
-          <!-- Titik Koordinat -->
-          <div class="form-group full">
-            <label class="form-label">
-              <span class="material-symbols-outlined"
-                    style="font-size:13px;vertical-align:middle;color:var(--primary)">location_on</span>
-              Titik Koordinat Rumah Pelanggan
-              <span style="font-size:10px;font-weight:400;color:var(--text-dim);margin-left:4px">(untuk Maps)</span>
-            </label>
-            <div class="koordinat-row">
-              <input class="form-input" id="f-koordinat" type="text"
-                placeholder="cth: -8.267870, 114.369284"
-                value="${prefill ? escHtml(prefill.titik_koordinat || prefill.koordinat || '') : ''}"
-                oninput="previewKoordinatPelanggan()">
-              <button type="button" class="koordinat-btn" onclick="deteksiLokasiPelanggan()">
-                <span class="material-symbols-outlined">my_location</span>
-                Deteksi
-              </button>
-            </div>
-            <span class="form-hint">Format: latitude, longitude — gunakan tombol Deteksi untuk isi otomatis</span>
-            <div class="koordinat-preview" id="koordinat-preview-pel">
-              <iframe id="koordinat-iframe-pel" src="" loading="lazy"></iframe>
-            </div>
-          </div>
-
         </div>
 
         <div class="form-actions">
           <button class="btn" onclick="tutupModalPelanggan()">
             <span class="material-symbols-outlined">close</span> Batal
           </button>
-          <button class="btn-primary" id="btn-save-pelanggan" onclick="simpanPelanggan()">
+          <button class="btn-primary" id="btn-save-pelanggan" onclick="_showKonfirmasiSimpan()">
             <span class="material-symbols-outlined">${isEdit ? 'check' : 'bolt'}</span>
             ${isEdit ? 'Simpan Perubahan' : 'Provisioning & Simpan'}
           </button>
@@ -834,6 +1042,7 @@ function showFormPelanggan(prefill) {
       }
     });
     _loadProfilIntoForm(prefill ? prefill.profil : '');
+    _loadVlanIntoForm(prefill ? prefill.vlan : '');
     _loadKolektorIntoForm(prefill ? (prefill.kolektor || '') : '');
     const u = document.getElementById('f-username');
     if (u) u.focus();
@@ -844,89 +1053,6 @@ function tutupModalPelanggan() {
   _editingId = null;
   closeModalForm(); // ← dari global.js
 }
-
-// Alias agar kode lama tetap jalan
-function openModalTambah() { showFormPelanggan(null); }
-
-/* ── Bayar tagihan kolektor dari halaman Pelanggan ─────── */
-async function _kolBayarDariPelanggan(username, nama, harga) {
-  const base = (typeof API_BASE !== 'undefined') ? API_BASE : '';
-  const hdr  = (typeof getAuthHeaders === 'function') ? getAuthHeaders() : {};
-  const rp   = n => 'Rp ' + (Number(n)||0).toLocaleString('id-ID');
-
-  try {
-    // Ambil semua tagihan belum bayar untuk username ini
-    const r = await fetch(`${base}/api/tagihan/pelanggan/${encodeURIComponent(username)}`,
-      { credentials: 'include', headers: hdr });
-    const d = await r.json();
-    const belum = (d.tagihan || []).filter(t => t.status === 'belum_bayar');
-
-    if (!belum.length) {
-      toast('Tidak ada tagihan yang perlu dibayar untuk ' + nama, 'info');
-      return;
-    }
-
-    if (belum.length === 1) {
-      // Langsung bayar
-      const metode = prompt(`Bayar tagihan "${nama}" — ${belum[0].periode}\nNominal: ${rp(belum[0].nominal)}\n\nMetode:`, 'Cash');
-      if (!metode) return;
-      const rb = await fetch(`${base}/api/tagihan/bayar-multi`, {
-        method: 'POST', credentials: 'include',
-        headers: Object.assign({'Content-Type':'application/json'}, hdr),
-        body: JSON.stringify({ tagihan_ids: [belum[0].id], metode })
-      });
-      const db = await rb.json();
-      toast(db.message || (rb.ok ? 'Lunas' : 'Gagal'), rb.ok ? 'success' : 'danger');
-      if (rb.ok) { await loadPelanggan(); _kolKirimStrukWA(username, nama, db.total); }
-      return;
-    }
-
-    // Multi-bulan — tampilkan pilihan
-    const list = belum.map((t, i) =>
-      `${i+1}. ${t.periode} — ${rp(t.nominal)} (jatuh tempo ${t.jatuh_tempo||'-'})`
-    ).join('\n');
-    const metode = prompt(`${nama} punya ${belum.length} tagihan belum lunas:\n\n${list}\n\nKetik metode pembayaran (semua akan dibayar):`, 'Cash');
-    if (!metode) return;
-    const ids = belum.map(t => t.id);
-    const rb = await fetch(`${base}/api/tagihan/bayar-multi`, {
-      method: 'POST', credentials: 'include',
-      headers: Object.assign({'Content-Type':'application/json'}, hdr),
-      body: JSON.stringify({ tagihan_ids: ids, metode })
-    });
-    const db = await rb.json();
-    toast(db.message || (rb.ok ? 'Lunas' : 'Gagal'), rb.ok ? 'success' : 'danger');
-    if (rb.ok) { await loadPelanggan(); _kolKirimStrukWA(username, nama, db.total); }
-
-  } catch(e) {
-    toast('Tidak bisa menghubungi server', 'danger');
-  }
-}
-
-function _kolKirimStrukWA(username, nama, total) {
-  const p = _allData.find(x => x.username === username);
-  const hp = p ? ((p.hp||'').replace(/\D/g,'')) : '';
-  if (!hp) return;
-  const wa = '62' + (hp.startsWith('0') ? hp.slice(1) : hp);
-  const kol = localStorage.getItem('tf_username') || 'Kolektor';
-  const isp = localStorage.getItem('tf_isp_name') || 'TechnoFix';
-  const tgl = new Date().toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
-  const rp  = n => 'Rp ' + (Number(n)||0).toLocaleString('id-ID');
-  const pesan = encodeURIComponent(
-    'Bukti Pembayaran - ' + isp + '\n' +
-    '----------------------------\n' +
-    'Pelanggan : ' + nama + '\n' +
-    'Tanggal   : ' + tgl + '\n' +
-    'Total     : ' + rp(total) + '\n' +
-    'Kolektor  : ' + kol + '\n' +
-    '----------------------------\n' +
-    'Terima kasih!'
-  );
-  if (confirm('Kirim struk via WhatsApp ke ' + nama + '?')) {
-    window.open('https://wa.me/' + wa + '?text=' + pesan, '_blank');
-  }
-}
-function cancelFormPelanggan() { tutupModalPelanggan(); }
-
 
 /* ══════════════════════════════════════════════════════════
    8. EDIT PELANGGAN
@@ -969,6 +1095,97 @@ async function openEdit(id) {
 /* ══════════════════════════════════════════════════════════
    9. PROSES SIMPAN / PROVISIONING PELANGGAN (VERSI SENIOR FIX)
 ══════════════════════════════════════════════════════════ */
+function _closeKonfirmasiSimpan(e) {
+  if (e && e.target !== document.getElementById('modal-konfirmasi-simpan')) return;
+  var el = document.getElementById('modal-konfirmasi-simpan');
+  if (el) el.remove();
+}
+
+function _showKonfirmasiSimpan() {
+  // Validasi dasar sebelum tampilkan modal
+  var username = (document.getElementById('f-username')?.value || '').trim();
+  var deviceId = document.getElementById('f-device')?.value || '';
+  var fIdEl    = document.getElementById('f-id');
+  var isModeEdit = !!(fIdEl?.value || (typeof _editingId !== 'undefined' && _editingId));
+  var passEl   = document.getElementById('f-pass') || document.getElementById('f-password');
+  var password = (passEl?.value || '').trim();
+
+  if (!username) { toast('Username wajib diisi', 'warning'); return; }
+  if (!isModeEdit && !password) { toast('Password wajib diisi untuk pelanggan baru', 'warning'); return; }
+  if (!deviceId) { toast('Pilih perangkat MikroTik terlebih dahulu', 'warning'); return; }
+
+  var reprovRow = isModeEdit ? `
+    <label class="lk-konfirmasi-option">
+      <input type="checkbox" id="f-reprovision" class="lk-konfirmasi-chk">
+      <div class="lk-konfirmasi-body">
+        <span class="material-symbols-outlined">restart_alt</span>
+        <div>
+          <div class="lk-konfirmasi-title">Re-Provisioning</div>
+          <div class="lk-konfirmasi-desc">Kirim ulang perintah provisioning ke OLT</div>
+        </div>
+      </div>
+    </label>` : '';
+
+  var html = `
+  <div class="modal-overlay open" id="modal-konfirmasi-simpan"
+       style="z-index:200;" onclick="_closeKonfirmasiSimpan(event)">
+    <div class="modal-sheet small" onclick="event.stopPropagation()">
+      <div class="modal-handle"></div>
+      <div class="hapus-icon-wrap" style="background:var(--primary-light)">
+        <span class="material-symbols-outlined hapus-icon" style="color:var(--primary)">
+          ${isModeEdit ? 'edit' : 'person_add'}
+        </span>
+      </div>
+      <div class="hapus-title">${isModeEdit ? 'Simpan Perubahan' : 'Tambah Pelanggan'}</div>
+      <div class="hapus-sub">Pilih sistem yang akan diperbarui:</div>
+      <div class="lk-konfirmasi-options">
+        <label class="lk-konfirmasi-option lk-konfirmasi-locked">
+          <input type="checkbox" id="f-target-billing" checked disabled class="lk-konfirmasi-chk">
+          <div class="lk-konfirmasi-body">
+            <span class="material-symbols-outlined">receipt_long</span>
+            <div>
+              <div class="lk-konfirmasi-title">Billing</div>
+              <div class="lk-konfirmasi-desc">Data pelanggan di database TechnoFix (selalu aktif)</div>
+            </div>
+          </div>
+        </label>
+        <label class="lk-konfirmasi-option">
+          <input type="checkbox" id="f-target-mikrotik" checked class="lk-konfirmasi-chk">
+          <div class="lk-konfirmasi-body">
+            <span class="material-symbols-outlined">router</span>
+            <div>
+              <div class="lk-konfirmasi-title">MikroTik</div>
+              <div class="lk-konfirmasi-desc">Buat/ubah PPP Secret PPPoE di router</div>
+            </div>
+          </div>
+        </label>
+        <label class="lk-konfirmasi-option">
+          <input type="checkbox" id="f-target-olt" checked class="lk-konfirmasi-chk">
+          <div class="lk-konfirmasi-body">
+            <span class="material-symbols-outlined">settings_input_antenna</span>
+            <div>
+              <div class="lk-konfirmasi-title">OLT</div>
+              <div class="lk-konfirmasi-desc">Kirim CLI registrasi/sinkronisasi ONU ke perangkat OLT via SSH</div>
+            </div>
+          </div>
+        </label>
+        ${reprovRow}
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="_closeKonfirmasiSimpan()">
+          <span class="material-symbols-outlined">close</span> Batal
+        </button>
+        <button class="btn-primary" id="btn-konfirmasi-simpan-ok" onclick="simpanPelanggan()">
+          <span class="material-symbols-outlined">${isModeEdit ? 'check' : 'bolt'}</span>
+          ${isModeEdit ? 'Ya, Simpan' : 'Ya, Tambahkan'}
+        </button>
+      </div>
+    </div>
+  </div>`;
+
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
 async function simpanPelanggan() {
   // 1. Ambil penanda mode (add/edit) dan ID
   // Prioritas: f-id hidden input → variabel _editingId global → f-mode
@@ -1011,6 +1228,11 @@ async function simpanPelanggan() {
   const tglJatuh = document.getElementById('f-tgl-jatuh') ? document.getElementById('f-tgl-jatuh').value : '';
   const reProvision = document.getElementById('f-reprovision')?.checked || false;
 
+  // Checklist target operasi (Billing selalu ikut — record utama)
+  const targetMikrotik = document.getElementById('f-target-mikrotik')?.checked ?? true;
+  const targetOlt      = document.getElementById('f-target-olt')?.checked ?? true;
+  const targets = ['billing', targetMikrotik && 'mikrotik', targetOlt && 'olt'].filter(Boolean);
+
   // ── Jalankan Validasi Sisi Frontend ─────────────────────────
   if (!username) { toast('Username wajib diisi', 'warning'); return; }
   if (!isModeEdit && !password) { toast('Password wajib diisi untuk pelanggan baru', 'warning'); return; }
@@ -1020,11 +1242,11 @@ async function simpanPelanggan() {
   if (oltId && !sn) { toast('⚠ SN modem kosong — provisioning OLT akan dilewati', 'warning'); }
   if (oltId && !slot) { toast('⚠ Slot/Port kosong — provisioning OLT akan dilewati', 'warning'); }
 
-  // Animasi loading tombol simpan
-  const btn = document.getElementById('btn-save-pelanggan');
+  // Animasi loading — pakai tombol di modal konfirmasi jika ada, fallback ke form
+  const btn = document.getElementById('btn-konfirmasi-simpan-ok') || document.getElementById('btn-save-pelanggan');
   if (btn) {
     btn.disabled = true;
-    btn.innerHTML = '<span class="material-symbols-outlined">hourglass_top</span> Menyimpan & Provisioning...';
+    btn.innerHTML = '<span class="material-symbols-outlined">hourglass_top</span> Menyimpan...';
   }
 
   try {
@@ -1049,7 +1271,10 @@ async function simpanPelanggan() {
       tgl_jatuh: tglJatuh,
       odp_id: document.getElementById('f-odp')?.value || null,
       port_odp: document.getElementById('f-port-odp')?.value ? parseInt(document.getElementById('f-port-odp').value) : null,
-      kolektor: document.getElementById('f-kolektor')?.value || '',
+      kolektor:       document.getElementById('f-kolektor')?.value || '',
+      is_prioritas:   document.getElementById('f-is-prioritas')?.checked ? 1 : 0,
+      catatan_khusus: document.getElementById('f-catatan-khusus')?.value?.trim() || '',
+      targets: targets,
     };
 
     if (isModeEdit) {
@@ -1080,7 +1305,11 @@ async function simpanPelanggan() {
       throw new Error(data.error || data.message || 'Gagal menyimpan data ke server.');
     }
 
-    // Tutup modal form pelanggan (Mendukung fungsi tutup bawaan sistem Anda)
+    // Tutup modal konfirmasi simpan (jika ada)
+    var mKonfirmasi = document.getElementById('modal-konfirmasi-simpan');
+    if (mKonfirmasi) mKonfirmasi.remove();
+
+    // Tutup modal form pelanggan
     if (typeof tutupModalPelanggan === 'function') {
       tutupModalPelanggan();
     } else if (typeof closeModalForm === 'function') {
@@ -1113,11 +1342,10 @@ async function simpanPelanggan() {
     console.error("Crash pada simpanPelanggan:", err);
     toast(err.message, 'danger');
   } finally {
-    // Kembalikan status tombol simpan ke sediakala
     if (btn) {
       btn.disabled = false;
       btn.innerHTML = `<span class="material-symbols-outlined">${isModeEdit ? 'check' : 'bolt'}</span> ` +
-        (isModeEdit ? 'Simpan Perubahan' : 'Provisioning & Simpan');
+        (isModeEdit ? 'Ya, Simpan' : 'Ya, Tambahkan');
     }
   }
 }
@@ -1128,7 +1356,6 @@ async function simpanPelanggan() {
    ← PEMBARUAN:
      - Tampilkan No. Telepon (hp) di bagian info pelanggan
      - Tampilkan Data OLT: nama OLT, Slot/Port, VLAN, SN
-     - generateCliScript() menggunakan data OLT dari objek pelanggan
 ══════════════════════════════════════════════════════════ */
 /**
  * Navigasi ke halaman detail pelanggan.
@@ -1148,6 +1375,7 @@ function openDetail(id) {
     _oltName: oltObj ? oltObj.name : null,
     _oltTipe: oltObj ? oltObj.tipe : null,
     _oltIp: oltObj ? oltObj.ip : null,
+    _oltOnuType: oltObj ? (oltObj.onu_type_keyword || 'ALL') : 'ALL',
   });
 
   try {
@@ -1159,133 +1387,6 @@ function openDetail(id) {
 
   window.location.href = '/app/frontend/pelanggan/detail_pelanggan.html';
 }
-function tutupModalDetail() { closeModalForm(); }
-
-
-/* ══════════════════════════════════════════════════════════
-   GENERATE CLI SCRIPT
-   ← PEMBARUAN: deteksi tipe OLT dari oltCache untuk
-     generate CLI ZTE vs Huawei yang tepat
-══════════════════════════════════════════════════════════ */
-function generateCliScript(p) {
-  const slotRaw = p.slot_port || '1/3/6:1';
-  const parts = slotRaw.split(':');
-  const gponPath = parts[0] || '1/3/6';
-  const onuId = parts[1] || '1';
-  const username = p.username || 'pelanggan';
-  const sn = p.sn || 'ZTEG00000000';
-  const vlan = p.vlan || '200';
-  const profil = (p.profil || 'PAKET1').toUpperCase();
-  const password = '••••••';   // Password tidak ditampilkan di script
-
-  // Deteksi tipe OLT dari cache
-  const olt = oltCache.find(o => String(o.id) === String(p.olt_id));
-  const tipe = (olt?.tipe || '').toLowerCase();
-
-  if (tipe.includes('huawei')) {
-    // ── Script Huawei MA5600 / MA5800 ──
-    return [
-      'enable',
-      'config',
-      `interface gpon 0/${gponPath}`,
-      `ont add ${onuId} sn-auth ${sn} omci ont-lineprofile-id 10 ont-srvprofile-id 10 desc ${username}`,
-      'quit',
-      `service-port vlan ${vlan} gpon 0/${gponPath} ont ${onuId} gemport 1 multi-service user-vlan ${vlan} tag-transform translate`,
-      'quit',
-      'save',
-    ].join('\n');
-  }
-
-  // ── Script ZTE C300 / C600 (default) ──
-  return [
-    'con t',
-    `interface gpon-olt_${gponPath}`,
-    `no onu ${onuId}`,
-    `onu ${onuId} type ALL-ONT sn ${sn} vport-mode gemport`,
-    'exit',
-    `interface gpon-onu_${gponPath}:${onuId}`,
-    `name ${username}`,
-    'sn-bind enable sn',
-    `tcont 1 profile ${profil}`,
-    'gemport 1 tcont 1',
-    'switchport mode hybrid vport 1',
-    `service-port 1 vport 1 user-vlan ${vlan} vlan ${vlan}`,
-    'exit',
-    `pon-onu-mng gpon-onu_${gponPath}:${onuId}`,
-    `service HSI gemport 1 cos 0-7 vlan ${vlan}`,
-    `wan-ip 1 mode pppoe username ${username} password ${password} vlan-profile vlan${vlan} host 1`,
-    'wan-ip 1 ping-response enable traceroute-response enable',
-    'security-mgmt 212 state enable mode forward protocol web',
-    'end',
-    'wr',
-  ].join('\n');
-}
-
-function copyCliScript() {
-  const el = document.getElementById('cli-script-content');
-  if (!el) return;
-  navigator.clipboard.writeText(el.textContent)
-    .then(() => toast('Script disalin ke clipboard', 'success'))
-    .catch(() => toast('Gagal menyalin script', 'danger'));
-}
-
-function aksiModem(aksi) {
-  if (!detailTarget) return;
-  const label = {
-    remote: 'Remote Modem',
-    reboot: 'Reboot Modem',
-    enable: 'Enable Modem',
-    disable: 'Disable Modem',
-    hapus: 'Hapus Modem'
-  }[aksi] || aksi;
-  toast(`${label}: ${detailTarget.username}`, 'info');
-}
-
-
-/* ══════════════════════════════════════════════════════════
-   11. HAPUS PELANGGAN
-══════════════════════════════════════════════════════════ */
-function openHapus(id, username) {
-  hapusTarget = { id, username };
-  const el = document.getElementById('hapus-username');
-  if (el) el.textContent = username;
-  bukaModal('modal-hapus');
-}
-
-async function konfirmasiHapus() {
-  if (!hapusTarget) return;
-
-  try {
-    const selEl = document.getElementById('select-device');
-    const deviceId = selEl ? selEl.value : '';
-    const res = await fetch(`${API_BASE}/api/pelanggan/${hapusTarget.id}`, {
-      method:      'DELETE',
-      credentials: 'include',
-      headers:     getAuthHeaders(),
-      body:        JSON.stringify({ device_id: Number(deviceId), username: hapusTarget.username }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || data.message);
-
-    tutupModalHapus();
-    toast(`${hapusTarget.username} berhasil dihapus`, 'danger');
-    hapusTarget = null;
-    await loadPelanggan();
-  } catch (err) {
-    toast(err.message, 'danger');
-  }
-}
-
-
-/* ══════════════════════════════════════════════════════════
-   HELPERS — Modal
-══════════════════════════════════════════════════════════ */
-function bukaModal(id) { document.getElementById(id)?.classList.add('open'); }
-function tutupModal(id) { document.getElementById(id)?.classList.remove('open'); }
-function tutupModalHapus() { tutupModal('modal-hapus'); }
-function closeModalHapus(e) { if (e.target.id === 'modal-hapus') tutupModalHapus(); }
-
-
 /* ══════════════════════════════════════════════════════════
    HELPERS — UI States
 ══════════════════════════════════════════════════════════ */
@@ -1297,10 +1398,21 @@ function sembunyikanSemuaState() {
 }
 function tampilLoading() {
   sembunyikanSemuaState();
+  // Skeleton rows di tabel — tabel langsung tampil (header + bentuk baris)
+  // alih-alih layar kosong, supaya halaman terasa lebih cepat saat fetch.
   const t = document.getElementById('table-pelanggan');
-  if (t) t.style.display = 'none';
-  const l = document.getElementById('state-loading');
-  if (l) l.style.display = 'flex';
+  const tbody = document.getElementById('tbody-pelanggan');
+  if (tbody) {
+    const cols = 11;
+    let rows = '';
+    for (let i = 0; i < 8; i++) {
+      let cells = '';
+      for (let c = 0; c < cols; c++) cells += '<td><span class="skel skel-row"></span></td>';
+      rows += '<tr class="skel-tbody">' + cells + '</tr>';
+    }
+    tbody.innerHTML = rows;
+  }
+  if (t) t.style.display = '';
 }
 function tampilEmpty() {
   sembunyikanSemuaState();
@@ -1321,8 +1433,8 @@ function tampilError(msg) {
 function updateSyncStatus(ok) {
   const el = document.getElementById('sync-status');
   if (!el) return;
-  el.innerHTML = ok ? '🟢 Terhubung' : '🔴 Gagal Terhubung';
-  el.className = 'sync-status ' + (ok ? 'ok' : 'err');
+  el.textContent = ok ? 'Terhubung' : 'Gagal Terhubung';
+  el.className = 'sync-badge ' + (ok ? 'ok' : 'error');
 }
 function animasiRefresh(on) {
   const icon = document.getElementById('refresh-icon');
@@ -1346,21 +1458,6 @@ function ubahJumlahTampil() {
    HELPERS — Isi dropdown OLT & Profil ke form
 ══════════════════════════════════════════════════════════ */
 
-/**
- * Load daftar OLT ke oltCache (dipanggil sekali saat DOMContentLoaded).
- * Fungsi ini menggantikan loadOltOptions() yang lama agar tidak bergantung
- * pada elemen DOM yang mungkin belum ada.
- */
-async function loadOltCache() {
-  try {
-    const res = await fetch(`${API_BASE}/olt`, { credentials: 'include', headers: getAuthHeaders() });
-    if (!res.ok) return;
-    const data = await res.json();
-    oltCache = Array.isArray(data) ? data : [];
-  } catch (_) {
-    oltCache = [];
-  }
-}
 
 /**
  * Isi dropdown #f-olt di dalam form modal menggunakan data dari oltCache.
@@ -1387,6 +1484,9 @@ async function _loadOltIntoForm(selectedVal) {
   });
 }
 
+/* Cache semua ODP (dengan koordinat) setelah pertama kali di-load */
+var _odpCache = [];
+
 /**
  * Isi dropdown #f-odp — load daftar ODP dari API.
  * @param {string|number} selectedVal - odp_id yang akan dipilih (mode edit)
@@ -1397,8 +1497,44 @@ async function _loadOdpIntoForm(selectedVal) {
   try {
     const res  = await fetch(`${API_BASE}/api/odp`, { credentials: 'include', headers: getAuthHeaders() });
     const data = await res.json();
-    sel.innerHTML = '<option value="">-- Pilih ODP (opsional) --</option>';
-    (Array.isArray(data) ? data : []).forEach(odp => {
+    _odpCache = Array.isArray(data) ? data : [];
+    _renderOdpOptions(sel, _odpCache, selectedVal);
+    if (selectedVal) await _loadOdpPortsIntoForm();
+  } catch (_) {}
+}
+
+/** Render opsi ODP ke dalam select, dengan grup "Terdekat" jika ada */
+function _renderOdpOptions(sel, list, selectedVal, terdekatIds) {
+  sel.innerHTML = '<option value="">-- Pilih ODP (opsional) --</option>';
+  if (terdekatIds && terdekatIds.length) {
+    const grpDekat = document.createElement('optgroup');
+    grpDekat.label = '3 ODP Terdekat';
+    terdekatIds.forEach(id => {
+      const odp = list.find(o => String(o.id) === String(id));
+      if (!odp) return;
+      const opt = new Option(
+        `${odp.nama} (${odp.jumlah_port} port)${odp.lokasi ? ' — ' + odp.lokasi : ''}`,
+        odp.id
+      );
+      if (String(odp.id) === String(selectedVal)) opt.selected = true;
+      grpDekat.appendChild(opt);
+    });
+    sel.appendChild(grpDekat);
+
+    const grpLain = document.createElement('optgroup');
+    grpLain.label = 'Semua ODP';
+    list.forEach(odp => {
+      if (terdekatIds.includes(String(odp.id))) return;
+      const opt = new Option(
+        `${odp.nama} (${odp.jumlah_port} port)${odp.lokasi ? ' — ' + odp.lokasi : ''}`,
+        odp.id
+      );
+      if (String(odp.id) === String(selectedVal)) opt.selected = true;
+      grpLain.appendChild(opt);
+    });
+    sel.appendChild(grpLain);
+  } else {
+    list.forEach(odp => {
       const opt = new Option(
         `${odp.nama} (${odp.jumlah_port} port)${odp.lokasi ? ' — ' + odp.lokasi : ''}`,
         odp.id
@@ -1406,32 +1542,138 @@ async function _loadOdpIntoForm(selectedVal) {
       if (String(odp.id) === String(selectedVal)) opt.selected = true;
       sel.appendChild(opt);
     });
-    // Setelah dropdown terisi & nilai dipilih, muat port yang tersedia
-    // (programmatic set tidak trigger onchange, jadi panggil manual)
-    if (selectedVal) {
-      await _loadOdpPortsIntoForm();
-    }
-  } catch (_) {}
+  }
+}
+
+/** Hitung jarak Haversine (km) antara dua koordinat */
+function _haversine(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+/** Dipanggil saat koordinat pelanggan berubah — suggest 3 ODP terdekat */
+function _suggestOdpTerdekat() {
+  const sel   = document.getElementById('f-odp');
+  const strip = document.getElementById('odp-suggest-strip');
+  const raw   = (document.getElementById('f-koordinat')?.value || '').trim();
+  if (!sel || !_odpCache.length) return;
+
+  const parts = raw.split(',');
+  const lat = parseFloat(parts[0]);
+  const lng = parseFloat(parts[1]);
+  if (isNaN(lat) || isNaN(lng)) {
+    if (strip) strip.style.display = 'none';
+    _renderOdpOptions(sel, _odpCache, sel.value);
+    return;
+  }
+
+  // Hitung jarak ke tiap ODP yang punya koordinat
+  const withDist = _odpCache
+    .filter(o => o.koordinat && o.koordinat.includes(','))
+    .map(o => {
+      const p = o.koordinat.split(',');
+      const dist = _haversine(lat, lng, parseFloat(p[0]), parseFloat(p[1]));
+      return { ...o, _dist: dist };
+    })
+    .sort((a, b) => a._dist - b._dist);
+
+  if (!withDist.length) {
+    if (strip) strip.style.display = 'none';
+    return;
+  }
+
+  const top3 = withDist.slice(0, 3);
+  const terdekatIds = top3.map(o => String(o.id));
+  _renderOdpOptions(sel, _odpCache, sel.value, terdekatIds);
+
+  if (strip) {
+    strip.style.display = 'block';
+    strip.innerHTML = '<span style="color:var(--primary)">&#128205;</span> Terdekat: '
+      + top3.map(o => `<strong>${o.nama}</strong> (${o._dist < 1 ? Math.round(o._dist*1000)+'m' : o._dist.toFixed(1)+'km'})`).join(', ');
+  }
 }
 
 /**
  * Isi dropdown #f-profil di dalam form modal.
- * Profil diambil dari daftar pelanggan yang sudah di-load.
+ * Profil diambil langsung dari PPP Profile MikroTik milik perangkat
+ * yang dipilih di field #f-device (bukan dari _allData lagi — supaya
+ * daftar selalu sesuai dengan profil yang benar-benar ada di router itu).
  * @param {string} selectedVal - profil yang akan dipilih (untuk mode edit)
  */
-function _loadProfilIntoForm(selectedVal) {
-  const profils = [...new Set(_allData.map(p => p.profil).filter(Boolean))].sort();
-
+async function _loadProfilIntoForm(selectedVal) {
   const sel = document.getElementById('f-profil');
-  if (sel) {
-    sel.innerHTML = '<option value="">— Pilih Profil —</option>';
+  if (!sel) return;
+
+  const deviceId = document.getElementById('f-device') ? document.getElementById('f-device').value : '';
+  sel.innerHTML = '<option value="">— Pilih Profil —</option>';
+  if (!deviceId) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/profile/${deviceId}`, { credentials: 'include', headers: getAuthHeaders() });
+    if (!res.ok) return;
+    const data = await res.json();
+    const profils = Array.isArray(data) ? data.map(p => p.name).filter(Boolean) : [];
     profils.forEach(p => {
       const opt = new Option(p, p);
       if (p === selectedVal) opt.selected = true;
       sel.appendChild(opt);
     });
+    // Profil lama (mode edit) mungkin sudah dihapus dari router — tetap tampilkan agar tidak hilang
+    if (selectedVal && !profils.includes(selectedVal)) {
+      const opt = new Option(`${selectedVal} (tidak ada di router)`, selectedVal);
+      opt.selected = true;
+      sel.appendChild(opt);
+    }
+  } catch (_) {
+    /* biarkan dropdown kosong kalau gagal mengambil data router */
   }
+}
 
+/**
+ * Isi dropdown #f-vlan dari VLAN interface MikroTik milik perangkat
+ * yang dipilih di #f-device (sumber: /interface/vlan router tersebut).
+ * @param {string} selectedVal - vlan yang akan dipilih (untuk mode edit)
+ */
+async function _loadVlanIntoForm(selectedVal) {
+  const sel = document.getElementById('f-vlan');
+  if (!sel) return;
+
+  const deviceId = document.getElementById('f-device') ? document.getElementById('f-device').value : '';
+  sel.innerHTML = '<option value="">— Pilih VLAN —</option>';
+  if (!deviceId) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/mikrotik/${deviceId}/vlans`, { credentials: 'include', headers: getAuthHeaders() });
+    if (!res.ok) return;
+    const data = await res.json();
+    const vlans = Array.isArray(data) ? [...new Set(data.map(v => v.vlan_id).filter(Boolean))] : [];
+    const selectedStr = (selectedVal !== null && selectedVal !== undefined && selectedVal !== '') ? String(selectedVal) : '';
+    vlans.forEach(vid => {
+      const opt = new Option(vid, vid);
+      if (selectedStr && String(vid) === selectedStr) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    // VLAN lama (mode edit) mungkin sudah tidak ada di router — tetap tampilkan agar tidak hilang
+    if (selectedStr && !vlans.some(vid => String(vid) === selectedStr)) {
+      const opt = new Option(`${selectedStr} (tidak ada di router)`, selectedStr);
+      opt.selected = true;
+      sel.appendChild(opt);
+    }
+  } catch (_) {
+    /* biarkan dropdown kosong kalau gagal mengambil data router */
+  }
+}
+
+/**
+ * Dipanggil saat user mengganti perangkat MikroTik di form pelanggan —
+ * muat ulang saran Profil & VLAN supaya sesuai dengan router yang baru dipilih.
+ */
+function _onDeviceChangeForm() {
+  _loadProfilIntoForm('');
+  _loadVlanIntoForm('');
 }
 
 async function _loadKolektorIntoForm(selectedVal) {
@@ -1504,31 +1746,76 @@ async function _scanSnOlt() {
   if (!resultDiv) return;
 
   resultDiv.style.display = '';
-  resultDiv.innerHTML = '<div style="padding:12px;font-size:12.5px;color:var(--text-muted)"><span class="material-symbols-outlined" style="vertical-align:middle;font-size:16px">sensors</span> Scanning OLT… (bisa 10–30 detik)</div>';
+  resultDiv.innerHTML = '<div style="padding:12px;font-size:12.5px;color:var(--text-muted)">' +
+    '<span class="material-symbols-outlined" style="vertical-align:middle;font-size:16px">sensors</span>' +
+    ' Scanning OLT… (bisa 10–30 detik)</div>';
 
   const base = (typeof API_BASE !== 'undefined') ? API_BASE : '';
   const hdr  = (typeof getAuthHeaders === 'function') ? getAuthHeaders() : {};
+
+  /* ── Coba live scan ke OLT ── */
+  let liveFailed = false;
   try {
     const r = await fetch(`${base}/olt/${oltId}/scan-sn`, { method: 'POST', credentials: 'include', headers: hdr });
     const d = await r.json();
-    if (!r.ok) { resultDiv.innerHTML = '<div style="padding:12px;color:var(--red);font-size:12.5px">' + (d.error || 'Gagal scan') + '</div>'; return; }
-
-    const list = d.unregistered || [];
-    if (!list.length) {
-      resultDiv.innerHTML = '<div style="padding:12px;font-size:12.5px;color:var(--green)">Tidak ada ONU baru yang terdeteksi.</div>';
+    if (!r.ok) {
+      liveFailed = true;
+    } else {
+      const list = d.unregistered || [];
+      if (!list.length) {
+        resultDiv.innerHTML = '<div style="padding:12px;font-size:12.5px;color:var(--green)">Tidak ada ONU baru yang terdeteksi.</div>';
+        return;
+      }
+      resultDiv.innerHTML =
+        '<div style="padding:8px 12px;font-size:11.5px;font-weight:700;color:var(--text-muted);border-bottom:1px solid var(--border)">' +
+        list.length + ' ONU belum terdaftar — klik untuk mengisi form</div>' +
+        list.map(function(item) {
+          return '<div onclick="_pilihSn(\'' + (item.sn||'') + '\',\'' + (item.slot_port||'') + '\')" ' +
+            'style="padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px" ' +
+            'onmouseover="this.style.background=\'var(--surface)\'" onmouseout="this.style.background=\'\'">' +
+            '<span class="material-symbols-outlined" style="font-size:18px;color:var(--primary)">wifi</span>' +
+            '<div><div style="font-weight:700;font-size:13px">' + formatSn(item.sn) + '</div>' +
+            '<div style="font-size:11.5px;color:var(--text-dim)">Slot/Port: ' + (item.slot_port||'—') + ' \xb7 ' + (item.tipe||'gpon') + '</div></div>' +
+            '</div>';
+        }).join('');
       return;
     }
-    resultDiv.innerHTML = '<div style="padding:8px 12px;font-size:11.5px;font-weight:700;color:var(--text-muted);border-bottom:1px solid var(--border)">' +
-      list.length + ' ONU belum terdaftar — klik untuk mengisi form</div>' +
-      list.map(item =>
-        '<div onclick="_pilihSn(\'' + (item.sn||'') + '\',\'' + (item.slot_port||'') + '\')" style="padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px" onmouseover="this.style.background=\'var(--surface)\'" onmouseout="this.style.background=\'\'">' +
-        '<span class="material-symbols-outlined" style="font-size:18px;color:var(--primary)">wifi</span>' +
-        '<div><div style="font-weight:700;font-size:13px">' + (item.sn||'—') + '</div>' +
-        '<div style="font-size:11.5px;color:var(--text-dim)">Slot/Port: ' + (item.slot_port||'—') + ' · ' + (item.tipe||'gpon') + '</div></div>' +
-        '</div>'
-      ).join('');
   } catch(e) {
-    resultDiv.innerHTML = '<div style="padding:12px;color:var(--red);font-size:12.5px">Error: ' + e.message + '</div>';
+    liveFailed = true;
+  }
+
+  /* ── Fallback: data cache dari tabel onu_liar (sync background terakhir) ── */
+  if (liveFailed) {
+    resultDiv.innerHTML =
+      '<div style="padding:9px 12px;font-size:12px;color:var(--amber);background:var(--amber-bg);' +
+      'border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px">' +
+      '<span class="material-symbols-outlined" style="font-size:15px;flex-shrink:0">warning</span>' +
+      'OLT tidak dapat diakses langsung. Menampilkan data cache dari sinkronisasi terakhir.</div>';
+    try {
+      const r2 = await fetch(`${base}/olt/${oltId}/unauthorized`, { credentials: 'include', headers: hdr });
+      const cached = await r2.json();
+      if (!r2.ok || !cached.length) {
+        resultDiv.innerHTML +=
+          '<div style="padding:12px;font-size:12.5px;color:var(--text-muted)">' +
+          'Belum ada data ONU liar tersimpan. Pastikan sync ONU pernah berjalan sukses.</div>';
+        return;
+      }
+      resultDiv.innerHTML +=
+        '<div style="padding:8px 12px;font-size:11.5px;font-weight:700;color:var(--text-muted);border-bottom:1px solid var(--border)">' +
+        cached.length + ' ONU liar tersimpan — klik untuk mengisi SN</div>' +
+        cached.map(function(item) {
+          var dt = (item.detected_at || '').substring(0, 16).replace('T', ' ');
+          return '<div onclick="_pilihSn(\'' + (item.sn||'') + '\',\'\')" ' +
+            'style="padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px" ' +
+            'onmouseover="this.style.background=\'var(--surface)\'" onmouseout="this.style.background=\'\'">' +
+            '<span class="material-symbols-outlined" style="font-size:18px;color:var(--amber)">wifi_off</span>' +
+            '<div><div style="font-weight:700;font-size:13px">' + formatSn(item.sn) + '</div>' +
+            '<div style="font-size:11.5px;color:var(--text-dim)">Port OLT: ' + (item.port||'—') + ' \xb7 Cache: ' + (dt||'—') + '</div></div>' +
+            '</div>';
+        }).join('');
+    } catch(e2) {
+      resultDiv.innerHTML += '<div style="padding:12px;color:var(--red);font-size:12.5px">Gagal memuat cache: ' + e2.message + '</div>';
+    }
   }
 }
 
@@ -1545,59 +1832,6 @@ function _pilihSn(sn, slotPort) {
 // Alias untuk kompatibilitas kode lama
 async function loadOltOptions() {
   await loadOltCache();
-}
-
-/* ══════════════════════════════════════════════════════════
-   11. LOAD RX/TX SIGNAL - SINKRONISASI COCOK DENGAN ARRAY API
-══════════════════════════════════════════════════════════ */
-async function loadRxTx() {
-  const selectDeviceEl = document.getElementById('select-device');
-  if (!selectDeviceEl) return;
-
-  const deviceId = selectDeviceEl.value;
-  if (!deviceId || deviceId === "" || deviceId === "0") return;
-
-  const syncStatus = document.getElementById('sync-status');
-  if (syncStatus) syncStatus.innerHTML = '🔄 Mengambil sinyal OLT...';
-
-  try {
-    // Tembak endpoint API bawaan api.py kamu
-    const res = await fetch(`${API_BASE}/api/pelanggan/${Number(deviceId)}/rx-tx`, { credentials: 'include', headers: getAuthHeaders() });
-    if (!res.ok) throw new Error('Gagal memuat sinyal dari server.');
-
-    // ... potongan kode di dalam loadRxTx() setelah fetch ...
-    const listSinyal = await res.json();
-    
-    listSinyal.forEach(onu => {
-      const username = onu.username;
-      if (!username) return;
-
-      // Cari baris tabel berdasarkan data-username pppoe
-      const row = document.querySelector(`tr[data-username="${username}"]`);
-      if (row) {
-        const rxCell = row.querySelector('.col-rx');
-        if (rxCell) {
-          // FIX UTAMA: Sesuaikan key dengan isi api.py ('rx_power', bukan 'rx')
-          const rxNilai = onu.rx_power; 
-          
-          if (rxNilai && rxNilai !== '-' && rxNilai !== 'None' && rxNilai !== 'null') {
-            const rxFormat = typeof parseRxTx === 'function' ? parseRxTx(rxNilai) : rxNilai;
-            const rxClass = typeof getRxTxClass === 'function' ? getRxTxClass(parseFloat(String(rxNilai).replace(/dBm/i,'').trim())) : 'rx-none';
-            rxCell.innerHTML = `<span class="tbl-rx ${rxClass}">${rxFormat} dBm</span>`;
-          } else {
-            // Jika data di DB lokal masih None/- artinya OLT Sync belum meng-update baris ini
-            rxCell.innerHTML = `<span class="text-muted" title="Belum sinkron OLT">—</span>`;
-          }
-        }
-      }
-    });
-
-    if (syncStatus) syncStatus.innerHTML = '✅ Sinyal OLT Ter-sinkronisasi';
-
-  } catch (err) {
-    console.error("Gagal memuat sinyal RX/TX:", err);
-    if (syncStatus) syncStatus.innerHTML = `⚠ Sinyal gagal dimuat`;
-  }
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -1627,237 +1861,8 @@ function previewKoordinatPelanggan() {
   }
 }
 
-// Pastikan fungsi diekspos ke scope window global
-window.loadRxTx = loadRxTx;
 
 
-/* ══════════════════════════════════════════════════════════
-   FITUR BULK — Isolir & Aktifkan Massal
-   ============================================================
-   Alur:
-   1. User cari pelanggan via search box
-   2. Klik checkbox per baris atau "Pilih Semua"
-   3. Klik tombol "Isolir Terpilih" atau "Aktifkan Terpilih"
-   4. Modal konfirmasi tampil dengan daftar pelanggan terpilih
-   5. Kirim ke /api/pelanggan/bulk-isolir atau bulk-aktifkan
-   ============================================================ */
-
-let _selectedIds = new Set();   // ID pelanggan yang dipilih
-
-/* _attachCheckboxes sudah tidak diperlukan — checkbox di-render langsung di template tabel */
-
-function toggleSelect(id, checked) {
-  if (checked) {
-    _selectedIds.add(Number(id));
-  } else {
-    _selectedIds.delete(Number(id));
-    const cbAll = document.getElementById('cb-select-all');
-    if (cbAll) cbAll.checked = false;
-  }
-  _updateBulkToolbar();
-}
-
-function toggleSelectAll(checked) {
-  _selectedIds.clear();
-  if (checked) {
-    document.querySelectorAll('.cb-row').forEach(cb => {
-      _selectedIds.add(Number(cb.dataset.id));
-      cb.checked = true;
-    });
-  } else {
-    document.querySelectorAll('.cb-row').forEach(cb => cb.checked = false);
-  }
-  _updateBulkToolbar();
-}
-
-function _updateBulkToolbar() {
-  const count   = _selectedIds.size;
-  const toolbar = document.getElementById('bulk-toolbar');
-  const label   = document.getElementById('bulk-count-label');
-
-  if (!toolbar) return;
-  toolbar.style.display = count > 0 ? 'flex' : 'none';
-  if (label) label.textContent = `${count} pelanggan dipilih`;
-}
-
-/* Tampilkan toolbar bulk — dipanggil dari renderTable */
-function _injectBulkToolbar() {
-  if (document.getElementById('bulk-toolbar')) return;
-
-  const container = document.querySelector('.page') || document.body;
-  const toolbar   = document.createElement('div');
-  toolbar.id      = 'bulk-toolbar';
-  toolbar.style.cssText = `
-    display:none; position:fixed; bottom:72px; left:50%;
-    transform:translateX(-50%);
-    background:var(--text); color:#fff;
-    border-radius:99px; padding:10px 16px;
-    box-shadow:0 4px 20px rgba(0,0,0,.3);
-    align-items:center; gap:10px; z-index:200;
-    font-size:13px; font-weight:600;
-    animation:fadeUp .2s ease;
-  `;
-  toolbar.innerHTML = `
-    <span class="material-symbols-outlined" style="font-size:18px">checklist</span>
-    <span id="bulk-count-label">0 dipilih</span>
-    <div style="width:1px;height:20px;background:rgba(255,255,255,.25)"></div>
-    <button onclick="openBulkModal('isolir')"
-            style="background:var(--red);color:#fff;border:none;border-radius:99px;
-                   padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;
-                   display:flex;align-items:center;gap:6px;font-family:var(--sans)">
-      <span class="material-symbols-outlined" style="font-size:14px">block</span>
-      Isolir Terpilih
-    </button>
-    <button onclick="openBulkModal('aktifkan')"
-            style="background:var(--green);color:#fff;border:none;border-radius:99px;
-                   padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;
-                   display:flex;align-items:center;gap:6px;font-family:var(--sans)">
-      <span class="material-symbols-outlined" style="font-size:14px">check_circle</span>
-      Aktifkan Terpilih
-    </button>
-    <button onclick="clearSelection()"
-            style="background:rgba(255,255,255,.15);color:#fff;border:none;
-                   border-radius:99px;padding:6px 10px;cursor:pointer;
-                   display:flex;align-items:center;font-family:var(--sans)">
-      <span class="material-symbols-outlined" style="font-size:16px">close</span>
-    </button>
-  `;
-  container.appendChild(toolbar);
-}
-
-function clearSelection() {
-  _selectedIds.clear();
-  document.querySelectorAll('.cb-row').forEach(cb => cb.checked = false);
-  const cbAll = document.getElementById('cb-select-all');
-  if (cbAll) cbAll.checked = false;
-  _updateBulkToolbar();
-}
-
-function openBulkModal(aksi) {
-  if (_selectedIds.size === 0) return;
-
-  const ids      = [..._selectedIds];
-  const selected = _allData.filter(p => ids.includes(p.id));
-  const isIsolir = aksi === 'isolir';
-
-  const listHtml = selected.map(p => `
-    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;
-         border-bottom:1px solid var(--border);">
-      <span class="material-symbols-outlined"
-            style="font-size:14px;color:${isIsolir ? 'var(--red)' : 'var(--green)'}">
-        ${isIsolir ? 'block' : 'check_circle'}
-      </span>
-      <span style="font-size:13px;font-weight:600;color:var(--text)">${escHtml(p.username)}</span>
-      <span style="font-size:11px;color:var(--text-dim);margin-left:auto">
-        ${escHtml(p.profil || '—')}
-      </span>
-    </div>`).join('');
-
-  openModalForm(`
-    <div class="modal" style="max-width:440px;width:100%">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
-        <div style="width:40px;height:40px;border-radius:var(--r-md);flex-shrink:0;
-             background:${isIsolir ? 'var(--red-bg)' : 'var(--green-bg)'};
-             color:${isIsolir ? 'var(--red)' : 'var(--green)'};
-             display:flex;align-items:center;justify-content:center">
-          <span class="material-symbols-outlined" style="font-size:20px">
-            ${isIsolir ? 'block' : 'check_circle'}
-          </span>
-        </div>
-        <div>
-          <div style="font-family:var(--heading);font-size:15px;font-weight:800;color:var(--text)">
-            ${isIsolir ? 'Isolir Massal' : 'Aktifkan Massal'}
-          </div>
-          <div style="font-size:12px;color:var(--text-muted);margin-top:1px">
-            ${ids.length} pelanggan akan ${isIsolir ? 'diisolir' : 'diaktifkan'}
-          </div>
-        </div>
-        <button class="psheet-close" style="margin-left:auto" onclick="closeModalForm()">
-          <span class="material-symbols-outlined">close</span>
-        </button>
-      </div>
-
-      <div style="max-height:220px;overflow-y:auto;margin-bottom:16px;
-           border:1px solid var(--border);border-radius:var(--r-md);padding:0 12px">
-        ${listHtml}
-      </div>
-
-      ${isIsolir ? `
-        <div style="background:var(--red-bg);border:1px solid var(--red-border);
-             border-radius:var(--r-md);padding:10px 12px;font-size:12px;color:var(--red);
-             margin-bottom:16px">
-          ⚠ Profil semua pelanggan terpilih akan diubah ke <strong>Isolir</strong>
-          dan session aktif akan diputus.
-        </div>` : `
-        <div style="background:var(--green-bg);border:1px solid var(--green-border);
-             border-radius:var(--r-md);padding:10px 12px;font-size:12px;color:var(--green);
-             margin-bottom:16px">
-          ✅ Profil akan dikembalikan ke profil sebelum isolir.
-          Pelanggan tanpa riwayat profil tidak akan diproses.
-        </div>`}
-
-      <div class="modal-actions">
-        <button class="btn" onclick="closeModalForm()">Batal</button>
-        <button class="btn ${isIsolir ? 'btn-red' : 'btn-green'}"
-                id="btn-bulk-confirm"
-                onclick="eksekusiBulk('${aksi}')">
-          <span class="material-symbols-outlined">
-            ${isIsolir ? 'block' : 'check_circle'}
-          </span>
-          ${isIsolir ? 'Ya, Isolir Sekarang' : 'Ya, Aktifkan Sekarang'}
-        </button>
-      </div>
-    </div>`);
-}
-
-async function eksekusiBulk(aksi) {
-  const deviceId = document.getElementById('filter-device')?.value
-                || _allData[0]?.device_id;
-  if (!deviceId) {
-    toast('Pilih perangkat MikroTik terlebih dahulu', 'warning');
-    return;
-  }
-
-  const ids = [..._selectedIds];
-  const btn = document.getElementById('btn-bulk-confirm');
-  if (btn) {
-    btn.disabled = true;
-    btn.innerHTML = '<span class="material-symbols-outlined spin">refresh</span> Memproses...';
-  }
-
-  const endpoint = aksi === 'isolir'
-    ? `${API_BASE}/api/pelanggan/bulk-isolir`
-    : `${API_BASE}/api/pelanggan/bulk-aktifkan`;
-
-  try {
-    const res  = await fetch(endpoint, {
-      method:      'POST',
-      credentials: 'include',
-      headers:     getAuthHeaders(),
-      body:        JSON.stringify({ ids, device_id: Number(deviceId) }),
-    });
-    const data = await res.json();
-
-    closeModalForm();
-    clearSelection();
-
-    const isIsolir  = aksi === 'isolir';
-    const okCount   = (data.results || []).filter(r => r.status === 'ok').length;
-    const errCount  = (data.results || []).filter(r => r.status === 'error').length;
-    const toastType = errCount > 0 ? 'warning' : (isIsolir ? 'danger' : 'success');
-    toast(data.message || `${okCount} berhasil, ${errCount} gagal`, toastType);
-
-    // Reload tabel
-    await loadPelanggan();
-
-  } catch (e) {
-    toast('Gagal menghubungi server', 'danger');
-    if (btn) {
-      btn.disabled = false;
-      btn.innerHTML = aksi === 'isolir' ? 'Ya, Isolir Sekarang' : 'Ya, Aktifkan Sekarang';
-    }
-  }
-}
 
 
 /* ══════════════════════════════════════════════════════════
@@ -1869,8 +1874,9 @@ window.sortByRx   = sortByRx;
 window.filterPelanggan          = filterPelanggan;
 window.deteksiLokasiPelanggan   = deteksiLokasiPelanggan;
 window.previewKoordinatPelanggan = previewKoordinatPelanggan;
-window.toggleSelect    = toggleSelect;
-window.toggleSelectAll = toggleSelectAll;
-window.clearSelection  = clearSelection;
-window.openBulkModal   = openBulkModal;
-window.eksekusiBulk    = eksekusiBulk;
+
+// Pilihan massal
+window._cbAllChange  = _cbAllChange;
+window._batalPilihan = _batalPilihan;
+window._isolirMassal = _isolirMassal;
+window._aktifMassal  = _aktifMassal;

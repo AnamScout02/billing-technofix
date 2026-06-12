@@ -417,7 +417,7 @@ code{
         <div class="feat-item">
           <div class="fi-icon">👤</div>
           <div class="fi-name">Portal Pelanggan</div>
-          <div class="fi-desc">Pelanggan cek status koneksi, tagihan, speed test, ubah password WiFi</div>
+          <div class="fi-desc">Pelanggan cek status koneksi, tagihan, speed test</div>
         </div>
         <div class="feat-item">
           <div class="fi-icon">👥</div>
@@ -435,9 +435,9 @@ code{
         </thead>
         <tbody>
           <tr><td><span class="badge badge-blue">Owner</span></td><td>Pemilik ISP — akses penuh ke semua fitur</td><td>Semua menu</td></tr>
-          <tr><td><span class="badge badge-green">Admin</span></td><td>Administrator jaringan</td><td>Pelanggan, Perangkat, Maps, Keuangan</td></tr>
-          <tr><td><span class="badge badge-amber">Teknisi</span></td><td>Teknisi lapangan</td><td>Pelanggan, Perangkat, Maps</td></tr>
-          <tr><td><span class="badge badge-gray">Kolektor</span></td><td>Petugas penagihan</td><td>Pelanggan (bayar), Tagihan/Loket</td></tr>
+          <tr><td><span class="badge badge-green">Admin</span></td><td>Administrator jaringan</td><td>Pelanggan, Perangkat, Maps, Keuangan, Manajemen User</td></tr>
+          <tr><td><span class="badge badge-amber">Teknisi</span></td><td>Teknisi lapangan</td><td>Pelanggan, Perangkat (lihat saja), Maps</td></tr>
+          <tr><td><span class="badge badge-gray">Kolektor</span></td><td>Petugas penagihan</td><td>Pelanggan (bayar), Loket, Maps</td></tr>
         </tbody>
       </table>
     </div>
@@ -1042,7 +1042,7 @@ code{
       </ol>
       <div class="note">
         <span class="ico">📌</span>
-        <span>Fitur bayar online membutuhkan konfigurasi API key dari Midtrans atau Xendit di menu <strong>Setting</strong>.</span>
+        <span>Fitur bayar online membutuhkan konfigurasi API key dari Midtrans atau Xendit. Klik tombol <strong>Atur Gateway</strong> di halaman Bayar Online untuk mengisinya.</span>
       </div>
     </div>
 
@@ -1067,37 +1067,45 @@ code{
       <h3><span class="ico">📲</span> Cara Menggunakan Notifikasi WA</h3>
       <ol class="steps">
         <li>Klik menu <strong>Keuangan</strong> → pilih <strong>Notifikasi WA</strong></li>
-        <li>Pilih pelanggan yang akan dikirimi notifikasi (bisa pilih semua atau per-pelanggan)</li>
-        <li>Pilih template pesan yang akan digunakan</li>
-        <li>Klik <strong>Kirim Notifikasi</strong></li>
+        <li>Pilih <strong>periode</strong> (bulan) tagihan di toolbar atas</li>
+        <li>Klik <strong>Kirim Pengingat</strong> — sistem mengirim pesan pengingat ke semua pelanggan dengan tagihan <strong>belum lunas</strong> pada periode tersebut</li>
+        <li>Riwayat pengiriman akan muncul di tabel log (status: Terkirim / Mock / Gagal)</li>
       </ol>
+      <div class="tip">
+        <span class="ico">💡</span>
+        <span>Gunakan tombol <strong>Kirim Uji</strong> untuk mengirim pesan percobaan ke satu nomor sebelum melakukan blast ke semua pelanggan.</span>
+      </div>
     </div>
 
     <div class="subsec">
       <h3><span class="ico">📝</span> Template Pesan</h3>
-      <p>Sistem menyediakan template pesan yang dapat dikustomisasi:</p>
+      <p>Template pengingat dapat diubah lewat <strong>Atur Gateway</strong>. Placeholder yang tersedia:</p>
       <table class="guide-table">
-        <thead><tr><th>Template</th><th>Digunakan Untuk</th></tr></thead>
+        <thead><tr><th>Placeholder</th><th>Diganti Dengan</th></tr></thead>
         <tbody>
-          <tr><td>Pengingat Tagihan</td><td>Kirim H-3 atau H-7 sebelum jatuh tempo</td></tr>
-          <tr><td>Tagihan Jatuh Tempo</td><td>Kirim pada tanggal jatuh tempo</td></tr>
-          <tr><td>Sudah Terlambat</td><td>Kirim untuk tagihan yang sudah lewat jatuh tempo</td></tr>
-          <tr><td>Konfirmasi Bayar</td><td>Kirim otomatis setelah pembayaran berhasil dicatat</td></tr>
+          <tr><td><code>{nama}</code></td><td>Nama pelanggan</td></tr>
+          <tr><td><code>{nominal}</code></td><td>Jumlah tagihan</td></tr>
+          <tr><td><code>{periode}</code></td><td>Periode tagihan (bulan &amp; tahun)</td></tr>
+          <tr><td><code>{jatuh_tempo}</code></td><td>Tanggal jatuh tempo</td></tr>
+          <tr><td><code>{isp}</code></td><td>Nama ISP</td></tr>
         </tbody>
       </table>
       <div class="note">
         <span class="ico">📌</span>
-        <span>Pesan menggunakan nomor telepon yang tersimpan di data pelanggan. Pastikan nomor WA pelanggan sudah benar dan aktif.</span>
+        <span>Pesan dikirim ke nomor telepon yang tersimpan di data pelanggan. Pastikan nomor WA pelanggan sudah benar dan aktif.</span>
       </div>
     </div>
 
     <div class="subsec">
       <h3><span class="ico">⚙️</span> Konfigurasi WA Gateway</h3>
-      <p>Notifikasi WA membutuhkan koneksi ke WhatsApp Gateway. Konfigurasi di menu <strong>Setting → WhatsApp</strong>:</p>
+      <p>Klik tombol <strong>Atur Gateway</strong> di halaman Notifikasi WA (memerlukan akses Keuangan) untuk mengatur:</p>
       <ul class="field-list">
-        <li><span class="field-name">API URL</span><span>Endpoint WA Gateway (Fonnte, WA Business, dll)</span></li>
-        <li><span class="field-name">API Token/Key</span><span>Token autentikasi dari provider WA</span></li>
-        <li><span class="field-name">Nomor Pengirim</span><span>Nomor WA yang akan mengirim pesan</span></li>
+        <li><span class="field-name">Provider</span><span>Fonnte atau Wablas</span></li>
+        <li><span class="field-name">URL Gateway</span><span>Opsional, khusus untuk Wablas</span></li>
+        <li><span class="field-name">Token API</span><span>Token autentikasi dari provider WA</span></li>
+        <li><span class="field-name">Template Pesan</span><span>Isi pesan pengingat dengan placeholder di atas</span></li>
+        <li><span class="field-name">Aktifkan Pengiriman Live</span><span>Jika nonaktif, sistem berjalan dalam mode mock — pesan hanya dicatat di log tanpa benar-benar terkirim</span></li>
+        <li><span class="field-name">Pengingat Otomatis</span><span>Jika aktif, sistem otomatis mengirim pengingat H-3, hari-H, dan H+3 (telat) untuk tiap tagihan, masing-masing maksimal sekali</span></li>
       </ul>
     </div>
 
@@ -1221,25 +1229,9 @@ code{
           <tr><td>🧾 Tagihan</td><td>Riwayat tagihan, status lunas/belum, rekening tujuan transfer</td></tr>
           <tr><td>📋 Laporan</td><td>Kirim tiket keluhan ke admin/teknisi, pantau status tiket</td></tr>
           <tr><td>⚡ Speed Test</td><td>Uji kecepatan internet langsung dari browser (Ping, Download, Upload)</td></tr>
-          <tr><td>⚙️ Pengaturan</td><td>Lihat info akun, ubah nama/password WiFi modem</td></tr>
+          <tr><td>⚙️ Pengaturan</td><td>Lihat info akun pelanggan</td></tr>
         </tbody>
       </table>
-    </div>
-
-    <div class="subsec">
-      <h3><span class="ico">🛜</span> Cara Ubah Password WiFi</h3>
-      <ol class="steps">
-        <li>Login ke portal pelanggan</li>
-        <li>Klik tab <strong>Pengaturan</strong></li>
-        <li>Di bagian <em>Ubah WiFi Modem</em>, isi <strong>Nama WiFi (SSID) Baru</strong> dan/atau <strong>Password WiFi Baru</strong></li>
-        <li>Klik <strong>Kirim Perubahan</strong></li>
-        <li>Modem akan restart otomatis dalam ~30 detik</li>
-        <li>Hubungkan ulang perangkat WiFi dengan password baru</li>
-      </ol>
-      <div class="warn">
-        <span class="ico">⚠️</span>
-        <span>Setelah klik simpan, semua perangkat yang terhubung ke WiFi akan terputus sementara karena modem restart. Ini normal.</span>
-      </div>
     </div>
 
     <div class="subsec">
@@ -1247,7 +1239,7 @@ code{
       <ol class="steps">
         <li>Buka tab <strong>Laporan</strong> di portal</li>
         <li>Klik <strong>Buat Laporan Baru</strong></li>
-        <li>Pilih <strong>Kategori</strong>: Gangguan Jaringan / Kecepatan Lambat / Tagihan / Lainnya</li>
+        <li>Pilih <strong>Kategori</strong>: Gangguan Internet / Kecepatan Lambat / Pertanyaan Tagihan / Lainnya</li>
         <li>Tulis deskripsi masalah dengan jelas</li>
         <li>Klik <strong>Kirim</strong></li>
         <li>Tiket akan muncul di dashboard admin untuk ditangani teknisi</li>
@@ -1310,14 +1302,18 @@ code{
         <tbody>
           <tr><td>Lihat Pelanggan</td><td>✅</td><td>✅</td><td>✅</td></tr>
           <tr><td>Kelola Pelanggan (tambah/edit)</td><td>✅</td><td>✅</td><td>❌</td></tr>
-          <tr><td>Kelola Perangkat</td><td>✅</td><td>✅</td><td>❌</td></tr>
+          <tr><td>Kelola Perangkat</td><td>✅</td><td>❌</td><td>❌</td></tr>
           <tr><td>Lihat Maps</td><td>✅</td><td>✅</td><td>✅</td></tr>
-          <tr><td>Keuangan &amp; Tagihan</td><td>✅</td><td>❌</td><td>✅</td></tr>
+          <tr><td>Keuangan &amp; Tagihan</td><td>✅</td><td>❌</td><td>❌</td></tr>
           <tr><td>Terima Pembayaran</td><td>✅</td><td>❌</td><td>✅</td></tr>
-          <tr><td>Manajemen User</td><td>❌</td><td>❌</td><td>❌</td></tr>
+          <tr><td>Manajemen User</td><td>✅</td><td>❌</td><td>❌</td></tr>
           <tr><td>Kelola Langganan</td><td>❌</td><td>❌</td><td>❌</td></tr>
         </tbody>
       </table>
+      <div class="note">
+        <span class="ico">📌</span>
+        <span>Teknisi bisa <strong>melihat</strong> data MikroTik/OLT/ODC/ODP (status, monitoring) tapi tidak bisa menambah, mengedit, atau menghapus perangkat — hanya Owner dan Admin yang punya akses kelola perangkat penuh.</span>
+      </div>
       <div class="tip">
         <span class="ico">💡</span>
         <span>Owner bisa mengkustomisasi izin akses per user melebihi standar peran. Centang/uncentang izin individual di form edit user.</span>
@@ -1367,13 +1363,13 @@ code{
         <thead><tr><th>Paket</th><th>Harga/Bulan</th><th>Maks. Pelanggan</th><th>Maks. Tim</th></tr></thead>
         <tbody>
           <tr><td><span class="badge badge-gray">Trial</span></td><td>Gratis 7 hari</td><td>50</td><td>3</td></tr>
-          <tr><td><span class="badge badge-blue">Pemula</span></td><td>Rp 150.000</td><td>100</td><td>5</td></tr>
-          <tr><td><span class="badge badge-blue">Esensial</span></td><td>Rp 200.000</td><td>300</td><td>7</td></tr>
-          <tr><td><span class="badge badge-green">Standar</span></td><td>Rp 300.000</td><td>500</td><td>10</td></tr>
-          <tr><td><span class="badge badge-green">Pro</span></td><td>Rp 600.000</td><td>1.000</td><td>15</td></tr>
-          <tr><td><span class="badge badge-blue">Lanjutan</span></td><td>Rp 900.000</td><td>2.000</td><td>20</td></tr>
-          <tr><td><span class="badge badge-amber">Bisnis</span></td><td>Rp 1.500.000</td><td>5.000</td><td>30</td></tr>
-          <tr><td><span class="badge badge-red">Enterprise</span></td><td>Rp 3.000.000</td><td>Tidak terbatas</td><td>Tidak terbatas</td></tr>
+          <tr><td><span class="badge badge-blue">Pemula</span></td><td>Rp 150.000</td><td>500</td><td>3</td></tr>
+          <tr><td><span class="badge badge-blue">Esensial</span></td><td>Rp 200.000</td><td>750</td><td>4</td></tr>
+          <tr><td><span class="badge badge-green">Standar</span></td><td>Rp 300.000</td><td>1.000</td><td>6</td></tr>
+          <tr><td><span class="badge badge-green">Pro</span></td><td>Rp 600.000</td><td>2.500</td><td>10</td></tr>
+          <tr><td><span class="badge badge-blue">Lanjutan</span></td><td>Rp 900.000</td><td>4.000</td><td>15</td></tr>
+          <tr><td><span class="badge badge-amber">Bisnis</span></td><td>Rp 1.500.000</td><td>7.000</td><td>30</td></tr>
+          <tr><td><span class="badge badge-red">Enterprise</span></td><td>Rp 3.000.000</td><td>15.000</td><td>Tidak terbatas</td></tr>
         </tbody>
       </table>
     </div>

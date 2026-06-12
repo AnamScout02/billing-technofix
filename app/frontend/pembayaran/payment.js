@@ -103,7 +103,7 @@ function renderBanner() {
     b.innerHTML = `<span class="material-symbols-outlined">cloud_done</span>Gateway ${esc(_cfg.provider || '')} (${esc(_cfg.mode || '')}) aktif.`;
   } else {
     b.className = 'mode-banner mode-mock'; b.style.display = 'flex';
-    b.innerHTML = '<span class="material-symbols-outlined">science</span>Mode simulasi — link dummy. Pakai tombol "Tandai Lunas" untuk menutup transaksi.';
+    b.innerHTML = '<span class="material-symbols-outlined">info</span>Gateway belum aktif — link dummy. Gunakan "Konfirmasi Bayar Manual" untuk menutup transaksi.';
   }
 }
 
@@ -168,7 +168,7 @@ async function loadTx() {
       if (x.status === 'pending') {
         const openBtn = (x.payment_url && x.payment_url.startsWith('http'))
           ? `<button class="btn-link" onclick="window.open('${esc(x.payment_url)}','_blank')"><span class="material-symbols-outlined">open_in_new</span>Buka</button>` : '';
-        aksi = `${openBtn}<button class="btn-paid" data-perm="keuangan" onclick="simulatePaid('${esc(x.order_id)}')"><span class="material-symbols-outlined">check</span>Tandai Lunas</button>`;
+        aksi = `${openBtn}<button class="btn-paid" data-perm="keuangan" onclick="markPaid('${esc(x.order_id)}')"><span class="material-symbols-outlined">check</span>Konfirmasi Bayar Manual</button>`;
       }
       return `<tr>
         <td class="sticky-col-1">${i + 1}</td>
@@ -184,12 +184,12 @@ async function loadTx() {
   } catch { tb.innerHTML = stateRow(7, 'Gagal memuat transaksi.'); }
 }
 
-async function simulatePaid(orderId) {
-  if (!confirm('Tandai transaksi ' + orderId + ' sebagai LUNAS? Tagihan akan tercatat di keuangan.')) return;
+async function markPaid(orderId) {
+  if (!confirm('Konfirmasi transaksi ' + orderId + ' sebagai LUNAS?\nTagihan akan tercatat lunas di keuangan.')) return;
   try {
-    const r = await fetch(`${PG_API}/simulate-paid`, { method: 'POST', credentials: 'include', headers: _jhdr(), body: JSON.stringify({ order_id: orderId }) });
+    const r = await fetch(`${PG_API}/mark-paid`, { method: 'POST', credentials: 'include', headers: _jhdr(), body: JSON.stringify({ order_id: orderId }) });
     const d = await r.json();
-    toast(d.message || (r.ok ? 'Lunas' : 'Gagal'), r.ok ? 'success' : 'danger');
+    toast(d.message || (r.ok ? 'Transaksi dikonfirmasi lunas' : 'Gagal'), r.ok ? 'success' : 'danger');
     if (r.ok) loadTx();
   } catch { toast('Tidak bisa menghubungi server', 'danger'); }
 }
@@ -203,6 +203,8 @@ function openConfig() {
   document.getElementById('cfg-client').value = _cfg.client_key || '';
   document.getElementById('cfg-server').value = '';
   document.getElementById('cfg-server').placeholder = _cfg.has_server_key ? '•••••• (tersimpan)' : 'server key';
+  document.getElementById('cfg-callback').value = '';
+  document.getElementById('cfg-callback').placeholder = _cfg.has_callback_token ? '•••••• (tersimpan)' : 'x-callback-token verifikasi';
   document.getElementById('cfg-enabled').checked = !!_cfg.enabled;
   const nid = (localStorage.getItem('tf_network_id') || '<network_id>');
   document.getElementById('wh-url').textContent = `${API_BASE}/api/payment/webhook?network_id=${nid}`;
@@ -217,6 +219,7 @@ async function saveConfig() {
     enabled: document.getElementById('cfg-enabled').checked,
   };
   const sk = document.getElementById('cfg-server').value; if (sk) body.server_key = sk;
+  const cb = document.getElementById('cfg-callback').value; if (cb) body.callback_token = cb;
   const btn = document.getElementById('cfg-save'); btn.disabled = true;
   try {
     const r = await fetch(`${PG_API}/config`, { method: 'POST', credentials: 'include', headers: _jhdr(), body: JSON.stringify(body) });

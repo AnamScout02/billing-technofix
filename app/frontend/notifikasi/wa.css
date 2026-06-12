@@ -16,12 +16,157 @@
 .mode-mock { background: var(--amber-bg); color: var(--amber); border: 1px solid color-mix(in srgb, var(--amber) 30%, transparent); }
 .mode-live { background: var(--green-bg); color: var(--green); border: 1px solid color-mix(in srgb, var(--green) 30%, transparent); }
 
-.tpl-card { background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 16px 18px; margin-bottom: 18px; box-shadow: var(--shadow-sm); }
+/* ── Template card — layout 2 kolom ── */
+.tpl-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 20px 22px;
+  margin-bottom: 18px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  gap: 28px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.tpl-left { flex: 1; min-width: 200px; }
+.tpl-right { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+
 .tpl-head { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); margin-bottom: 10px; }
 .tpl-head .material-symbols-outlined { font-size: 17px; }
-.tpl-body { font-size: 13.5px; line-height: 1.6; color: var(--text); margin: 0 0 10px; white-space: pre-wrap; background: var(--surface); border-radius: var(--r-md); padding: 12px 14px; }
 .tpl-note { font-size: 11.5px; color: var(--text-dim); margin: 0; }
+.tpl-note-top { margin-bottom: 4px; }
 .tpl-note code { background: var(--surface); padding: 1px 5px; border-radius: 4px; font-size: 11px; }
+.tpl-mock-label { font-size: 11px; color: var(--text-dim); font-weight: 600; letter-spacing: .04em; text-align: center; }
+
+/* ── WA Phone Mockup ── */
+.wa-phone {
+  width: 278px;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0,0,0,.22), 0 2px 8px rgba(0,0,0,.12);
+  display: flex;
+  flex-direction: column;
+  font-family: -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
+  border: 3px solid #1a1a1a;
+}
+
+/* Status bar */
+.wa-statusbar {
+  background: #075e54;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 12px;
+  height: 22px;
+}
+.wa-statusbar-time { font-size: 11px; font-weight: 700; color: #fff; }
+.wa-statusbar-icons { display: flex; align-items: center; gap: 5px; }
+
+/* Header */
+.wa-header {
+  background: #075e54;
+  display: flex;
+  align-items: center;
+  padding: 8px 10px 10px;
+  gap: 8px;
+}
+.wa-back { background: none; border: none; cursor: default; padding: 0; display: flex; align-items: center; }
+.wa-avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: #25d366;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 700; color: #fff;
+  flex-shrink: 0;
+}
+.wa-contact { flex: 1; display: flex; flex-direction: column; gap: 1px; }
+.wa-contact-name { font-size: 13.5px; font-weight: 600; color: #fff; line-height: 1.2; }
+.wa-contact-status { font-size: 11px; color: rgba(255,255,255,.75); }
+.wa-header-icons { display: flex; align-items: center; gap: 12px; opacity: .9; }
+
+/* Chat body */
+.wa-body {
+  background: #ece5dd;
+  flex: 1;
+  min-height: 160px;
+  padding: 10px 8px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E");
+}
+.wa-date-sep {
+  text-align: center;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #54656f;
+  background: rgba(255,255,255,.7);
+  border-radius: 8px;
+  padding: 3px 10px;
+  align-self: center;
+  box-shadow: 0 1px 2px rgba(0,0,0,.08);
+}
+.wa-bubble-wrap { display: flex; justify-content: flex-start; }
+.wa-bubble {
+  background: #fff;
+  border-radius: 0 10px 10px 10px;
+  padding: 8px 10px 6px;
+  max-width: 230px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.12);
+  position: relative;
+}
+.wa-bubble-text {
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: #111b21;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.wa-bubble-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: 4px;
+}
+.wa-bubble-time { font-size: 10.5px; color: #8696a0; }
+.wa-check { display: flex; align-items: center; }
+
+/* Footer */
+.wa-footer {
+  background: #f0f2f5;
+  padding: 7px 8px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border-top: 1px solid #d1d7db;
+}
+.wa-input-bar {
+  flex: 1;
+  background: #fff;
+  border-radius: 24px;
+  padding: 7px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 1px 2px rgba(0,0,0,.08);
+}
+.wa-input-placeholder { font-size: 12px; color: #8696a0; flex: 1; }
+.wa-send-btn {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: #00a884;
+  border: none; cursor: default;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0,168,132,.35);
+}
+
+/* Responsif: stack ke 1 kolom di layar sempit */
+@media (max-width: 680px) {
+  .tpl-card { flex-direction: column; align-items: stretch; }
+  .tpl-right { align-items: center; }
+  .wa-phone { width: 100%; max-width: 320px; align-self: center; }
+}
 
 .table-wrap { background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); overflow: hidden; }
 .table-scroll { overflow-x: auto; max-height: calc(100vh - 440px); min-height: 160px; overflow-y: auto; }

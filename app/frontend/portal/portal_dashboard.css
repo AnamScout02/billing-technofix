@@ -4,13 +4,13 @@
 
 /* Desktop: tab-wrap sebagai first in-flow element */
 .portal-tabs-wrap {
-  margin-top: calc(var(--header-h) + env(safe-area-inset-top, 0px));
+  margin-top: calc(var(--header-h) + 14px);
 }
 
 /* Mobile: tabs-wrap hidden, portal-page yang perlu offset */
 @media(max-width:640px) {
   .portal-page {
-    margin-top: calc(var(--header-h) + env(safe-area-inset-top, 0px));
+    margin-top: calc(var(--header-h) + 14px);
   }
 }
 

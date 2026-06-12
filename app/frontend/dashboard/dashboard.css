@@ -1,3 +1,38 @@
+
+/* ══════════════════════════════════════════════════════════
+   STAT CARD PROGRESS BAR
+══════════════════════════════════════════════════════════ */
+.stat-prog {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 4px;
+  background: rgba(255,255,255,.15);
+  border-radius: 0 0 16px 16px;
+  overflow: hidden;
+}
+.stat-prog-fill {
+  height: 100%;
+  background: rgba(255,255,255,.75);
+  border-radius: 0 99px 99px 0;
+  transition: width 1.4s cubic-bezier(.22,1,.36,1);
+  box-shadow: 0 0 8px rgba(255,255,255,.4);
+}
+.stat-prog-fill--red {
+  background: rgba(255,200,200,.75);
+  box-shadow: 0 0 8px rgba(255,150,150,.3);
+}
+
+/* ── Page fade-in ── */
+@keyframes pageFadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+.sa-main, main.sa-main, .page-content { animation: pageFadeIn .35s ease both; }
+
+/* ── Table row left accent ── */
+.dash-tbl tbody tr:hover td:first-child,
+.data-table tbody tr:hover td:first-child {
+  border-left: 3px solid var(--primary);
+  padding-left: 13px;
+}
+
 /* ============================================================
    dashboard.css — TechnoFix · Dashboard  v4.0
    ⚠  Load SETELAH global.css
@@ -10,106 +45,9 @@
 
 
 /* ══════════════════════════════════════════════════════════
-   1. DEVICE BAR — identik visual dengan pelanggan device-bar
+   1. DEVICE BAR — komponen .dash-device-bar* kini di global.css
+   (dipakai bersama oleh dashboard, pelanggan, profile_pppoe)
 ══════════════════════════════════════════════════════════ */
-.dash-device-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  padding: 14px 18px;
-  margin-bottom: var(--section-gap);
-  box-shadow: var(--shadow-sm);
-  flex-wrap: wrap;
-}
-
-.dash-device-bar-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex: 1;
-  min-width: 0;
-}
-
-.dash-device-icon {
-  width: 42px; height: 42px;
-  border-radius: var(--r-md);
-  background: var(--primary-light);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 22px; color: var(--primary); flex-shrink: 0;
-}
-.dash-device-icon .material-symbols-outlined { font-size: 22px; }
-
-.dash-device-info { display: flex; flex-direction: column; gap: 2px; }
-
-.dash-device-label {
-  font-size: 10px; font-weight: 700;
-  letter-spacing: .08em; text-transform: uppercase;
-  color: var(--text-dim);
-}
-
-.dash-device-bar-right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
-}
-
-
-/* ══════════════════════════════════════════════════════════
-   2. STATUS DOT & BADGE — koneksi MikroTik
-══════════════════════════════════════════════════════════ */
-.dash-conn-wrap {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.dash-status-dot {
-  width: 9px; height: 9px;
-  border-radius: 50%;
-  background: var(--border-2);
-  flex-shrink: 0;
-  transition: background .3s;
-}
-.dash-status-dot.online  {
-  background: var(--green);
-  box-shadow: 0 0 0 3px var(--green-bg);
-  animation: pulseGreen .9s infinite;
-}
-.dash-status-dot.offline {
-  background: var(--red);
-  box-shadow: 0 0 0 3px var(--red-bg);
-  animation: pulseRed 1.2s infinite;
-}
-.dash-status-dot.pending {
-  background: var(--amber);
-  box-shadow: 0 0 0 3px var(--amber-bg);
-  animation: pulseAmber .8s infinite;
-}
-
-.dash-status-text {
-  font-size: 12px; font-weight: 600;
-  color: var(--text-dim); white-space: nowrap; transition: color .3s;
-}
-.dash-status-text.online  { color: var(--green); }
-.dash-status-text.offline { color: var(--red);   }
-.dash-status-text.pending { color: var(--amber);  }
-
-/* Badge sync kecil — identik pelanggan .sync-status */
-.sync-badge {
-  font-size: 10.5px; font-weight: 600;
-  padding: 2px 8px; border-radius: 99px;
-  background: var(--surface); border: 1px solid var(--border);
-  color: var(--text-dim); white-space: nowrap;
-  transition: background .2s, color .2s;
-}
-.sync-badge.syncing { background: var(--blue-bg);  color: var(--blue);  border-color: var(--blue-border); }
-.sync-badge.ok      { background: var(--green-bg); color: var(--green); border-color: var(--green-border); }
-.sync-badge.error   { background: var(--red-bg);   color: var(--red);   border-color: var(--red-border); }
 
 
 /* ══════════════════════════════════════════════════════════
@@ -407,8 +345,6 @@
 }
 
 @media (max-width: 768px) {
-  .dash-device-bar    { flex-direction: column; align-items: flex-start; }
-  .dash-device-bar-right { width: 100%; justify-content: flex-start; }
   .dash-bw-controls   { gap: 6px; }
   .dash-chart-wrap    { padding: 12px 14px; }
   .dash-offline-item  { padding: 9px 14px; }
@@ -421,7 +357,6 @@
   .dash-bw-controls .g-select-wrap { width: 100%; }
   .dash-g-select-navy { min-width: 0; width: 100%; }
   .dash-log-msg { white-space: normal; }
-  .dash-device-bar { padding: 12px 14px; }
   .stat-num--sm { font-size: 15px !important; }
 }
 
@@ -507,6 +442,16 @@
 .dash-bw-main-chart { height: 180px; }
 @media (max-width: 768px) { .dash-bw-main-chart { height: 150px; } }
 @media (max-width: 480px) { .dash-bw-main-chart { height: 120px; } }
+
+/* Background dotted grid — kesan "data canvas" teknis */
+.dash-bw-main-chart {
+  background-image: radial-gradient(circle, #eef2f8 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+/* Glow tipis pada garis chart */
+.dash-bw-main-chart canvas {
+  filter: drop-shadow(0 0 6px rgba(55,138,221,.18));
+}
 
 /* Sparkline — mengisi sisa ruang (kanan di desktop, bawah di mobile) */
 .dash-bw-sparkwrap {
@@ -903,3 +848,21 @@
 .dash-ticker-time {
   font-size: 10.5px; color: var(--text-dim); white-space: nowrap; flex-shrink: 0;
 }
+/* ── Freeze kolom profile PPPoE table ── */
+#profile-table-wrap { overflow-x: auto; }
+.dash-section-table .dash-sticky-0,
+.dash-section-table thead .dash-sticky-0 {
+  position: sticky; left: 0; z-index: 4; background: var(--bg);
+  width: 44px; min-width: 44px; max-width: 44px;
+  padding: 8px 6px; text-align: center; box-sizing: border-box;
+}
+.dash-section-table thead .dash-sticky-0 { background: var(--surface); z-index: 6; }
+.dash-section-table .dash-sticky-1,
+.dash-section-table thead .dash-sticky-1 {
+  position: sticky; left: 44px; z-index: 4; background: var(--bg);
+  min-width: 140px; border-right: 1px solid var(--border);
+  box-shadow: 2px 0 6px rgba(0,0,0,.05);
+}
+.dash-section-table thead .dash-sticky-1 { background: var(--surface); z-index: 6; }
+.dash-section-table tbody tr:hover .dash-sticky-0,
+.dash-section-table tbody tr:hover .dash-sticky-1 { background: var(--surface); }

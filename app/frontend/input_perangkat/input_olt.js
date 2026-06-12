@@ -21,14 +21,58 @@
 
 // ── STATE ──────────────────────────────────────────────────────
 let devices    = [];
+let routers    = [];   // daftar MikroTik untuk dropdown router OLT
 let editingId  = null;
 let syncingIds = new Set();
+
+// ── SIGNAL ONU STATE ───────────────────────────────────────────
+// onuSignalCache[olt_id] = { crit: N, warn: N, ok: N, list: [...] }
+let onuSignalCache = {};
+
+
+// ── SIGNAL HELPERS ─────────────────────────────────────────────
+const RX_CRIT  = -27;  // RX < -27 dBm → kritis
+const RX_WARN  = -24;  // -27 <= RX < -24 dBm → lemah
+
+function rxSignalLevel(rx) {
+  if (rx === null || rx === undefined || rx === '') return 'unknown';
+  const v = parseFloat(rx);
+  if (isNaN(v)) return 'unknown';
+  if (v < RX_CRIT) return 'crit';
+  if (v < RX_WARN) return 'warn';
+  return 'ok';
+}
+
+function rxSignalClass(rx) {
+  const lvl = rxSignalLevel(rx);
+  if (lvl === 'crit') return 'onu-rx-crit';
+  if (lvl === 'warn') return 'onu-rx-warn';
+  return '';
+}
+
+function rxSignalLabel(rx) {
+  const lvl = rxSignalLevel(rx);
+  if (lvl === 'crit') return 'Kritis';
+  if (lvl === 'warn') return 'Lemah';
+  if (lvl === 'ok')   return 'Baik';
+  return '—';
+}
 
 
 // ── HELPER: Cari elemen list/count — dukung kedua ID ──────
 // HTML lama pakai 'device-list/count', HTML baru pakai 'olt-list/count'
 function _listEl()  { return document.getElementById('olt-list')  || document.getElementById('device-list'); }
 function _countEl() { return document.getElementById('olt-count') || document.getElementById('device-count'); }
+
+// Resolusi nilai keyword tipe ONU dari form — kalau pilih "custom",
+// ambil dari kolom teks bebas di sebelahnya.
+function _resolveOnuTypeKeyword() {
+  const sel = val('f-onu-type-keyword');
+  if (sel === 'custom') {
+    return (val('f-onu-type-keyword-custom') || '').trim().toUpperCase() || 'ALL';
+  }
+  return sel || 'ALL';
+}
 
 
 // ── HELPERS ────────────────────────────────────────────────────
@@ -62,10 +106,20 @@ function updateStats() {
 async function loadDevices() {
   showListLoading();
   try {
-    const res  = await fetch(`${API_BASE}/olt`, { credentials: 'include', headers: getAuthHeaders() });
-    const data = await res.json();
+    const [resOlt, resDev] = await Promise.all([
+      fetch(`${API_BASE}/olt`,     { credentials: 'include', headers: getAuthHeaders() }),
+      fetch(`${API_BASE}/devices`, { credentials: 'include', headers: getAuthHeaders() }),
+    ]);
+    const data = await resOlt.json();
     devices    = Array.isArray(data) ? data : (data.devices || []);
+    const devData = await resDev.json();
+    routers = (Array.isArray(devData) ? devData : (devData.devices || []))
+      .filter(d => d.status === 'connected');
     renderDevices();
+    // Cek ulang koneksi live — status di DB bisa basi (mis. OLT baru saja
+    // mati lampu/terputus setelah sync terakhir). Tanpa ini, badge "Terhubung"
+    // bisa menyesatkan padahal perangkat sudah tidak bisa dihubungi.
+    if (devices.length) syncAll(true);
   } catch (e) {
     const errEl = _listEl();
     if (errEl) {
@@ -91,6 +145,8 @@ async function addDevice() {
   const lokasi     = val('f-lokasi');
   const keterangan = val('f-keterangan');
   const epon_ports = val('f-epon-ports') || '4';
+  const onu_type_keyword = _resolveOnuTypeKeyword();
+  const uplinks    = collectUplinks();
 
   if (!name || !ip || !user || !pass) {
     toast('Mohon isi semua field yang wajib diisi.', 'warning');
@@ -111,7 +167,7 @@ async function addDevice() {
     const res  = await fetch(`${API_BASE}/olt`, {
       method:  'POST',
       credentials: 'include', headers: getAuthHeaders(),
-      body:    JSON.stringify({ name, tipe, ip, port, username: user, password: pass, snmp, lokasi, koordinat: val('f-koordinat'), keterangan, epon_ports }),
+      body:    JSON.stringify({ name, tipe, ip, port, username: user, password: pass, snmp, lokasi, koordinat: val('f-koordinat'), keterangan, epon_ports, onu_type_keyword, uplinks }),
     });
     const data = await res.json();
 
@@ -144,6 +200,8 @@ async function saveEdit() {
   const lokasi     = val('f-lokasi');
   const keterangan = val('f-keterangan');
   const epon_ports = val('f-epon-ports') || '4';
+  const onu_type_keyword = _resolveOnuTypeKeyword();
+  const uplinks    = collectUplinks();
 
   if (!name || !ip || !user) {
     toast('Mohon isi semua field yang wajib diisi.', 'warning');
@@ -160,7 +218,7 @@ async function saveEdit() {
     const res  = await fetch(`${API_BASE}/olt/${editingId}`, {
       method:  'PUT',
       credentials: 'include', headers: getAuthHeaders(),
-      body:    JSON.stringify({ name, tipe, ip, port, username: user, password: pass, snmp, lokasi, koordinat: val('f-koordinat'), keterangan, epon_ports }),
+      body:    JSON.stringify({ name, tipe, ip, port, username: user, password: pass, snmp, lokasi, koordinat: val('f-koordinat'), keterangan, epon_ports, onu_type_keyword, uplinks }),
     });
     const data = await res.json();
 
@@ -236,28 +294,83 @@ async function syncOnu(id) {
   if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-outlined">sensors</span> Sync ONU'; }
 }
 
-async function syncAll() {
+async function syncAll(silent) {
   const icon    = document.getElementById('sync-all-icon');
   const pending = devices.filter(d => !syncingIds.has(d.id));
 
-  if (!pending.length) { toast('Semua perangkat sedang disinkron.', 'info'); return; }
+  if (!pending.length) {
+    if (!silent) toast('Semua perangkat sedang disinkron.', 'info');
+    return;
+  }
 
   if (icon) icon.classList.add('spin');
   pending.forEach(d => syncingIds.add(d.id));
   renderDevices();
 
   await Promise.all(pending.map(async d => {
+    const statusSebelum = d.status;
     try {
       const res  = await fetch(`${API_BASE}/olt/${d.id}/sync`, { method: 'POST', credentials: 'include', headers: getAuthHeaders() });
       const data = await res.json();
       d.status   = data.connected ? 'connected' : 'failed';
     } catch (e) { d.status = 'failed'; }
     syncingIds.delete(d.id);
+    // Beri tahu kalau perangkat baru saja terputus (beda dari status sebelumnya)
+    if (silent && statusSebelum === 'connected' && d.status === 'failed') {
+      toast(`Perangkat OLT "${d.name}" terputus — tidak bisa dihubungi saat ini.`, 'danger');
+    }
   }));
 
   if (icon) icon.classList.remove('spin');
   renderDevices();
-  toast('Sinkronisasi semua perangkat OLT selesai.', 'success');
+  if (!silent) toast('Sinkronisasi semua perangkat OLT selesai.', 'success');
+}
+
+
+// ── FETCH ONU SIGNAL PER OLT ───────────────────────────────────
+
+async function fetchOnuSignal(d) {
+  // Ambil router_id dari uplink pertama
+  const routerId = d.uplinks && d.uplinks.length ? d.uplinks[0].router_id : (d.router_id || null);
+  if (!routerId) return;
+
+  try {
+    const res  = await fetch(`${API_BASE}/api/pelanggan/${routerId}/rx-tx`,
+      { credentials: 'include', headers: getAuthHeaders() });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!Array.isArray(data)) return;
+
+    // Filter hanya ONU yang berasal dari OLT ini
+    const forThisOlt = data.filter(item => item.olt_id === d.id || String(item.olt_id) === String(d.id));
+    const list = forThisOlt.filter(item => item.rx_power !== null && item.rx_power !== undefined);
+
+    const crit = list.filter(item => rxSignalLevel(item.rx_power) === 'crit').length;
+    const warn = list.filter(item => rxSignalLevel(item.rx_power) === 'warn').length;
+
+    onuSignalCache[d.id] = { crit, warn, total: list.length, list };
+
+    // Perbarui badge pada card tanpa render ulang seluruh daftar
+    _updateSignalBadge(d.id);
+  } catch (e) { /* senyap */ }
+}
+
+function _updateSignalBadge(oltId) {
+  const sig  = onuSignalCache[oltId];
+  const wrap = document.getElementById(`onu-signal-${oltId}`);
+  if (!wrap || !sig) return;
+
+  if (sig.crit === 0 && sig.warn === 0) {
+    wrap.innerHTML = sig.total > 0
+      ? `<span class="onu-sig-badge onu-sig-ok"><span class="material-symbols-outlined">check_circle</span>Semua sinyal baik (${sig.total} ONU)</span>`
+      : '';
+    return;
+  }
+
+  const parts = [];
+  if (sig.crit > 0) parts.push(`<span class="onu-sig-badge onu-sig-crit"><span class="material-symbols-outlined">warning</span>${sig.crit} ONU sinyal kritis</span>`);
+  if (sig.warn > 0) parts.push(`<span class="onu-sig-badge onu-sig-warn"><span class="material-symbols-outlined">signal_cellular_alt</span>${sig.warn} ONU sinyal lemah</span>`);
+  wrap.innerHTML = parts.join('');
 }
 
 
@@ -266,6 +379,7 @@ async function syncAll() {
 function renderDevices() {
   const container = _listEl();
   if (!container) return;   // Defensive: jangan crash kalau elemen tidak ada
+  const canManage = (typeof hasPerm === 'function') ? hasPerm('perangkat_manage') : true;
 
   if (!devices.length) {
     container.innerHTML = `
@@ -324,6 +438,9 @@ function renderDevices() {
               ${escHtml(d.koordinat)}
             </a>
           </div>` : ''}
+          <div class="onu-signal-row" id="onu-signal-${d.id}">
+            <span class="onu-sig-loading"><span class="material-symbols-outlined" style="font-size:13px;animation:spin 1s linear infinite">refresh</span> Memeriksa sinyal ONU...</span>
+          </div>
         </div>
 
         <div class="device-actions">
@@ -337,18 +454,22 @@ function renderDevices() {
             <span class="material-symbols-outlined">sensors</span>
             Sync ONU
           </button>
+          ${canManage ? `
           <button class="btn btn-amber btn-sm" onclick="editDevice(${d.id})">
             <span class="material-symbols-outlined">edit</span> Edit
           </button>
           <button class="btn btn-red btn-sm" onclick="confirmDelete(${d.id})" title="Hapus">
             <span class="material-symbols-outlined">delete</span>
-          </button>
+          </button>` : ''}
         </div>
 
       </div>`;
   }).join('');
 
   updateStats();
+
+  // Setelah render, ambil data sinyal ONU per OLT (async, non-blocking)
+  devices.forEach(d => fetchOnuSignal(d));
 }
 
 
@@ -358,6 +479,10 @@ function showForm(prefill = null) {
   editingId    = prefill ? prefill.id : null;
   const isEdit = !!prefill;
   const v      = k => prefill ? escHtml(String(prefill[k] || '')) : '';
+  const _curOnuType   = prefill ? String(prefill.onu_type_keyword || '') : '';
+  const _isCustomOnuType = _curOnuType !== '' && _curOnuType !== 'ALL' && _curOnuType !== 'ALL-ONT';
+
+  initUplinkRows(prefill);
 
   const html = `
     <div class="form-modal" style="width:560px;">
@@ -411,12 +536,43 @@ function showForm(prefill = null) {
           </span>
         </div>
 
+        <div class="form-group full">
+          <label class="form-label">Keyword tipe ONU di perintah registrasi</label>
+          <select class="form-input" id="f-onu-type-keyword">
+            <option value="ALL"     ${!_isCustomOnuType ? (v('onu_type_keyword')!=='ALL-ONT' ?'selected':'') : ''}>ALL (mis. "onu 1 type ALL sn ...") — Default</option>
+            <option value="ALL-ONT" ${!_isCustomOnuType ? (v('onu_type_keyword')==='ALL-ONT'?'selected':'') : ''}>ALL-ONT (mis. "onu 1 type ALL-ONT sn ...")</option>
+            <option value="custom"  ${_isCustomOnuType ? 'selected' : ''}>Lainnya (custom)…</option>
+          </select>
+          <input class="form-input" type="text" id="f-onu-type-keyword-custom"
+                 placeholder="mis. ONT, GPON-ONU, dst" maxlength="32"
+                 style="margin-top:8px;${_isCustomOnuType ? '' : 'display:none'}"
+                 value="${_isCustomOnuType ? escHtml(v('onu_type_keyword')) : ''}">
+          <span class="form-hint">
+            Sesuaikan dengan firmware/model OLT — sebagian OLT ZTE menolak perintah
+            kalau keyword tipe ONU tidak cocok (lihat output CLI saat registrasi gagal).
+            Pilih "Lainnya" kalau firmware Anda pakai keyword selain ALL/ALL-ONT.
+          </span>
+        </div>
+
         <div class="form-group full" id="epon-ports-wrap" style="display:none">
           <label class="form-label">Jumlah PON Port EPON</label>
           <input class="form-input" type="number" id="f-epon-ports"
                  placeholder="4" min="1" max="16"
                  value="${v('epon_ports') || 4}">
           <span class="form-hint">Jumlah port fisik EPON di OLT (umumnya 4 atau 8)</span>
+        </div>
+
+        <div class="form-group full">
+          <label class="form-label">
+            <span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;color:var(--primary)">cable</span>
+            Router / MikroTik (Uplink)
+            <span style="font-size:10px;font-weight:400;color:var(--text-dim);margin-left:4px">(untuk kabel di Maps &amp; monitoring)</span>
+          </label>
+          <div id="f-uplinks-list"></div>
+          <button type="button" class="btn btn-sm" onclick="addUplinkRow()" style="margin-top:2px">
+            <span class="material-symbols-outlined">add</span> Tambah Jalur Uplink
+          </button>
+          <span class="form-hint">Satu OLT bisa punya lebih dari satu jalur uplink (mis. terhubung ke 2 MikroTik berbeda) — tambah baris kalau perlu.</span>
         </div>
 
         <div class="form-group full">
@@ -450,6 +606,13 @@ function showForm(prefill = null) {
         </div>
 
         <div class="form-group full">
+          <label class="form-label">Lokasi (alamat singkat, opsional)</label>
+          <input class="form-input" type="text" id="f-lokasi"
+                 placeholder="mis. Tiang ODP Jl. Merdeka No. 10"
+                 value="${v('lokasi')}">
+        </div>
+
+        <div class="form-group full">
           <label class="form-label">
             <span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;color:var(--primary)">location_on</span>
             Titik Koordinat
@@ -469,6 +632,16 @@ function showForm(prefill = null) {
           <div class="koordinat-preview" id="koordinat-preview">
             <iframe id="koordinat-iframe" src="" loading="lazy"></iframe>
           </div>
+        </div>
+
+        <div class="form-group full">
+          <label class="form-label">Catatan Konfigurasi ONU (opsional)</label>
+          <textarea class="form-input" id="f-keterangan" rows="3"
+                    placeholder="mis. ONU C-DATA/FHTT tanpa OMCI: login 192.168.1.1, set mode bridge + VLAN manual di LAN port">${v('keterangan')}</textarea>
+          <span class="form-hint">
+            Tampil di modal "CLI Preview" saat tambah/edit pelanggan — berguna untuk
+            mencatat langkah konfigurasi manual ONU (mis. tipe yang tidak mendukung OMCI).
+          </span>
         </div>
 
       </div>
@@ -500,8 +673,23 @@ function showForm(prefill = null) {
     }
     if (tipeEl) {
       tipeEl.addEventListener('change', toggleEponPorts);
-      toggleEponPorts(); // run immediately for edit mode
+      toggleEponPorts();
     }
+
+    // Show/hide kolom custom keyword tipe ONU
+    const onuTypeEl       = document.getElementById('f-onu-type-keyword');
+    const onuTypeCustomEl = document.getElementById('f-onu-type-keyword-custom');
+    function toggleOnuTypeCustom() {
+      const isCustom = onuTypeEl && onuTypeEl.value === 'custom';
+      if (onuTypeCustomEl) onuTypeCustomEl.style.display = isCustom ? '' : 'none';
+    }
+    if (onuTypeEl) {
+      onuTypeEl.addEventListener('change', toggleOnuTypeCustom);
+      toggleOnuTypeCustom();
+    }
+
+    // Render daftar uplink (1 OLT bisa terhubung ke beberapa router)
+    renderUplinkRows();
   });
 }
 
@@ -562,6 +750,177 @@ function previewKoordinat() {
     preview.classList.remove('show');
     iframe.src = '';
   }
+}
+
+
+// ── DAFTAR UPLINK DINAMIS (1 OLT bisa terhubung ke beberapa router) ──
+
+let uplinkRows = [];   // [{idx, router_id, router_interface, uplink_port, keterangan}]
+let uplinkRowSeq = 0;
+
+function _emptyUplinkRow() {
+  return { idx: uplinkRowSeq++, router_id: '', router_interface: '', uplink_port: '', keterangan: '' };
+}
+
+/* Inisialisasi state dari prefill (edit) — dukung format baru `uplinks[]`
+   maupun format lama (field tunggal router_id/router_interface/olt_uplink_port) */
+function initUplinkRows(prefill) {
+  uplinkRowSeq = 0;
+  if (prefill && Array.isArray(prefill.uplinks) && prefill.uplinks.length) {
+    uplinkRows = prefill.uplinks.map(u => ({
+      idx: uplinkRowSeq++,
+      router_id:        u.router_id ?? '',
+      router_interface: u.router_interface || '',
+      uplink_port:      u.uplink_port || '',
+      keterangan:       u.keterangan || '',
+    }));
+  } else if (prefill && prefill.router_id) {
+    uplinkRows = [{
+      idx: uplinkRowSeq++,
+      router_id:        prefill.router_id,
+      router_interface: prefill.router_interface || '',
+      uplink_port:      prefill.olt_uplink_port || '',
+      keterangan:       '',
+    }];
+  } else {
+    uplinkRows = [_emptyUplinkRow()];
+  }
+}
+
+/* Baca nilai terkini tiap baris dari DOM ke state (sebelum render ulang) */
+function syncUplinkRowsFromDOM() {
+  uplinkRows = uplinkRows.map(row => {
+    const routerSel = document.getElementById(`f-uplink-router-${row.idx}`);
+    if (!routerSel) return row;   // baris belum ter-render
+    return {
+      idx:              row.idx,
+      router_id:        routerSel.value || '',
+      router_interface: getUplinkIface(row.idx),
+      uplink_port:      (document.getElementById(`f-uplink-port-${row.idx}`)?.value || '').trim(),
+      keterangan:       (document.getElementById(`f-uplink-ket-${row.idx}`)?.value || '').trim(),
+    };
+  });
+}
+
+function addUplinkRow() {
+  syncUplinkRowsFromDOM();
+  uplinkRows.push(_emptyUplinkRow());
+  renderUplinkRows();
+}
+
+function removeUplinkRow(idx) {
+  syncUplinkRowsFromDOM();
+  uplinkRows = uplinkRows.filter(r => r.idx !== idx);
+  if (uplinkRows.length === 0) uplinkRows.push(_emptyUplinkRow());
+  renderUplinkRows();
+}
+
+function renderUplinkRows() {
+  const wrap = document.getElementById('f-uplinks-list');
+  if (!wrap) return;
+
+  wrap.innerHTML = uplinkRows.map((u, i) => `
+    <div style="border:1px solid var(--border);border-radius:var(--r-md);padding:10px;margin-bottom:8px;position:relative;">
+      ${uplinkRows.length > 1 ? `
+      <button type="button" onclick="removeUplinkRow(${u.idx})" title="Hapus jalur ini"
+              style="position:absolute;top:8px;right:8px;background:none;border:none;color:var(--red);cursor:pointer;display:flex;padding:2px">
+        <span class="material-symbols-outlined" style="font-size:18px">close</span>
+      </button>` : ''}
+      <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:6px;">
+        Jalur Uplink ${i + 1}${i === 0 ? ' (utama)' : ''}
+      </div>
+      <select class="form-input" id="f-uplink-router-${u.idx}" onchange="onUplinkRouterChange(${u.idx}, this.value)">
+        <option value="">— Tidak terhubung —</option>
+        ${routers.map(r => `<option value="${r.id}" ${String(u.router_id) === String(r.id) ? 'selected' : ''}>${escHtml(r.name)} (${r.ip})</option>`).join('')}
+      </select>
+      <div style="display:flex;gap:8px;margin-top:6px">
+        <div style="flex:1;position:relative">
+          <div class="g-select-wrap" id="f-uplink-iface-sel-wrap-${u.idx}" style="display:none;width:100%">
+            <select class="g-select" id="f-uplink-iface-sel-${u.idx}" style="width:100%">
+              <option value="">— Pilih interface —</option>
+            </select>
+            <span class="material-symbols-outlined g-select-icon">expand_more</span>
+          </div>
+          <input class="form-input" type="text" id="f-uplink-iface-${u.idx}"
+                 placeholder="ether5 (port MikroTik ke OLT)"
+                 value="${escHtml(u.router_interface || '')}" data-prev-val="${escHtml(u.router_interface || '')}">
+          <span id="f-uplink-iface-loading-${u.idx}" style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--text-dim)">Memuat...</span>
+        </div>
+        <input class="form-input" type="text" id="f-uplink-port-${u.idx}"
+               placeholder="GE01 (port OLT ke router)"
+               value="${escHtml(u.uplink_port || '')}" style="flex:1">
+      </div>
+      <input class="form-input" type="text" id="f-uplink-ket-${u.idx}"
+             placeholder="Keterangan (opsional, mis: jalur cadangan / VLAN 215)"
+             value="${escHtml(u.keterangan || '')}" style="margin-top:6px">
+    </div>`).join('');
+
+  /* Auto-load dropdown interface utk baris yang sudah punya router (edit mode) */
+  uplinkRows.forEach(u => {
+    if (u.router_id) onUplinkRouterChange(u.idx, u.router_id);
+  });
+}
+
+async function onUplinkRouterChange(idx, routerId) {
+  const wrap    = document.getElementById(`f-uplink-iface-sel-wrap-${idx}`);
+  const sel     = document.getElementById(`f-uplink-iface-sel-${idx}`);
+  const txt     = document.getElementById(`f-uplink-iface-${idx}`);
+  const loading = document.getElementById(`f-uplink-iface-loading-${idx}`);
+  if (!wrap || !sel || !txt) return;
+
+  if (!routerId) {
+    /* Tidak ada router — kembali ke text input */
+    wrap.style.display = 'none';
+    txt.style.display = '';
+    txt.value = '';
+    return;
+  }
+
+  loading.style.display = '';
+  txt.style.display = 'none';
+  wrap.style.display = 'none';
+
+  try {
+    const res  = await fetch(`${API_BASE}/api/mikrotik/${routerId}/interfaces`,
+      { credentials: 'include', headers: getAuthHeaders() });
+    const data = await res.json();
+    const ifaces = Array.isArray(data) ? data : (data.interfaces || []);
+
+    sel.innerHTML = '<option value="">— Pilih interface —</option>' +
+      ifaces.map(i => `<option value="${escHtml(i.name)}">${escHtml(i.name)}${i.comment ? ' — ' + escHtml(i.comment) : ''}</option>`).join('');
+
+    /* Pertahankan nilai lama (edit mode) */
+    const prev = txt.getAttribute('data-prev-val') || txt.value;
+    if (prev) sel.value = prev;
+
+    wrap.style.display = '';
+    loading.style.display = 'none';
+  } catch(e) {
+    /* Gagal fetch → fallback ke text input */
+    txt.style.display = '';
+    loading.style.display = 'none';
+  }
+}
+
+/* Ambil nilai interface baris ke-idx — dari select jika aktif, fallback ke text */
+function getUplinkIface(idx) {
+  const wrap = document.getElementById(`f-uplink-iface-sel-wrap-${idx}`);
+  const sel  = document.getElementById(`f-uplink-iface-sel-${idx}`);
+  if (wrap && sel && wrap.style.display !== 'none') return sel.value;
+  return (document.getElementById(`f-uplink-iface-${idx}`)?.value || '').trim();
+}
+
+/* Kumpulkan semua baris uplink yg punya router terpilih (siap dikirim ke API) */
+function collectUplinks() {
+  syncUplinkRowsFromDOM();
+  return uplinkRows
+    .filter(u => u.router_id)
+    .map(u => ({
+      router_id:        Number(u.router_id),
+      router_interface: u.router_interface || '',
+      uplink_port:      u.uplink_port || '',
+      keterangan:       u.keterangan || '',
+    }));
 }
 
 

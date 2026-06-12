@@ -1,0 +1,6 @@
+Flask==3.1.3
+flask-cors==6.0.2
+Werkzeug==3.1.8
+routeros-api==0.21.0
+librouteros==4.0.1
+scrapli==2026.2.20

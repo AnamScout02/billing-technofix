@@ -148,6 +148,30 @@
 .keuangan-table tbody tr:hover td       { background: var(--surface); }
 .keuangan-table .td-nominal             { text-align: right; font-weight: 700; }
 
+/* Freeze kolom # */
+.keuangan-table th.sticky-col-0,
+.keuangan-table td.sticky-col-0 {
+  position: sticky; left: 0; z-index: 4; background: var(--bg);
+  width: 44px; min-width: 44px; max-width: 44px;
+  padding: 8px 6px; text-align: center; box-sizing: border-box;
+}
+.keuangan-table thead th.sticky-col-0 { z-index: 5; background: var(--header-bg); }
+
+/* Freeze kolom Tanggal */
+.keuangan-table th.sticky-col-1,
+.keuangan-table td.sticky-col-1 {
+  position: sticky; left: 44px; z-index: 4; background: var(--bg);
+  min-width: 95px;
+  border-right: 1px solid var(--border);
+  box-shadow: 2px 0 8px rgba(0,0,0,.06);
+}
+.keuangan-table thead th.sticky-col-1 { z-index: 5; background: var(--header-bg); }
+.table-scroll:not([data-scrolled="1"]) .sticky-col-1 { box-shadow: none; }
+
+/* Hover tetap pakai warna surface untuk sticky */
+.keuangan-table tbody tr:hover td.sticky-col-0,
+.keuangan-table tbody tr:hover td.sticky-col-1 { background: var(--surface) !important; }
+
 .nominal-pemasukan   { color: var(--green); }
 .nominal-pengeluaran { color: var(--red); }
 
@@ -235,6 +259,69 @@
 }
 
 .saldo-banner-bulan { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+
+/* ── Grafik Tren Keuangan ── */
+.trend-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-md);
+  padding: 20px 22px 16px;
+  margin-bottom: 18px;
+}
+
+.trend-card-head {
+  display: flex; align-items: flex-start;
+  justify-content: space-between; gap: 12px;
+  margin-bottom: 16px;
+}
+
+.trend-card-title {
+  font-size: 15px; font-weight: 800;
+  font-family: var(--heading); color: var(--text);
+  letter-spacing: -.02em;
+}
+
+.trend-card-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+/* Period tabs */
+.trend-period-tabs {
+  display: flex; gap: 3px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 9px; padding: 3px;
+  flex-shrink: 0;
+}
+.tpt-btn {
+  padding: 5px 12px; font-size: 12px; font-weight: 600;
+  border-radius: 6px; border: none; background: none;
+  color: var(--text-muted); cursor: pointer;
+  transition: .15s; font-family: var(--sans);
+}
+.tpt-btn:hover { color: var(--text); background: rgba(0,0,0,.05); }
+.tpt-btn.active {
+  background: var(--primary); color: #fff;
+  box-shadow: 0 2px 8px rgba(0,64,161,.25);
+}
+
+.trend-chart-wrap { position: relative; height: 280px; }
+
+/* Custom legend */
+.trend-legend {
+  display: flex; gap: 18px; justify-content: center;
+  margin-top: 12px; flex-wrap: wrap;
+}
+.tl-item {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--text-muted); font-weight: 500;
+}
+.tl-dot {
+  width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0;
+}
+.tl-dash {
+  width: 14px; height: 3px; border-radius: 99px; flex-shrink: 0;
+}
 
 
 /* ── Responsive ── */

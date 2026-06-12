@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Struk Pembayaran — TechnoFix</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800;900&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(160deg, #0f1e45 0%, #1a3a8f 40%, #0d3572 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 32px 16px 64px;
+    }
+
+    /* ── Tombol aksi ── */
+    .actions {
+      display: flex; gap: 10px;
+      width: 100%; max-width: 420px;
+      margin-bottom: 20px;
+    }
+    .btn-act {
+      flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px;
+      height: 44px; border: none; border-radius: 12px;
+      font-family: 'Poppins', sans-serif; font-size: 13px; font-weight: 700;
+      cursor: pointer; transition: .15s; letter-spacing: .01em;
+    }
+    .btn-act:hover { transform: translateY(-1px); filter: brightness(1.1); }
+    .btn-act:active { transform: scale(.97); }
+    .btn-print {
+      background: rgba(255,255,255,.15); color: #fff;
+      border: 1px solid rgba(255,255,255,.25);
+      backdrop-filter: blur(10px);
+    }
+    .btn-wa { background: #25d366; color: #fff; box-shadow: 0 4px 16px rgba(37,211,102,.35); }
+    .btn-act svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+    /* ── Kartu utama ── */
+    .struk-card {
+      width: 100%; max-width: 420px;
+      background: #fff;
+      border-radius: 24px;
+      box-shadow: 0 24px 80px rgba(0,20,80,.45), 0 4px 16px rgba(0,20,80,.25);
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* ── Header ── */
+    .s-header {
+      background: linear-gradient(150deg, #001d6e 0%, #0040a1 50%, #1a5dd8 100%);
+      padding: 32px 28px 28px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .s-header::before {
+      content: ''; position: absolute;
+      width: 260px; height: 260px; border-radius: 50%;
+      background: rgba(255,255,255,.05);
+      top: -100px; right: -80px; pointer-events: none;
+    }
+    .s-header::after {
+      content: ''; position: absolute;
+      width: 140px; height: 140px; border-radius: 50%;
+      background: rgba(255,255,255,.04);
+      bottom: -50px; left: -40px; pointer-events: none;
+    }
+    /* grid pattern */
+    .s-header-grid {
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px);
+      background-size: 32px 32px;
+      pointer-events: none;
+    }
+
+    .s-logo-wrap {
+      position: relative; z-index: 1;
+      width: 72px; height: 72px; border-radius: 18px;
+      background: rgba(255,255,255,.16);
+      border: 2px solid rgba(255,255,255,.28);
+      margin: 0 auto 14px;
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden;
+      box-shadow: 0 8px 24px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.18);
+    }
+    .s-logo-wrap img { width: 100%; height: 100%; object-fit: contain; }
+    .logo-initials {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 24px; font-weight: 900; color: #fff;
+      letter-spacing: -.03em;
+    }
+
+    .s-isp-name {
+      position: relative; z-index: 1;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 20px; font-weight: 900; color: #fff;
+      letter-spacing: -.03em; line-height: 1.2;
+    }
+    .s-subtitle {
+      position: relative; z-index: 1;
+      font-size: 10px; font-weight: 700;
+      color: rgba(255,255,255,.55);
+      letter-spacing: .14em; text-transform: uppercase; margin-top: 5px;
+    }
+    .s-no-struk {
+      position: relative; z-index: 1;
+      display: inline-flex; align-items: center; gap: 5px;
+      margin-top: 12px; padding: 5px 16px;
+      background: rgba(255,255,255,.12);
+      border: 1px solid rgba(255,255,255,.2); border-radius: 99px;
+      font-size: 11.5px; font-weight: 600; color: rgba(255,255,255,.9);
+      letter-spacing: .04em;
+    }
+    .s-no-struk svg { width: 10px; height: 10px; opacity: .7; }
+
+    /* ── Perforated cut ── */
+    .s-perf {
+      position: relative; height: 24px; overflow: hidden;
+      background: #fff;
+    }
+    .s-perf::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0;
+      height: 24px;
+      background: radial-gradient(circle at 50% 0%, #fff 10px, transparent 10px) 0 0 / 22px 24px repeat-x,
+                  linear-gradient(to bottom, #0040a1 0%, #1a5dd8 100%) top / 100% 24px no-repeat;
+    }
+    /* holes (decorative) */
+    .s-holes {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0 8px; height: 0; position: relative; top: -12px; z-index: 2;
+    }
+    .s-hole {
+      width: 20px; height: 20px; border-radius: 50%;
+      background: linear-gradient(160deg, #0f1e45, #1a3a8f);
+      flex-shrink: 0;
+    }
+    .s-hole-inner {
+      flex: 1; height: 1px; margin: 0 4px;
+      background: repeating-linear-gradient(90deg, rgba(0,0,0,.08) 0, rgba(0,0,0,.08) 6px, transparent 6px, transparent 12px);
+    }
+
+    /* ── Status LUNAS ── */
+    .s-status-wrap {
+      padding: 16px 24px 12px;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+    }
+    .s-stamp {
+      display: flex; align-items: center; gap: 8px;
+      background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+      border: 1.5px solid #86efac; border-radius: 14px;
+      padding: 10px 20px;
+      box-shadow: 0 2px 12px rgba(34,197,94,.18);
+    }
+    .s-stamp-icon {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: #22c55e; display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 12px rgba(34,197,94,.4);
+      animation: pop .4s cubic-bezier(.22,1,.36,1) both .1s;
+    }
+    @keyframes pop {
+      from { transform: scale(0); opacity: 0; }
+      to   { transform: scale(1); opacity: 1; }
+    }
+    .s-stamp-icon svg { width: 14px; height: 14px; }
+    .s-stamp-text {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 15px; font-weight: 900; color: #15803d;
+      letter-spacing: .06em;
+    }
+    .s-stamp-date { font-size: 11px; color: #4ade80; font-weight: 500; }
+
+    /* ── Nominal block ── */
+    .s-nominal-block {
+      margin: 0 22px 6px;
+      padding: 16px 20px;
+      background: linear-gradient(135deg, #f0f4ff 0%, #e8eeff 100%);
+      border: 1.5px solid rgba(0,64,161,.12);
+      border-radius: 16px;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      box-shadow: 0 4px 16px rgba(0,64,161,.07);
+    }
+    .s-nominal-label {
+      font-size: 10px; font-weight: 700; color: #6a82a8;
+      text-transform: uppercase; letter-spacing: .08em; margin-bottom: 4px;
+    }
+    .s-nominal-val {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 26px; font-weight: 900; color: #003f88; letter-spacing: -.03em;
+      line-height: 1;
+    }
+    .s-chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 5px 12px; border-radius: 8px;
+      font-size: 12px; font-weight: 700;
+      background: #e0e7ff; color: #3730a3;
+      border: 1px solid rgba(99,102,241,.2);
+    }
+    .s-chip svg { width: 12px; height: 12px; }
+
+    /* ── Section divider ── */
+    .s-divider { height: 1px; background: #f0f2f8; margin: 8px 22px; }
+
+    .s-section-label {
+      display: flex; align-items: center; gap: 6px;
+      padding: 12px 22px 6px;
+      font-size: 10px; font-weight: 700; color: #94a3b8;
+      letter-spacing: .1em; text-transform: uppercase;
+    }
+    .s-section-label::after {
+      content: ''; flex: 1; height: 1px; background: #f0f2f8;
+    }
+
+    .s-row {
+      display: flex; align-items: baseline; justify-content: space-between;
+      gap: 16px; padding: 7px 22px;
+    }
+    .s-row:last-child { padding-bottom: 12px; }
+    .s-key { font-size: 12px; font-weight: 500; color: #94a3b8; flex-shrink: 0; white-space: nowrap; }
+    .s-val { font-size: 13px; font-weight: 700; color: #1e293b; text-align: right; word-break: break-word; }
+    .s-val.dim { font-weight: 500; color: #475569; }
+    .s-val.blue { color: #0040a1; }
+
+    /* ── Footer ── */
+    .s-footer {
+      background: linear-gradient(135deg, #f8faff 0%, #f0f4ff 100%);
+      border-top: 1.5px dashed #dce6f8;
+      padding: 16px 24px 18px;
+      text-align: center;
+    }
+    .s-footer-icon {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: rgba(0,64,161,.08); display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 8px;
+    }
+    .s-footer-icon svg { width: 18px; height: 18px; }
+    .s-footer p { font-size: 11.5px; color: #64748b; line-height: 1.7; font-weight: 500; }
+    .s-brand {
+      margin-top: 10px; font-size: 10px; color: #94a3b8;
+      font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .s-brand span { color: #0040a1; }
+    .s-brand-dot { width: 4px; height: 4px; border-radius: 50%; background: #cbd5e1; }
+
+    /* ── Loading / error ── */
+    .s-state {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 12px; padding: 64px 24px;
+      color: #6a82a8; font-size: 13.5px; font-weight: 500;
+    }
+    .spinner {
+      width: 32px; height: 32px;
+      border: 3px solid rgba(0,64,161,.15);
+      border-top-color: #0040a1; border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Print ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .actions { display: none !important; }
+      .struk-card { box-shadow: none; border-radius: 0; max-width: 100%; }
+      .s-header, .s-stamp, .s-nominal-block, .s-footer { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+
+    /* ── Responsive ── */
+    @media(max-width: 440px) {
+      .s-nominal-val { font-size: 22px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="actions" id="actions">
+  <button class="btn-act btn-print" onclick="window.print()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+      <path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/>
+    </svg>
+    Cetak Struk
+  </button>
+  <button class="btn-act btn-wa" id="btn-wa" style="display:none" onclick="kirimWA()">
+    <svg viewBox="0 0 24 24" fill="currentColor">
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+      <path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.117 1.528 5.847L0 24l6.335-1.493A11.934 11.934 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.782 9.782 0 01-5.034-1.393l-.36-.214-3.742.882.944-3.643-.235-.374A9.789 9.789 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182c5.43 0 9.818 4.388 9.818 9.818 0 5.43-4.388 9.818-9.818 9.818z"/>
+    </svg>
+    Kirim WA
+  </button>
+</div>
+
+<div class="struk-card" id="struk-card">
+  <div class="s-state"><div class="spinner"></div><span>Memuat struk…</span></div>
+</div>
+
+<script>
+  var BASE = (function() {
+    var h = location.hostname;
+    if (h === 'localhost' || h === '127.0.0.1') return 'http://localhost:5000';
+    return 'http://' + h + ':5000';
+  })();
+
+  var _struk = null;
+
+  function rp(n) { return 'Rp ' + (Number(n)||0).toLocaleString('id-ID'); }
+  function fmtTgl(s) {
+    if (!s) return '—';
+    try {
+      return new Date(s).toLocaleDateString('id-ID', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' });
+    } catch(e) { return s; }
+  }
+  function fmtTglShort(s) {
+    if (!s) return '—';
+    try {
+      return new Date(s).toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' });
+    } catch(e) { return s; }
+  }
+  function esc(s) {
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  function initials(name) {
+    var parts = String(name||'').trim().split(/\s+/);
+    return parts.slice(0,2).map(function(p){ return p[0]||''; }).join('').toUpperCase() || '?';
+  }
+
+  var _METODE_ICONS = {
+    'Transfer':  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h16M16 6l6 6-6 6"/></svg>',
+    'Cash':      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg>',
+    'QRIS':      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="3" height="3"/><rect x="18" y="18" width="3" height="3"/></svg>',
+  };
+
+  function sRow(k, v, cls) {
+    return '<div class="s-row">'
+      + '<span class="s-key">' + k + '</span>'
+      + '<span class="s-val' + (cls ? ' ' + cls : '') + '">' + v + '</span>'
+      + '</div>';
+  }
+  function sSection(label) {
+    return '<div class="s-section-label">' + label + '</div>';
+  }
+
+  function renderStruk(s) {
+    _struk = s;
+
+    var logoInner = s.isp_logo
+      ? '<img src="' + s.isp_logo + '" alt="logo">'
+      : '<span class="logo-initials">' + initials(s.isp_name) + '</span>';
+
+    var metodeKey  = (s.metode || 'Cash').split(' ')[0];
+    var metodeIcon = _METODE_ICONS[metodeKey] || _METODE_ICONS['Cash'];
+    var metodeChip = '<span class="s-chip">' + metodeIcon + esc(s.metode || 'Cash') + '</span>';
+
+    var html =
+      /* HEADER */
+      '<div class="s-header">'
+        + '<div class="s-header-grid"></div>'
+        + '<div class="s-logo-wrap">' + logoInner + '</div>'
+        + '<div class="s-isp-name">' + esc(s.isp_name) + '</div>'
+        + '<div class="s-subtitle">Struk Pembayaran Internet</div>'
+        + '<div class="s-no-struk">'
+          + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 7h6M9 12h6M9 17h4"/></svg>'
+          + 'No. ' + esc(s.no_struk)
+        + '</div>'
+      + '</div>'
+
+      /* PERFORATION */
+      + '<div class="s-perf"></div>'
+      + '<div class="s-holes">'
+        + '<div class="s-hole"></div><div class="s-hole-inner"></div><div class="s-hole"></div>'
+      + '</div>'
+
+      /* STATUS LUNAS */
+      + '<div class="s-status-wrap">'
+        + '<div class="s-stamp">'
+          + '<div class="s-stamp-icon">'
+            + '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
+          + '</div>'
+          + '<div>'
+            + '<div class="s-stamp-text">LUNAS</div>'
+            + '<div class="s-stamp-date">' + fmtTglShort(s.paid_at) + '</div>'
+          + '</div>'
+        + '</div>'
+      + '</div>'
+
+      /* NOMINAL */
+      + '<div class="s-nominal-block">'
+        + '<div>'
+          + '<div class="s-nominal-label">Total Tagihan</div>'
+          + '<div class="s-nominal-val">' + rp(s.nominal) + '</div>'
+        + '</div>'
+        + metodeChip
+      + '</div>'
+
+      /* DATA PELANGGAN */
+      + '<div class="s-divider" style="margin-top:14px"></div>'
+      + sSection('Data Pelanggan')
+      + '<div>'
+        + sRow('Nama',     esc(s.nama || s.username), 'blue')
+        + sRow('Username', '@' + esc(s.username), 'dim')
+        + (s.hp ? sRow('No. HP', esc(s.hp), 'dim') : '')
+      + '</div>'
+
+      /* DETAIL TAGIHAN */
+      + '<div class="s-divider"></div>'
+      + sSection('Detail Tagihan')
+      + '<div>'
+        + sRow('Paket Layanan', esc(s.profil || '—'), 'blue')
+        + sRow('Periode',       esc(s.periode || '—'), 'dim')
+        + sRow('Tgl Bayar',     fmtTgl(s.paid_at), 'dim')
+        + (s.kolektor ? sRow('Dicatat oleh', esc(s.kolektor), 'dim') : '')
+      + '</div>'
+
+      /* FOOTER */
+      + '<div class="s-footer">'
+        + '<div class="s-footer-icon">'
+          + '<svg viewBox="0 0 24 24" fill="none" stroke="#0040a1" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>'
+        + '</div>'
+        + '<p>Terima kasih telah membayar tepat waktu.<br>Simpan struk ini sebagai bukti pembayaran yang sah.</p>'
+        + '<div class="s-brand">'
+          + 'Powered by <span>TechnoFix</span>'
+          + '<span class="s-brand-dot"></span>'
+          + 'Billing &amp; Network Management'
+        + '</div>'
+      + '</div>';
+
+    document.getElementById('struk-card').innerHTML = html;
+    if (s.hp) document.getElementById('btn-wa').style.display = 'flex';
+  }
+
+  function kirimWA() {
+    if (!_struk || !_struk.hp) return;
+    var hp = _struk.hp.replace(/\D/g, '');
+    var wa = hp.startsWith('0') ? '62' + hp.slice(1) : (hp.startsWith('62') ? hp : '62' + hp);
+    var msg = encodeURIComponent(
+      'Struk Pembayaran — ' + _struk.isp_name + '\n'
+      + '-------------------------------\n'
+      + 'No. Struk   : ' + _struk.no_struk + '\n'
+      + 'Pelanggan   : ' + (_struk.nama || _struk.username) + '\n'
+      + 'Paket       : ' + (_struk.profil  || '—') + '\n'
+      + 'Periode     : ' + (_struk.periode || '—') + '\n'
+      + 'Total       : ' + rp(_struk.nominal) + '\n'
+      + 'Metode      : ' + (_struk.metode || 'Cash') + '\n'
+      + 'Tgl Bayar   : ' + fmtTgl(_struk.paid_at) + '\n'
+      + '-------------------------------\n'
+      + 'Terima kasih telah membayar!'
+    );
+    window.open('https://wa.me/' + wa + '?text=' + msg, '_blank');
+  }
+
+  (async function init() {
+    var p      = new URLSearchParams(location.search);
+    var tid    = p.get('id');
+    var portal = p.get('portal') === '1';
+    var token  = p.get('token')      || localStorage.getItem('tf_token')      || '';
+    var netId  = p.get('network_id') || localStorage.getItem('tf_network_id') || '';
+
+    if (!tid) {
+      document.getElementById('struk-card').innerHTML =
+        '<div class="s-state"><span>Parameter tidak valid.</span></div>';
+      return;
+    }
+
+    try {
+      var endpoint, fetchOpts;
+      if (portal) {
+        endpoint  = BASE + '/api/portal/struk/' + tid;
+        fetchOpts = { credentials: 'include' };
+      } else {
+        var headers = { 'Authorization': 'Bearer ' + token };
+        if (netId) headers['X-Network-ID'] = netId;
+        endpoint  = BASE + '/api/loket/struk/' + tid;
+        fetchOpts = { credentials: 'include', headers: headers };
+      }
+      var r = await fetch(endpoint, fetchOpts);
+      var d = await r.json();
+      if (r.ok && d.struk) {
+        renderStruk(d.struk);
+      } else {
+        document.getElementById('struk-card').innerHTML =
+          '<div class="s-state"><span>' + esc(d.message || 'Struk tidak ditemukan.') + '</span></div>';
+      }
+    } catch(e) {
+      document.getElementById('struk-card').innerHTML =
+        '<div class="s-state"><span>Tidak bisa menghubungi server.</span></div>';
+    }
+  })();
+</script>
+</body>
+</html>

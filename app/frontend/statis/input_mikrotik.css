@@ -12,22 +12,12 @@
      responsive breakpoints
 
    File ini hanya berisi override & komponen SPESIFIK MikroTik:
-     1. Stats row 3 kolom (override default global)
-     2. Device card — layout grid mobile (override global flex)
-     3. Device profile row — badge jumlah PPPoE profile
+     1. Device card — layout grid mobile (override global flex)
+     2. Device profile row — badge jumlah PPPoE profile
    ============================================================ */
 
 /* ══════════════════════════════════════════════════════════
-   1. STATS ROW — 3 kolom (default global sudah 3, konfirmasi)
-══════════════════════════════════════════════════════════ */
-.stats-row {
-  grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
-  margin-bottom: 22px;
-}
-
-/* ══════════════════════════════════════════════════════════
-   2. DEVICE CARD — override layout untuk mobile grid
+   1. DEVICE CARD — override layout untuk mobile grid
    Desktop: flex row (dari global.css)
    Mobile: grid 2 kolom dengan actions di bawah
 ══════════════════════════════════════════════════════════ */
@@ -58,7 +48,7 @@
 }
 
 /* ══════════════════════════════════════════════════════════
-   3. DEVICE PROFILE ROW — badge PPPoE profile count
+   2. DEVICE PROFILE ROW — badge PPPoE profile count
    Spesifik MikroTik: menampilkan badge jumlah PPPoE Profile
 ══════════════════════════════════════════════════════════ */
 .profile-count-badge {

@@ -187,16 +187,17 @@ function setSyncStatus(state) {
   const el = document.getElementById('sync-status');
   if (!el) return;
   if (state === 'loading') {
-    el.innerHTML = `<span class="material-symbols-outlined spin" style="font-size:14px;color:var(--text-dim)">refresh</span>
-                    <span style="color:var(--text-dim)">Memuat...</span>`;
+    el.textContent = 'Memuat...';
+    el.className = 'sync-badge syncing';
   } else if (state === 'ok') {
-    el.innerHTML = `<span class="material-symbols-outlined" style="font-size:14px;color:var(--green)">check_circle</span>
-                    <span style="color:var(--green);font-weight:600">Terhubung</span>`;
+    el.textContent = 'Terhubung';
+    el.className = 'sync-badge ok';
   } else if (state === 'error') {
-    el.innerHTML = `<span class="material-symbols-outlined" style="font-size:14px;color:var(--red)">error</span>
-                    <span style="color:var(--red);font-weight:600">Gagal</span>`;
+    el.textContent = 'Gagal';
+    el.className = 'sync-badge error';
   } else {
-    el.innerHTML = '';
+    el.textContent = '';
+    el.className = 'sync-badge';
   }
 }
 
@@ -318,6 +319,7 @@ function renderTable() {
           <div style="display:flex;align-items:center;gap:6px">
             <input type="number"
                    class="inline-input"
+                   data-perm="perangkat_manage"
                    id="harga-${escHtml(p.name)}"
                    value="${p.harga || ''}"
                    placeholder="0"
@@ -335,6 +337,7 @@ function renderTable() {
         <td class="col-catatan">
           <input type="text"
                  class="inline-input"
+                 data-perm="perangkat_manage"
                  id="bwnote-${escHtml(p.name)}"
                  value="${escHtml(p.bandwidth_note || '')}"
                  placeholder="Catatan teknis..."
@@ -346,6 +349,7 @@ function renderTable() {
         <td class="col-note">
           <input type="text"
                  class="inline-input"
+                 data-perm="perangkat_manage"
                  id="desk-${escHtml(p.name)}"
                  value="${escHtml(p.deskripsi || '')}"
                  placeholder="Keterangan..."
@@ -356,16 +360,18 @@ function renderTable() {
         <!-- Aksi -->
         <td class="td-actions">
           <div style="display:flex;gap:4px">
-            <button class="btn-tbl edit" onclick='editProfile(${pJson})' title="Edit di MikroTik">
+            <button class="btn-tbl edit" data-perm="perangkat_manage" onclick='editProfile(${pJson})' title="Edit di MikroTik">
               <span class="material-symbols-outlined">edit</span>
             </button>
-            <button class="btn-tbl hapus" onclick="confirmDelete('${escHtml(p.name)}')" title="Hapus">
+            <button class="btn-tbl hapus" data-perm="perangkat_manage" onclick="confirmDelete('${escHtml(p.name)}')" title="Hapus">
               <span class="material-symbols-outlined">delete</span>
             </button>
           </div>
         </td>
       </tr>`;
   }).join('');
+
+  if (typeof applyUIPermissions === 'function') applyUIPermissions();
 }
 
 

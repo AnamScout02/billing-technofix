@@ -26,6 +26,46 @@
 
 
 /* ══════════════════════════════════════════════════════════
+   0. DARK MODE — inisialisasi AWAL sebelum render untuk
+      hindari flash of wrong color
+══════════════════════════════════════════════════════════ */
+(function _initThemeEarly() {
+  var saved = localStorage.getItem('tf_theme');
+  if (saved === 'dark' || saved === 'light') {
+    document.documentElement.dataset.theme = saved;
+  } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    document.documentElement.dataset.theme = 'dark';
+  }
+})();
+
+function toggleDarkMode() {
+  var current = document.documentElement.dataset.theme;
+  var next = (current === 'dark') ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  localStorage.setItem('tf_theme', next);
+  document.querySelectorAll('.dark-toggle-icon').forEach(function (el) {
+    el.textContent = (next === 'dark') ? 'light_mode' : 'dark_mode';
+  });
+}
+
+function _getDarkToggleIcon() {
+  return document.documentElement.dataset.theme === 'dark' ? 'light_mode' : 'dark_mode';
+}
+
+/* Ikut system preference jika user belum pilih manual */
+if (window.matchMedia) {
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function (e) {
+    if (!localStorage.getItem('tf_theme')) {
+      document.documentElement.dataset.theme = e.matches ? 'dark' : 'light';
+      document.querySelectorAll('.dark-toggle-icon').forEach(function (el) {
+        el.textContent = e.matches ? 'light_mode' : 'dark_mode';
+      });
+    }
+  });
+}
+
+
+/* ══════════════════════════════════════════════════════════
    1. API BASE
 ══════════════════════════════════════════════════════════ */
 const API_BASE = (() => {
@@ -33,8 +73,15 @@ const API_BASE = (() => {
   if (h === 'localhost' || h === '127.0.0.1') return 'http://127.0.0.1:5000';
   if (h === '192.168.70.7')                   return 'http://192.168.70.7:5000';
   if (h === '103.194.175.54')                 return 'http://103.194.175.54:5000';
-  return '';  // ← production: pakai Apache reverse proxy, same origin
+  if (h === '172.15.0.11')                    return 'http://172.15.0.11:5000';
+  // technofix-bill.com & lainnya → fallback di bawah:
+  // production: pakai Apache reverse proxy, same origin
+  return '';
 })();
+// `const` di top-level TIDAK menjadi properti window — beberapa halaman
+// (dashboard.js, tiket.html, dst) memakai `window.API_BASE`, jadi expose juga di sini
+// agar deteksi hostname-nya konsisten dan tidak fallback ke localhost (kena PNA block).
+window.API_BASE = API_BASE;
 
 
 /* ══════════════════════════════════════════════════════════
@@ -46,6 +93,36 @@ function escHtml(s) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+
+/* ══════════════════════════════════════════════════════════
+   2b. fmtRupiah / fmtTanggal / fmtTanggalWaktu
+       Formatter mata uang & tanggal bersama — pakai ini di
+       semua halaman supaya format konsisten (jangan duplikat
+       fungsi `rp`/`fmt`/`formatTanggal` lokal lagi).
+══════════════════════════════════════════════════════════ */
+function fmtRupiah(n) {
+  return 'Rp ' + (Number(n) || 0).toLocaleString('id-ID');
+}
+
+function fmtTanggal(iso) {
+  if (!iso) return '-';
+  try {
+    const d = new Date(String(iso).replace(' ', 'T'));
+    if (isNaN(d)) return escHtml(iso);
+    return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+  } catch { return escHtml(iso); }
+}
+
+function fmtTanggalWaktu(iso) {
+  if (!iso) return '-';
+  try {
+    const d = new Date(String(iso).replace(' ', 'T'));
+    if (isNaN(d)) return escHtml(iso);
+    return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
+      + ' ' + d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+  } catch { return escHtml(iso); }
 }
 
 
@@ -182,10 +259,12 @@ function initBottomNav() {
   if (!indicator || !inner) return;
 
   function moveIndicator(item) {
-    const iR = item.getBoundingClientRect();
+    const icon = item.querySelector('.bottom-nav-icon') || item;
+    const iR = icon.getBoundingClientRect();
     const nR = inner.getBoundingClientRect();
-    indicator.style.left  = (iR.left - nR.left) + 'px';
-    indicator.style.width = iR.width + 'px';
+    const pad = 16; /* lebar pil = ikon + bantalan kiri/kanan */
+    indicator.style.left  = (iR.left - nR.left - pad) + 'px';
+    indicator.style.width = (iR.width + pad * 2) + 'px';
   }
 
   function addRipple(item, e) {
@@ -716,10 +795,20 @@ document.addEventListener('keydown', function (e) {
    - Nilai: "-25.5 dBm" atau "-25.5" (perlu di-strip satuan)
 
    @param {object} p — objek pelanggan/perangkat dari API
+   @param {boolean} [isOnline] — status online perangkat. Jika diisi `false`,
+          redaman dianggap basi (perangkat sedang mati/tidak terhubung) dan
+          ditampilkan sebagai "—" meskipun DB masih menyimpan nilai terakhir
+          (lihat COALESCE di olt_sync.py — nilai lama sengaja dipertahankan
+          saat sinkronisasi gagal, supaya tidak tampak salah di sisi data).
    @returns {{ rx: number|null, tx: number|null, rxFormatted: string,
                rxClass: string }}
 ══════════════════════════════════════════════════════════ */
-function parseRxTx(p) {
+function parseRxTx(p, isOnline) {
+  /* ── 0. Perangkat offline → redaman basi, jangan tampilkan nilai lama ── */
+  if (isOnline === false) {
+    return { rx: null, tx: null, rxFormatted: '—', txFormatted: '—', rxClass: 'rx-none' };
+  }
+
   /* ── 1. Coba ambil nilai RX dari berbagai kemungkinan field name ── */
   let rxRaw =
     p.rx_power    ??   // OLT: snake_case dari backend Python
@@ -857,6 +946,7 @@ function geoDetectKoordinat() {
       /* panggil preview apa pun yang tersedia di halaman ini */
       if (typeof previewKoordinat === 'function') previewKoordinat();
       if (typeof previewKoordinatPelanggan === 'function') previewKoordinatPelanggan();
+      if (typeof _suggestOdpTerdekat === 'function') _suggestOdpTerdekat();
       reset();
       toast('Lokasi terdeteksi: ' + lat + ', ' + lng, 'success');
     },
@@ -876,6 +966,24 @@ function geoDetectKoordinat() {
 /* ══════════════════════════════════════════════════════════
    AUTO-INIT saat DOM siap
 ══════════════════════════════════════════════════════════ */
+/* ── Deteksi keyboard virtual via visualViewport ───────────────
+   Saat keyboard terbuka, viewport visual menyusut signifikan.
+   Tandai <body class="keyboard-open"> supaya bottom-nav (position:fixed
+   bottom:0) disembunyikan — mencegahnya melayang di atas keyboard
+   (bug umum WebView Android saat resize viewport). */
+(function initKeyboardDetection() {
+  var vv = window.visualViewport;
+  if (!vv) return;
+  var maxHeight = vv.height;
+  function onResize() {
+    maxHeight = Math.max(maxHeight, vv.height);
+    var shrink = maxHeight - vv.height;
+    document.body.classList.toggle('keyboard-open', shrink > 120);
+  }
+  vv.addEventListener('resize', onResize);
+  vv.addEventListener('scroll', onResize);
+})();
+
 document.addEventListener('DOMContentLoaded', function () {
   initBottomNav();
   initHeaderCanvas();
@@ -910,8 +1018,31 @@ document.addEventListener('DOMContentLoaded', function () {
     applyRbacUi();
     applyUIPermissions();
     checkSubscriptionLock();
+    _loadTiketBadgeNav();
+    /* Refresh badge tiket berkala (setiap 60 detik) supaya tetap akurat
+       tanpa perlu reload halaman saat ada tiket baru masuk. */
+    setInterval(_loadTiketBadgeNav, 60000);
   }
 });
+
+/* Dipanggil halaman lain (mis. tiket.html) setelah aksi yang mengubah
+   jumlah tiket "baru", supaya badge nav ikut ter-update seketika. */
+window.refreshTiketBadge = _loadTiketBadgeNav;
+
+
+/* ══════════════════════════════════════════════════════════
+   BADGE TIKET BARU — di item "Tiket Laporan" pada Layanan Sheet
+══════════════════════════════════════════════════════════ */
+function _loadTiketBadgeNav() {
+  var el = document.getElementById('tiket-badge-nav');
+  if (!el) return;
+  fetch(API_BASE + '/api/tiket/count', { headers: getAuthHeaders(), credentials: 'include' })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (d.baru > 0) { el.textContent = d.baru; el.style.display = ''; }
+      else el.style.display = 'none';
+    }).catch(function () {});
+}
 
 
 /* ══════════════════════════════════════════════════════════
@@ -980,32 +1111,42 @@ function getAuthHeaders(extra = {}) {
 
 
 /* ══════════════════════════════════════════════════════════
-   19b. Interceptor "session_replaced" — login hanya 1 perangkat.
-   Bila backend menolak request dengan 401 + code 'session_replaced'
-   (akun ini baru login ulang di perangkat/browser lain), paksa logout
-   lokal & arahkan ke halaman login agar user tidak nyangkut di UI lama.
+   19b. Interceptor sesi habis/diganti — paksa logout & redirect.
+   Backend menolak request dengan 401 dalam beberapa kondisi:
+     - code 'session_replaced' → akun login ulang di perangkat lain
+     - code 'session_expired'  → sesi melebihi SESSION_LEASE_HOURS
+     - tanpa code (mis. "Sesi habis...") → token/sesi tidak valid lagi
+   Ketiganya berarti UI tidak bisa lanjut tanpa login ulang — daripada
+   user nyangkut di halaman lama dengan request 401 berulang, paksa
+   logout lokal & arahkan ke halaman login.
 ══════════════════════════════════════════════════════════ */
 (function () {
   if (window._sessionReplacedHooked) return;
   window._sessionReplacedHooked = true;
   const _origFetch = window.fetch.bind(window);
+  const _msgByCode = {
+    session_replaced: 'Akun ini login di perangkat lain. Silakan login kembali.',
+    session_expired:  'Sesi login telah berakhir. Silakan login kembali.',
+  };
+  function _forceReLogin(data) {
+    if (window._forcingReLogin) return;
+    window._forcingReLogin = true;
+    ['technofix_user', 'tf_token', 'tf_user_id', 'tf_username',
+     'tf_role', 'tf_network_id', 'tf_isp_name', 'tf_permissions']
+      .forEach(function (k) { localStorage.removeItem(k); });
+    const code = data && data.code;
+    const msg  = (data && data.message) || _msgByCode[code] || 'Sesi habis, silakan login kembali.';
+    if (typeof toast === 'function') toast(msg, 'warning');
+    setTimeout(function () {
+      window.location.href = '/app/frontend/auth/auth.html';
+    }, 1500);
+  }
   window.fetch = function (...args) {
     return _origFetch(...args).then(function (res) {
-      if (res.status === 401 && !window._forcingReLogin) {
+      if (res.status === 401 && !window._forcingReLogin && localStorage.getItem('tf_token')) {
         res.clone().json().then(function (data) {
-          if (data && data.code === 'session_replaced' && !window._forcingReLogin) {
-            window._forcingReLogin = true;
-            ['technofix_user', 'tf_token', 'tf_user_id', 'tf_username',
-             'tf_role', 'tf_network_id', 'tf_isp_name', 'tf_permissions']
-              .forEach(function (k) { localStorage.removeItem(k); });
-            if (typeof toast === 'function') {
-              toast(data.message || 'Akun ini login di perangkat lain. Silakan login kembali.', 'warning');
-            }
-            setTimeout(function () {
-              window.location.href = '/app/frontend/auth/auth.html';
-            }, 1500);
-          }
-        }).catch(function () {});
+          if (data && data.status === 'error') _forceReLogin(data);
+        }).catch(function () { _forceReLogin(null); });
       }
       return res;
     });
@@ -1201,121 +1342,29 @@ function closeModalLogout(e) {
 }
 
 
-/* ══════════════════════════════════════════════════════════
-   26. Modal Ganti Password
-══════════════════════════════════════════════════════════ */
-function showModalGantiPassword() {
-  const dd = document.getElementById('profile-dropdown');
-  if (dd) dd.classList.remove('open');
-  ['pwd-lama','pwd-baru','pwd-konfirm'].forEach(function(id) {
-    const el = document.getElementById(id);
-    if (el) el.value = '';
-  });
-  const hint = document.getElementById('pwd-hint');
-  if (hint) hint.style.display = 'none';
-  const m = document.getElementById('modal-ganti-password');
-  if (m) m.classList.add('open');
-}
-function closeModalGantiPassword(e) {
-  if (e && e.target !== e.currentTarget) return;
-  const m = document.getElementById('modal-ganti-password');
-  if (m) m.classList.remove('open');
-}
-async function submitGantiPassword() {
-  const lama    = document.getElementById('pwd-lama')   ?.value.trim() || '';
-  const baru    = document.getElementById('pwd-baru')   ?.value.trim() || '';
-  const konfirm = document.getElementById('pwd-konfirm')?.value.trim() || '';
-  const hint    = document.getElementById('pwd-hint');
-
-  function showHint(msg) {
-    if (!hint) return;
-    hint.textContent  = msg;
-    hint.style.display = 'block';
-  }
-
-  if (!lama)             return showHint('Password lama wajib diisi.');
-  if (baru.length < 6)   return showHint('Password baru minimal 6 karakter.');
-  if (baru !== konfirm)  return showHint('Konfirmasi password tidak cocok.');
-  if (hint) hint.style.display = 'none';
-
-  try {
-    const res = await fetch(API_BASE + '/api/auth/me', {
-      method: 'PUT',
-      credentials: 'include',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ password_lama: lama, password_baru: baru }),
-    });
-    const data = await res.json();
-    if (!res.ok || data.status !== 'success') return showHint(data.message || 'Gagal mengganti password.');
-    closeModalGantiPassword();
-    toast('Password berhasil diperbarui.', 'success');
-  } catch (_) {
-    showHint('Gagal terhubung ke server.');
-  }
-}
 
 
 /* ══════════════════════════════════════════════════════════
-   27. Slide-over Panel Setting
+   27. Inject Dark Mode Toggle ke header-actions
 ══════════════════════════════════════════════════════════ */
-function showPanelSetting() { showModalSetting(); }
-function closePanelSetting() { closeModalSetting(); }
-
-function showModalSetting() {
-  const dd = document.getElementById('profile-dropdown');
-  if (dd) dd.classList.remove('open');
-  loadSetting();
-  const m = document.getElementById('modal-setting');
-  if (m) m.classList.add('open');
-}
-function closeModalSetting(e) {
-  if (e && e.target !== e.currentTarget) return;
-  const m = document.getElementById('modal-setting');
-  if (m) m.classList.remove('open');
-}
-
-function loadSetting() {
-  const keys = ['tema','bahasa','refresh','perpage'];
-  const defaults = { tema:'auto', bahasa:'id', refresh:'0', perpage:'50' };
-  keys.forEach(function(k) {
-    const el = document.getElementById('setting-' + k);
-    if (el) el.value = localStorage.getItem('tf_setting_' + k) || defaults[k];
-  });
-  /* Toggle notifikasi */
-  ['offline','rx'].forEach(function(key) {
-    const checked = localStorage.getItem('tf_notif_' + key) === '1';
-    const input = document.getElementById('notif-' + key);
-    if (input) {
-      input.checked = checked;
-      applyToggleStyle('notif-' + key, checked);
-    }
-  });
-}
-
-function simpanSetting() {
-  ['tema','bahasa','refresh','perpage'].forEach(function(k) {
-    const el = document.getElementById('setting-' + k);
-    if (el) localStorage.setItem('tf_setting_' + k, el.value);
-  });
-  ['offline','rx'].forEach(function(key) {
-    const el = document.getElementById('notif-' + key);
-    if (el) localStorage.setItem('tf_notif_' + key, el.checked ? '1' : '0');
-  });
-  closePanelSetting();
-  toast('Setting berhasil disimpan.', 'success');
-}
-
-function toggleNotif(input, id) {
-  applyToggleStyle(id, input.checked);
-  localStorage.setItem('tf_notif_' + id.replace('notif-',''), input.checked ? '1' : '0');
-}
-
-function applyToggleStyle(id, on) {
-  const track = document.getElementById('track-' + id.replace('notif-',''));
-  const thumb = document.getElementById('thumb-' + id.replace('notif-',''));
-  if (track) track.style.background = on ? 'var(--primary)' : 'var(--border)';
-  if (thumb) thumb.style.transform  = on ? 'translateX(18px)' : 'translateX(0)';
-}
+document.addEventListener('DOMContentLoaded', function () {
+  var actions = document.querySelector('.header-actions');
+  if (!actions) return;
+  /* Hindari inject ganda */
+  if (document.querySelector('.dark-toggle')) return;
+  var btn = document.createElement('button');
+  btn.className = 'dark-toggle';
+  btn.title = 'Ganti tema terang/gelap';
+  btn.setAttribute('onclick', 'toggleDarkMode()');
+  btn.innerHTML = '<span class="material-symbols-outlined dark-toggle-icon">' + _getDarkToggleIcon() + '</span>';
+  /* Sisipkan sebelum profile-wrap */
+  var profileWrap = document.getElementById('profile-wrap');
+  if (profileWrap) {
+    actions.insertBefore(btn, profileWrap);
+  } else {
+    actions.appendChild(btn);
+  }
+});
 
 
 /* ══════════════════════════════════════════════════════════
@@ -1355,6 +1404,28 @@ function applyUIPermissions() {
 
   var isOwner = (role === 'owner');
 
+  /* Permission kolektor dari roles.py mungkin belum ada di localStorage
+     user lama — inject secara dinamis berdasarkan role dan simpan ke
+     localStorage SEBELUM toggle [data-perm] di bawah supaya menu (mis. Maps)
+     langsung tampil di pemuatan halaman ini juga, bukan baru di reload berikutnya. */
+  if (role === 'kolektor') {
+    var kolPerms = ['pelanggan', 'bayar', 'maps'];
+    var kolUpdated = false;
+    kolPerms.forEach(function(p) {
+      if (!permissions.includes(p)) { permissions.push(p); kolUpdated = true; }
+    });
+    if (kolUpdated) {
+      try { localStorage.setItem('tf_permissions', JSON.stringify(permissions)); } catch(_) {}
+    }
+  }
+  // Owner/admin: pastikan perangkat_manage ada
+  if (role === 'owner' || role === 'admin') {
+    if (!permissions.includes('perangkat_manage')) {
+      permissions.push('perangkat_manage');
+      try { localStorage.setItem('tf_permissions', JSON.stringify(permissions)); } catch(_) {}
+    }
+  }
+
   /* Sembunyikan/tampilkan elemen [data-perm] */
   document.querySelectorAll('[data-perm]').forEach(function (el) {
     var perm = el.getAttribute('data-perm');
@@ -1386,33 +1457,14 @@ function applyUIPermissions() {
       '/keuangan/':         'keuangan',
       '/tagihan/':          'keuangan',
       '/loket/':            'bayar',
-      '/notifikasi/':       'pelanggan',
+      '/notifikasi/':       'pelanggan_manage',
       '/pembayaran/':       'bayar',
-      '/genieacs/':         'perangkat',
       '/maps/':             'maps',
       '/input_perangkat/':  'perangkat',
+      '/profile_pppoe/':    'perangkat',
       '/manajemen_user/':   'manajemen_user',
       '/langganan/':        'langganan',
     };
-    /* Permission kolektor dari roles.py mungkin belum ada di localStorage
-       user lama — inject secara dinamis berdasarkan role dan simpan ke localStorage */
-    if (role === 'kolektor') {
-      var kolPerms = ['pelanggan', 'bayar', 'maps'];
-      var updated = false;
-      kolPerms.forEach(function(p) {
-        if (!permissions.includes(p)) { permissions.push(p); updated = true; }
-      });
-      if (updated) {
-        try { localStorage.setItem('tf_permissions', JSON.stringify(permissions)); } catch(_) {}
-      }
-    }
-    // Owner/admin: pastikan perangkat_manage ada
-    if (role === 'owner' || role === 'admin') {
-      if (!permissions.includes('perangkat_manage')) {
-        permissions.push('perangkat_manage');
-        try { localStorage.setItem('tf_permissions', JSON.stringify(permissions)); } catch(_) {}
-      }
-    }
     var path = window.location.pathname;
     for (var pagePath in PAGE_PERM_MAP) {
       if (path.includes(pagePath) && !permissions.includes(PAGE_PERM_MAP[pagePath])) {
@@ -1423,6 +1475,21 @@ function applyUIPermissions() {
         break;
       }
     }
+
+    /* Halaman Setting → owner-only (sama seperti Langganan) */
+    if (path.includes('/setting/')) {
+      if (typeof toast === 'function') toast('Akses ditolak untuk peran Anda.', 'danger');
+      setTimeout(function () {
+        window.location.href = '/app/frontend/dashboard/dashboard.html';
+      }, 1200);
+    }
+  }
+
+  /* Menu profil "Setting" → owner-only */
+  if (!isOwner) {
+    document.querySelectorAll('a[href*="/setting/"]').forEach(function (el) {
+      el.style.display = 'none';
+    });
   }
 }
 
@@ -1433,5 +1500,22 @@ function savePermissions(permissions) {
   localStorage.setItem('tf_permissions', JSON.stringify(permissions));
 }
 
+/* Cek apakah user saat ini punya permission tertentu (owner selalu true).
+   Dipakai untuk menyembunyikan tombol Edit/Hapus pada konten yang dirender
+   dinamis (data-perm hanya bekerja untuk elemen yang ada saat applyUIPermissions
+   dijalankan). */
+function hasPerm(token) {
+  var session = (typeof getSession === 'function') ? getSession() : {};
+  var role    = session.role || localStorage.getItem('tf_role') || '';
+  if (role === 'owner') return true;
+  try {
+    var parsed = JSON.parse(localStorage.getItem('tf_permissions') || '[]');
+    return Array.isArray(parsed) && parsed.includes(token);
+  } catch (_) {
+    return false;
+  }
+}
+
 window.applyUIPermissions = applyUIPermissions;
+window.hasPerm = hasPerm;
 window.savePermissions    = savePermissions;

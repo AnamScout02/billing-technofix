@@ -29,6 +29,9 @@ const PAGE_SIZE    = 25;
 // ID yang sedang ditunggu konfirmasi hapus
 let _hapusId       = null;
 
+// Chart.js instance grafik tren keuangan
+let _chartKeuangan = null;
+
 
 /* ══════════════════════════════════════════════════════════
    INIT
@@ -76,6 +79,8 @@ async function loadKeuangan() {
     _allData = data.transaksi || [];
     applyFilterSort();
     showState('table');
+
+    loadTrendChart(bulan);
 
   } catch (err) {
     console.error('[Keuangan] Fetch error:', err);
@@ -132,6 +137,177 @@ async function eksporKeuangan() {
   } finally {
     if (btn) btn.disabled = false;
   }
+}
+
+/* ── Ekspor PDF (buka halaman cetak laporan di tab baru) ───────── */
+function eksporKeuanganPdf() {
+  const bulan  = document.getElementById('input-bulan')?.value || '';
+  const status = document.getElementById('filter-status')?.value || '';
+  const q      = document.getElementById('input-search')?.value.trim() || '';
+
+  const params = new URLSearchParams();
+  params.set('jenis', 'keuangan');
+  if (bulan)       params.set('bulan',  bulan);
+  if (status)      params.set('status', status);
+  if (q)           params.set('q',      q);
+  if (_filterTipe) params.set('tipe',   _filterTipe);
+
+  window.open(`/app/frontend/laporan/laporan.html?${params}`, '_blank');
+}
+
+
+/* ══════════════════════════════════════════════════════════
+   1c. GRAFIK TREN KEUANGAN (6 bulan terakhir, Chart.js)
+══════════════════════════════════════════════════════════ */
+
+let _trendN = 6; // periode default 6 bulan
+
+function setTrendPeriod(n) {
+  _trendN = n;
+  document.querySelectorAll('.tpt-btn').forEach(b => b.classList.toggle('active', +b.dataset.n === n));
+  const bulan = document.getElementById('input-bulan')?.value || '';
+  loadTrendChart(bulan);
+}
+
+async function loadTrendChart(bulan) {
+  const canvas = document.getElementById('chart-keuangan-trend');
+  if (!canvas || typeof Chart === 'undefined') return;
+
+  const params = new URLSearchParams({ n: _trendN });
+  if (bulan) params.set('bulan', bulan);
+
+  try {
+    const res = await fetch(`${API_BASE}/api/keuangan/trend?${params}`, { credentials: 'include', headers: getAuthHeaders() });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const d = await res.json();
+    renderTrendChart(d.labels || [], d.pemasukan || [], d.pengeluaran || [], d.saldo || []);
+  } catch (err) {
+    console.error('[Keuangan] Trend fetch error:', err);
+  }
+}
+
+function _makeGradient(ctx, colorTop, colorBot) {
+  const g = ctx.createLinearGradient(0, 0, 0, 280);
+  g.addColorStop(0, colorTop);
+  g.addColorStop(1, colorBot);
+  return g;
+}
+
+function renderTrendChart(labels, pemasukan, pengeluaran, saldo) {
+  const canvas = document.getElementById('chart-keuangan-trend');
+  if (!canvas || typeof Chart === 'undefined') return;
+
+  const ctx = canvas.getContext('2d');
+  const isDark = document.documentElement.dataset.theme === 'dark';
+  const gridColor = isDark ? 'rgba(255,255,255,.05)' : 'rgba(0,0,0,.04)';
+  const textColor = isDark ? '#8b9ab4' : '#6a82a8';
+
+  const barGreenTop = isDark ? 'rgba(34,197,94,.7)'  : 'rgba(34,197,94,.85)';
+  const barGreenBot = isDark ? 'rgba(34,197,94,.25)' : 'rgba(34,197,94,.55)';
+  const barRedTop   = isDark ? 'rgba(248,113,113,.7)' : 'rgba(248,113,113,.85)';
+  const barRedBot   = isDark ? 'rgba(248,113,113,.25)' : 'rgba(248,113,113,.55)';
+  const lineGrad    = isDark ? 'rgba(59,130,246,.18)' : 'rgba(59,130,246,.1)';
+
+  const fmt = v => {
+    const n = Math.abs(v);
+    if (n >= 1_000_000_000) return 'Rp ' + (v / 1_000_000_000).toFixed(1) + 'M';
+    if (n >= 1_000_000)     return 'Rp ' + (v / 1_000_000).toFixed(1) + 'jt';
+    if (n >= 1_000)         return 'Rp ' + (v / 1_000).toFixed(0) + 'rb';
+    return 'Rp ' + v;
+  };
+
+  const datasets = [
+    {
+      type: 'bar',
+      label: 'Pemasukan', data: pemasukan,
+      backgroundColor: _makeGradient(ctx, barGreenTop, barGreenBot),
+      borderRadius: 6, borderSkipped: false,
+      order: 2, yAxisID: 'y',
+    },
+    {
+      type: 'bar',
+      label: 'Pengeluaran', data: pengeluaran,
+      backgroundColor: _makeGradient(ctx, barRedTop, barRedBot),
+      borderRadius: 6, borderSkipped: false,
+      order: 3, yAxisID: 'y',
+    },
+    {
+      type: 'line',
+      label: 'Saldo Bersih', data: saldo,
+      borderColor: '#3b82f6',
+      backgroundColor: lineGrad,
+      tension: .42, fill: true, borderWidth: 2.5,
+      pointRadius: 4, pointBackgroundColor: '#3b82f6',
+      pointBorderColor: isDark ? '#1e293b' : '#fff',
+      pointBorderWidth: 2,
+      pointHoverRadius: 6,
+      borderDash: [6, 3],
+      order: 1, yAxisID: 'y',
+    },
+  ];
+
+  if (_chartKeuangan) {
+    _chartKeuangan.data.labels = labels;
+    _chartKeuangan.data.datasets[0].data = pemasukan;
+    _chartKeuangan.data.datasets[1].data = pengeluaran;
+    _chartKeuangan.data.datasets[2].data = saldo;
+    _chartKeuangan.data.datasets[0].backgroundColor = _makeGradient(ctx, barGreenTop, barGreenBot);
+    _chartKeuangan.data.datasets[1].backgroundColor = _makeGradient(ctx, barRedTop, barRedBot);
+    _chartKeuangan.options.scales.x.ticks.color = textColor;
+    _chartKeuangan.options.scales.y.ticks.color = textColor;
+    _chartKeuangan.options.scales.y.grid.color  = gridColor;
+    _chartKeuangan.update('active');
+    return;
+  }
+
+  _chartKeuangan = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      animation: { duration: 600, easing: 'easeOutQuart' },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: isDark ? '#1e293b' : '#fff',
+          titleColor: isDark ? '#e2e8f0' : '#1e293b',
+          bodyColor:  isDark ? '#94a3b8' : '#475569',
+          borderColor: isDark ? '#334155' : '#e2e8f0',
+          borderWidth: 1,
+          padding: 12,
+          cornerRadius: 10,
+          boxPadding: 5,
+          callbacks: {
+            title: items => items[0]?.label || '',
+            label: c => ` ${c.dataset.label}: ${fmt(c.parsed.y || 0)}`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          ticks: {
+            font: { size: 11, family: 'Poppins,sans-serif', weight: '600' },
+            color: textColor,
+          },
+          grid: { display: false },
+          border: { display: false },
+        },
+        y: {
+          beginAtZero: true,
+          ticks: {
+            font: { size: 10, family: 'Poppins,sans-serif' },
+            color: textColor,
+            maxTicksLimit: 6,
+            callback: fmt,
+          },
+          grid: { color: gridColor, drawBorder: false },
+          border: { display: false, dash: [4, 4] },
+        },
+      },
+    },
+  });
 }
 
 
@@ -708,28 +884,63 @@ async function eksekusiHapus() {
 
 
 /* ══════════════════════════════════════════════════════════
-   9. CETAK STRUK — Skeleton
+   9. CETAK STRUK
 ══════════════════════════════════════════════════════════ */
+
+function _printStrukKeuangan(trx) {
+  const fmt    = n => 'Rp ' + Number(n).toLocaleString('id-ID');
+  const isp    = localStorage.getItem('tf_isp_name') || 'TechnoFix';
+  const warna  = trx.tipe === 'pemasukan' ? '#16a34a' : '#dc2626';
+  const tanda  = trx.tipe === 'pemasukan' ? '+' : '-';
+
+  const baris = (k, v) => `<tr><td style="padding:4px 0;color:#64748b">${k}</td><td style="padding:4px 0;text-align:right;font-weight:600">${v}</td></tr>`;
+
+  const html = `<!DOCTYPE html>
+<html lang="id"><head><meta charset="UTF-8">
+<title>Struk Transaksi #${trx.id}</title>
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; font-family:'Poppins',Arial,sans-serif; }
+  body { padding:24px; color:#1e293b; }
+  .card { max-width:360px; margin:0 auto; border:1px solid #e2e8f0; border-radius:12px; padding:20px; }
+  h1 { font-size:16px; text-align:center; margin-bottom:2px; }
+  .sub { text-align:center; font-size:11px; color:#94a3b8; margin-bottom:14px; }
+  .nominal { text-align:center; font-size:24px; font-weight:800; color:${warna}; margin:14px 0; }
+  table { width:100%; font-size:12px; border-collapse:collapse; }
+  hr { border:none; border-top:1px dashed #cbd5e1; margin:12px 0; }
+  .footer { text-align:center; font-size:11px; color:#94a3b8; margin-top:14px; }
+  @media print { body { padding:0; } .card { border:none; } }
+</style></head>
+<body>
+  <div class="card">
+    <h1>${escHtml(isp)}</h1>
+    <div class="sub">Struk Transaksi Keuangan #${trx.id}</div>
+    <div class="nominal">${tanda} ${fmt(trx.nominal)}</div>
+    <hr>
+    <table>
+      ${baris('Tanggal', formatTanggal(trx.tanggal))}
+      ${baris('Keterangan', escHtml(trx.keterangan))}
+      ${trx.username ? baris('Username', escHtml(trx.username)) : ''}
+      ${baris('Tipe', trx.tipe === 'pemasukan' ? 'Pemasukan' : 'Pengeluaran')}
+      ${baris('Metode', escHtml(trx.metode))}
+      ${baris('Status', escHtml(trx.status))}
+      ${trx.catatan ? baris('Catatan', escHtml(trx.catatan)) : ''}
+    </table>
+    <hr>
+    <div class="footer">Dicetak otomatis oleh TechnoFix</div>
+  </div>
+  <script>window.onload = () => { window.print(); };</script>
+</body></html>`;
+
+  const win = window.open('', '_blank', 'width=420,height=640,noopener');
+  if (!win) { toast('Pop-up diblokir browser, izinkan pop-up untuk mencetak', 'warning'); return; }
+  win.document.write(html);
+  win.document.close();
+}
 
 function cetakStruk(id) {
   const trx = _allData.find(t => t.id === id);
   if (!trx) { toast('Data tidak ditemukan', 'warning'); return; }
 
-  /**
-   * TODO: Implementasi cetak struk
-   * Opsi yang bisa dikembangkan:
-   *   1. Buka window baru dengan HTML struk → window.print()
-   *   2. Generate PDF menggunakan jsPDF atau endpoint /api/keuangan/<id>/struk
-   *   3. Kirim via WhatsApp API
-   *
-   * Skeleton:
-   *   const strukHtml = buildStrukHtml(trx);
-   *   const win = window.open('', '_blank');
-   *   win.document.write(strukHtml);
-   *   win.print();
-   */
-
-  // Sementara: tampilkan detail di modal
   const fmt = n => 'Rp ' + Number(n).toLocaleString('id-ID');
   const html = `
     <div class="modal" onclick="event.stopPropagation()" style="max-width:360px">
@@ -757,7 +968,7 @@ function cetakStruk(id) {
       </div>
       <div class="modal-footer">
         <button class="btn btn-cancel" onclick="closeModalForm()">Tutup</button>
-        <button class="btn btn-blue" onclick="alert('Fitur cetak akan diimplementasi')">
+        <button class="btn btn-blue" onclick="_printStrukKeuangan(_allData.find(t => t.id === ${trx.id}))">
           <span class="material-symbols-outlined">print</span>Cetak
         </button>
       </div>

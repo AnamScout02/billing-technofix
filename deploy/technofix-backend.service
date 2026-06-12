@@ -1,0 +1,41 @@
+# ============================================================
+# Contoh systemd unit — TechnoFix Backend (Flask)
+# ============================================================
+#
+# PENTING: init_db(), worker auto-isolir, OLT sync, dan WA reminder
+# semua di-start dalam blok `if __name__ == '__main__':` di input.py.
+# Itu HANYA jalan kalau dieksekusi sebagai `python input.py` —
+# TIDAK jalan kalau dipanggil lewat `gunicorn input:app`.
+# Jadi unit ini menjalankan `python input.py` langsung (server
+# bawaan Flask), persis seperti yang dipakai sekarang di XAMPP —
+# tidak perlu ubah kode apa pun saat migrasi.
+#
+# (Kalau nanti mau pindah ke gunicorn untuk performa lebih baik,
+# pindahkan dulu init_db()+worker-starter ke level modul, di luar
+# `if __name__ == '__main__':`.)
+#
+# Copy ke /etc/systemd/system/technofix-backend.service, lalu:
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now technofix-backend
+#
+# Setiap kali ubah kode backend, restart manual (reloader mati):
+#   sudo systemctl restart technofix-backend
+#   journalctl -u technofix-backend -f   ← lihat log realtime
+# ============================================================
+
+[Unit]
+Description=TechnoFix Backend (Flask)
+After=network.target
+
+[Service]
+Type=simple
+User=technofix
+Group=technofix
+WorkingDirectory=/opt/technofix/app/backend
+Environment="PATH=/opt/technofix/venv/bin"
+ExecStart=/opt/technofix/venv/bin/python input.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

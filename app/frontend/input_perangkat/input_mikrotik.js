@@ -138,6 +138,10 @@ async function loadDevices() {
     devices
       .filter(d => d.status === 'connected')
       .forEach(d => fetchProfileCount(d.id));
+    // Cek ulang koneksi live — status di DB bisa basi (mis. perangkat baru saja
+    // mati lampu/terputus setelah sync terakhir). Tanpa ini, badge "Terhubung"
+    // bisa menyesatkan padahal perangkat sudah tidak bisa dihubungi.
+    if (devices.length) syncAll(true);
   } catch (e) {
     document.getElementById('device-list').innerHTML = `
       <div class="empty-state">
@@ -265,16 +269,20 @@ async function syncDevice(id) {
   if (updated?.status === 'connected') fetchProfileCount(id);
 }
 
-async function syncAll() {
+async function syncAll(silent) {
   const icon    = document.getElementById('sync-all-icon');
   const pending = devices.filter(d => !syncingIds.has(d.id));
-  if (!pending.length) { toast('Semua perangkat sedang disinkron.', 'info'); return; }
+  if (!pending.length) {
+    if (!silent) toast('Semua perangkat sedang disinkron.', 'info');
+    return;
+  }
 
   if (icon) icon.classList.add('spin');
   pending.forEach(d => syncingIds.add(d.id));
   renderDevices();
 
   await Promise.all(pending.map(async d => {
+    const statusSebelum = d.status;
     try {
       const res  = await _post(`${API_BASE}/devices/${d.id}/sync`, {});
       const data = await res.json();
@@ -283,11 +291,17 @@ async function syncAll() {
     syncingIds.delete(d.id);
     renderDevices();
     if (d.status === 'connected') { invalidateProfileCount(d.id); fetchProfileCount(d.id); }
+    // Beri tahu kalau perangkat baru saja terputus (beda dari status sebelumnya)
+    if (silent && statusSebelum === 'connected' && d.status === 'failed') {
+      toast(`Perangkat "${d.name}" terputus — tidak bisa dihubungi saat ini.`, 'danger');
+    }
   }));
 
   if (icon) icon.classList.remove('spin');
-  const connected = devices.filter(x => x.status === 'connected').length;
-  toast(`Sinkronisasi selesai. ${connected}/${devices.length} perangkat terhubung.`, 'info');
+  if (!silent) {
+    const connected = devices.filter(x => x.status === 'connected').length;
+    toast(`Sinkronisasi selesai. ${connected}/${devices.length} perangkat terhubung.`, 'info');
+  }
 }
 
 
@@ -295,6 +309,7 @@ async function syncAll() {
 
 function renderDevices() {
   const container = document.getElementById('device-list');
+  const canManage = (typeof hasPerm === 'function') ? hasPerm('perangkat_manage') : true;
 
   if (!devices.length) {
     container.innerHTML = `
@@ -377,12 +392,13 @@ function renderDevices() {
             <span class="material-symbols-outlined ${isSyncing ? 'spin' : ''}">refresh</span>
             Sinkron
           </button>
+          ${canManage ? `
           <button class="btn btn-amber btn-sm" onclick="editDevice(${d.id})">
             <span class="material-symbols-outlined">edit</span> Edit
           </button>
           <button class="btn btn-red btn-sm" onclick="confirmDelete(${d.id})" title="Hapus">
             <span class="material-symbols-outlined">delete</span>
-          </button>
+          </button>` : ''}
         </div>
 
       </div>`;

@@ -1,8 +1,8 @@
 /* langganan.js — Halaman Langganan & Paket */
 'use strict';
 
-/* Nomor WhatsApp admin untuk konfirmasi upgrade (ganti sesuai milikmu) */
-const ADMIN_WA = '6281234567890';
+/* Nomor WhatsApp admin TechnoFix untuk konfirmasi upgrade (sama dengan landing.html) */
+const ADMIN_WA = '6283135851605';
 
 const STATUS_LABEL = {
   trial:     { txt: 'Masa Uji Coba', cls: 'is-trial' },
@@ -13,7 +13,6 @@ const STATUS_LABEL = {
 
 const FEATURE_LABEL = {
   mikrotik_api:        'Integrasi MikroTik (API)',
-  genieacs:            'Integrasi GenieACS (TR-069)',
   odp_map:             'ODP & Peta Perangkat',
   remote_modem:        'Remote Modem',
   monitoring_redaman:  'Monitoring Redaman',
@@ -25,7 +24,7 @@ const FEATURE_LABEL = {
   dedicated:           'Dedicated Server',
 };
 /* Fitur yang ditampilkan di kartu (urutan) */
-const FEATURE_SHOW = ['mikrotik_api', 'genieacs', 'monitoring_redaman', 'remote_modem', 'export', 'whitelabel'];
+const FEATURE_SHOW = ['mikrotik_api', 'monitoring_redaman', 'remote_modem', 'export', 'whitelabel'];
 
 let _currentPaket = null;
 
@@ -104,7 +103,12 @@ function renderCurrent(cur, use) {
 
 function renderPackages(packages, currentKey) {
   const grid = document.getElementById('sub-grid');
-  grid.innerHTML = packages.map(function (p) {
+  /* Paket Trial tidak bisa "diupgrade" ke — backend menolak
+     upgrade-request dengan paket=trial. Sembunyikan kartunya
+     kecuali memang itu paket yang sedang aktif (info saja). */
+  grid.innerHTML = packages.filter(function (p) {
+    return p.key !== 'trial' || p.key === currentKey;
+  }).map(function (p) {
     const isCur = p.key === currentKey;
     const feats = FEATURE_SHOW.map(function (fk) {
       const on = !!p.features[fk];

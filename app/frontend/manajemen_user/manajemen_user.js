@@ -11,11 +11,13 @@ const ROLE_LABEL = { owner: 'Owner', admin: 'Admin', teknisi: 'Teknisi', kolekto
 const ROLE_BADGE = { owner: 'role-owner', admin: 'role-admin', teknisi: 'role-teknisi', kolektor: 'role-kolektor' };
 const PERM_LABEL = {
   pelanggan: 'Pelanggan', pelanggan_manage: 'Kelola Pelanggan', perangkat: 'Perangkat',
-  maps: 'Maps', keuangan: 'Keuangan', manajemen_user: 'Tim', bayar: 'Pembayaran', langganan: 'Langganan',
+  perangkat_manage: 'Kelola Perangkat', maps: 'Maps', keuangan: 'Keuangan',
+  manajemen_user: 'Tim', bayar: 'Pembayaran', langganan: 'Langganan',
 };
 
 let _members = [];
 let _toggleTarget = null;
+let _maxDevicesPkgLimit = null;
 
 function _hdr() { return (typeof getAuthHeaders === 'function') ? getAuthHeaders() : {}; }
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
@@ -25,9 +27,10 @@ function fmtTgl(iso) { if (!iso) return '-'; try { return new Date(iso).toLocale
 async function loadTeam() {
   try {
     const r = await fetch(`${TEAM_API}/team`, { credentials: 'include', headers: _hdr() });
-    if (r.status === 403) { renderError('Hanya Owner yang dapat mengakses Manajemen User.'); return; }
+    if (r.status === 403) { renderError('Anda tidak punya akses ke Manajemen User.'); return; }
     const d = await r.json();
     _members = d.members || [];
+    _maxDevicesPkgLimit = (typeof d.max_devices_pkg_limit === 'number') ? d.max_devices_pkg_limit : null;
     renderStats();
     renderUsers(_members);
   } catch (e) {
@@ -68,6 +71,8 @@ function renderUsers(list) {
     const aksi = isOwner
       ? '<span style="color:var(--text-dim);font-size:12px">—</span>'
       : `<div class="row-actions">
+           <button class="ico-btn blue" title="Atur batas perangkat (saat ini ${m.max_devices})" onclick="bukaMaxDevices(${m.id})">
+             <span class="material-symbols-outlined">devices</span></button>
            <button class="ico-btn ${m.aktif ? 'amber' : 'green'}" title="${m.aktif ? 'Nonaktifkan' : 'Aktifkan'}" onclick="konfirmasiToggle(${m.id})">
              <span class="material-symbols-outlined">${m.aktif ? 'person_off' : 'person_check'}</span></button>
            <button class="ico-btn red" title="Hapus" onclick="hapusUser(${m.id},'${esc(m.username)}')">
@@ -212,12 +217,130 @@ async function eksekusiToggle() {
   if (r.ok) loadTeam();
 }
 
-/* ── HAPUS ── */
-async function hapusUser(id, username) {
-  if (!confirm(`Hapus anggota "${username}"? Tindakan ini permanen.`)) return;
-  const r = await fetch(`${TEAM_API}/team/${id}`, { method: 'DELETE', credentials: 'include', headers: _hdr() });
-  toast(r.ok ? 'Anggota dihapus' : 'Gagal menghapus', r.ok ? 'success' : 'danger');
-  if (r.ok) loadTeam();
+/* ── BATAS PERANGKAT ── */
+let _maxDevTarget = null;
+function bukaMaxDevices(id) {
+  const m = _members.find(x => x.id === id); if (!m) return;
+  _maxDevTarget = id;
+  const batasAtas = _maxDevicesPkgLimit || 5;
+  document.getElementById('maxdev-sub').textContent =
+    `Atur jumlah perangkat yang bisa login bersamaan untuk akun "${m.username}". `
+    + `Maksimal ${batasAtas} perangkat sesuai jatah paket langganan saat ini — upgrade paket untuk jatah lebih besar.`;
+  const input = document.getElementById('maxdev-input');
+  input.value = Math.min(m.max_devices || 2, batasAtas);
+  input.max = batasAtas;
+  document.getElementById('modal-maxdev').classList.add('open');
+}
+function closeModalMaxDevices(e) {
+  if (e && e.target !== e.currentTarget) return;
+  document.getElementById('modal-maxdev').classList.remove('open');
+  _maxDevTarget = null;
+}
+async function eksekusiMaxDevices() {
+  if (!_maxDevTarget) return;
+  const input = document.getElementById('maxdev-input');
+  const nilai = parseInt(input.value, 10);
+  const batasAtas = _maxDevicesPkgLimit || 5;
+  if (!Number.isInteger(nilai) || nilai < 1 || nilai > batasAtas) {
+    toast(`Jumlah perangkat harus angka 1-${batasAtas} (sesuai jatah paket)`, 'danger');
+    return;
+  }
+  const btn = document.getElementById('btn-konfirm-maxdev');
+  if (btn) btn.disabled = true;
+  try {
+    const r = await fetch(`${TEAM_API}/team/${_maxDevTarget}/max-devices`, {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json', ..._hdr() },
+      body: JSON.stringify({ max_devices: nilai }),
+    });
+    const d = await r.json();
+    toast(d.message || (r.ok ? 'Batas perangkat diubah' : 'Gagal'), r.ok ? 'success' : 'danger');
+    if (r.ok) { closeModalMaxDevices(); loadTeam(); }
+  } catch { toast('Tidak bisa menghubungi server', 'danger'); }
+  if (btn) btn.disabled = false;
 }
 
-document.addEventListener('DOMContentLoaded', loadTeam);
+/* ── HAPUS ── */
+let _hapusTarget = null;
+function hapusUser(id, username) {
+  _hapusTarget = id;
+  const sub = document.getElementById('hapus-sub-text');
+  if (sub) sub.textContent = `Akun "${username}" akan dihapus permanen dan tidak dapat login kembali.`;
+  document.getElementById('modal-hapus-overlay').classList.add('open');
+}
+function closeModalHapus(e) {
+  if (e && e.target !== e.currentTarget) return;
+  document.getElementById('modal-hapus-overlay').classList.remove('open');
+  _hapusTarget = null;
+}
+async function eksekusiHapus() {
+  if (!_hapusTarget) return;
+  const id = _hapusTarget;
+  const btn = document.getElementById('btn-konfirm-hapus');
+  if (btn) btn.disabled = true;
+  try {
+    const r = await fetch(`${TEAM_API}/team/${id}`, { method: 'DELETE', credentials: 'include', headers: _hdr() });
+    const d = await r.json();
+    toast(r.ok ? (d.message || 'Anggota dihapus') : (d.message || 'Gagal menghapus'), r.ok ? 'success' : 'danger');
+    if (r.ok) { closeModalHapus(); loadTeam(); loadAuditLog(); }
+  } catch { toast('Tidak bisa menghubungi server', 'danger'); }
+  if (btn) btn.disabled = false;
+}
+
+/* ── LOG AKTIVITAS ── */
+const AUDIT_ICON = {
+  invite:            { icon: 'person_add',   cls: 'green' },
+  aktifkan_user:     { icon: 'person_check', cls: 'green' },
+  nonaktifkan_user:  { icon: 'person_off',   cls: 'amber' },
+  ubah_max_devices:  { icon: 'devices',      cls: 'blue' },
+  hapus_user:        { icon: 'person_remove', cls: 'red' },
+};
+const AUDIT_LABEL = {
+  invite:           (a, t, d) => `<b>${esc(a)}</b> menambahkan anggota <b>${esc(t)}</b>${d ? ` (${esc(d)})` : ''}`,
+  aktifkan_user:    (a, t)    => `<b>${esc(a)}</b> mengaktifkan akun <b>${esc(t)}</b>`,
+  nonaktifkan_user: (a, t)    => `<b>${esc(a)}</b> menonaktifkan akun <b>${esc(t)}</b>`,
+  ubah_max_devices: (a, t, d) => `<b>${esc(a)}</b> mengubah batas perangkat <b>${esc(t)}</b>${d ? ` (${esc(d)})` : ''}`,
+  hapus_user:       (a, t, d) => `<b>${esc(a)}</b> menghapus akun <b>${esc(t)}</b>${d ? ` (${esc(d)})` : ''}`,
+};
+function fmtTglWaktu(iso) {
+  if (!iso) return '-';
+  try {
+    const dt = new Date(String(iso).replace(' ', 'T'));
+    if (isNaN(dt)) return esc(iso);
+    return dt.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
+      + ' ' + dt.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+  } catch { return esc(iso); }
+}
+async function loadAuditLog() {
+  const wrap = document.getElementById('audit-list');
+  if (!wrap) return;
+  try {
+    const r = await fetch(`${TEAM_API}/audit-log?limit=50`, { credentials: 'include', headers: _hdr() });
+    if (!r.ok) { wrap.innerHTML = '<div class="state-box"><p class="state-title">Gagal memuat log aktivitas.</p></div>'; return; }
+    const d = await r.json();
+    const logs = d.logs || [];
+    if (!logs.length) {
+      wrap.innerHTML = '<div class="state-box"><p class="state-title">Belum ada aktivitas tercatat.</p></div>';
+      return;
+    }
+    wrap.innerHTML = logs.map(l => {
+      const ic = AUDIT_ICON[l.action] || { icon: 'history', cls: '' };
+      const labelFn = AUDIT_LABEL[l.action];
+      const text = labelFn ? labelFn(l.actor, l.target, l.detail) : `<b>${esc(l.actor)}</b> ${esc(l.action)} ${esc(l.target)}`;
+      return `<div class="audit-row">
+        <div class="audit-icon ${ic.cls}"><span class="material-symbols-outlined">${ic.icon}</span></div>
+        <div class="audit-body">
+          <div class="audit-text">${text}</div>
+          <div class="audit-time">${fmtTglWaktu(l.created_at)}</div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch {
+    wrap.innerHTML = '<div class="state-box"><p class="state-title">Tidak bisa menghubungi server.</p></div>';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  loadTeam();
+  loadAuditLog();
+});

@@ -30,7 +30,6 @@ var _bwLabels   = [];
 var _bwRx       = [];
 var _bwTx       = [];
 var _iface      = '';
-var _arTimer    = null;
 var BW_WIN      = 40;
 
 /* ── Bandwidth Sparklines ── */
@@ -52,15 +51,10 @@ document.addEventListener('DOMContentLoaded', function () {
   if (typeof initHeaderCanvas   === 'function') initHeaderCanvas();
   if (typeof initDropdownHeader === 'function') initDropdownHeader();
 
-  // Kolektor → tampilkan dashboard khusus, sembunyikan dashboard biasa
+  // Kolektor → loket adalah halaman kerja utama
   var _role = localStorage.getItem('tf_role') || '';
   if (_role === 'kolektor') {
-    var mainDash = document.getElementById('dashboard-main');
-    var kolDash  = document.getElementById('dashboard-kolektor');
-    if (mainDash) mainDash.style.display = 'none';
-    if (kolDash)  kolDash.style.display  = '';
-    _initTodayDate();
-    _initKolektorDashboard();
+    window.location.replace('/app/frontend/loket/loket.html');
     return;
   }
 
@@ -68,7 +62,6 @@ document.addEventListener('DOMContentLoaded', function () {
   initChartBW();
   initChartTrend();
   initSparklines();
-  _loadSettingDash();
   loadDevices();
 });
 
@@ -267,6 +260,7 @@ async function _loadStats(id) {
             _updateStatCards(total, online, off, false);
             _renderOffline(_allPel.filter(function(p){ return !_isOnline(p); }));
             _buildTrend(online, off, total);
+            _updateOnuAlertCard(_allPel);
             _setSyncBadge('ok', 'Tersinkron');
           }
         } else {
@@ -277,6 +271,61 @@ async function _loadStats(id) {
     } catch(_) { /* senyap */ }
 
   }, 2000);
+}
+
+/* ── Alert card sinyal ONU lemah/kritis ── */
+var ONU_RX_CRIT = -27;   // < -27 dBm → kritis
+var ONU_RX_WARN = -24;   // -27 .. -24 dBm → lemah
+
+function _updateOnuAlertCard(pelList) {
+  var alertWrap  = document.getElementById('onu-signal-alert');
+  var alertTitle = document.getElementById('onu-alert-title');
+  var alertSub   = document.getElementById('onu-alert-sub');
+  if (!alertWrap) return;
+
+  var crit = 0, warn = 0;
+  pelList.forEach(function (p) {
+    var rx = p.rx_power;
+    if (rx === null || rx === undefined || rx === '') return;
+    var v = parseFloat(rx);
+    if (isNaN(v)) return;
+    if (v < ONU_RX_CRIT) crit++;
+    else if (v < ONU_RX_WARN) warn++;
+  });
+
+  if (crit === 0 && warn === 0) {
+    alertWrap.style.display = 'none';
+    return;
+  }
+
+  var parts = [];
+  if (crit > 0) parts.push(crit + ' ONU sinyal kritis');
+  if (warn > 0) parts.push(warn + ' ONU sinyal lemah');
+
+  /* Ubah warna card ke amber kalau hanya lemah (tidak ada kritis) */
+  var card = document.getElementById('onu-alert-card');
+  if (card) {
+    if (crit > 0) {
+      card.style.borderColor = 'var(--red-border,#fca5a5)';
+      card.style.background  = 'var(--red-bg,#fef2f2)';
+    } else {
+      card.style.borderColor = 'var(--amber-border,#fcd34d)';
+      card.style.background  = 'var(--amber-bg,#fffbeb)';
+    }
+  }
+
+  if (alertTitle) {
+    alertTitle.style.color = crit > 0 ? 'var(--red,#dc2626)' : 'var(--amber,#d97706)';
+    alertTitle.textContent = 'Peringatan Sinyal ONU';
+    /* Ubah ikon */
+    var icon = alertWrap.querySelector('.material-symbols-outlined');
+    if (icon) icon.style.color = crit > 0 ? 'var(--red,#dc2626)' : 'var(--amber,#d97706)';
+  }
+  if (alertSub) {
+    alertSub.textContent = parts.join(', ') + ' — klik untuk cek halaman OLT';
+  }
+
+  alertWrap.style.display = '';
 }
 
 function _updateStatCards(total, online, off, isEstimate) {
@@ -295,6 +344,16 @@ function _updateStatCards(total, online, off, isEstimate) {
   /* Saat estimasi, beri tanda ~ agar user tahu belum realtime */
   _setText('stat-online-pct',  (isEstimate ? '~' : '') + pctOn  + '% dari total');
   _setText('stat-offline-pct', (isEstimate ? '~' : '') + pctOff + '% dari total');
+  /* Progress bars */
+  _animProgBar('prog-online',  pctOn);
+  _animProgBar('prog-offline', pctOff);
+}
+
+function _animProgBar(id, pct) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.style.width = '0%';
+  setTimeout(function() { el.style.width = Math.min(pct, 100) + '%'; }, 120);
 }
 
 
@@ -354,8 +413,8 @@ async function _loadProfil(id) {
       var jumlah = profilCount[pr.name || pr.nama_profile] || pr.total_user || 0;
 
       return '<tr>'
-        + '<td style="text-align:center;color:var(--text-dim);font-size:12px">' + (idx + 1) + '</td>'
-        + '<td><span class="badge-profil">' + nama + '</span></td>'
+        + '<td class="dash-sticky-0" style="text-align:center;color:var(--text-dim);font-size:12px">' + (idx + 1) + '</td>'
+        + '<td class="dash-sticky-1"><span class="badge-profil">' + nama + '</span></td>'
         + '<td><span class="dash-profile-rate">' + rateStr + '</span></td>'
         + '<td>' + hargaHtml + '</td>'
         + '<td>'
@@ -602,9 +661,8 @@ function _renderOffline(offList) {
     var profil = escHtml(p.profil  || p.profile || '');
     var hp     = escHtml(p.hp || '');
     var meta   = [profil, hp].filter(Boolean).join(' · ');
-    var href   = '/app/frontend/pelanggan/detail_pelanggan.html?id=' + (p.id || '');
 
-    return '<a class="dash-offline-item" href="' + href + '">'
+    return '<a class="dash-offline-item" href="javascript:void(0)" onclick="_dashOpenDetail(\'' + (p.id || '') + '\')">'
       + '<div class="dash-offline-icon">'
         + '<span class="material-symbols-outlined">wifi_off</span>'
       + '</div>'
@@ -619,13 +677,48 @@ function _renderOffline(offList) {
   }).join('');
 
   if (offList.length > MAX_SHOW) {
-    html += '<a class="dash-offline-more" href="/app/frontend/pelanggan/pelanggan.html">'
+    html += '<a class="dash-offline-more" href="/app/frontend/pelanggan/pelanggan.html?status=offline">'
       + '+ ' + (offList.length - MAX_SHOW) + ' lainnya — Lihat semua'
       + '</a>';
   }
 
   box.innerHTML = html;
 }
+
+/* ── Buka detail_pelanggan.html dari widget Pelanggan Offline ──
+   detail_pelanggan.js membaca data dari sessionStorage.tf_detail_pelanggan
+   (diset oleh openDetail() di pelanggan.js), bukan dari query string —
+   jadi link dashboard harus mengisi sessionStorage yang sama sebelum pindah. */
+async function _dashOpenDetail(id) {
+  var p = _allPel.find(function (item) { return String(item.id) === String(id); });
+  if (!p) { _showToast('Data pelanggan tidak ditemukan.', 'error'); return; }
+
+  var oltObj = null;
+  try {
+    var res = await fetch(BASE + '/olt', { credentials: 'include', headers: _authH() });
+    if (res.ok) {
+      var list = await res.json();
+      var olts = Array.isArray(list) ? list : (list.data || []);
+      oltObj = olts.find(function (o) { return String(o.id) === String(p.olt_id); });
+    }
+  } catch (_) { /* biarkan kosong, detail tetap tampil tanpa info OLT */ }
+
+  var payload = Object.assign({}, p, {
+    _oltName:    oltObj ? oltObj.name : null,
+    _oltTipe:    oltObj ? oltObj.tipe : null,
+    _oltIp:      oltObj ? oltObj.ip   : null,
+    _oltOnuType: oltObj ? (oltObj.onu_type_keyword || 'ALL') : 'ALL',
+  });
+
+  try {
+    sessionStorage.setItem('tf_detail_pelanggan', JSON.stringify(payload));
+  } catch (_) {
+    _showToast('Gagal menyimpan data sementara.', 'error');
+    return;
+  }
+  window.location.href = '/app/frontend/pelanggan/detail_pelanggan.html';
+}
+window._dashOpenDetail = _dashOpenDetail;
 
 
 /* ══════════════════════════════════════════════════════════
@@ -768,7 +861,43 @@ function initChartBW() {
   var canvas = document.getElementById('chart-bw');
   if (!canvas || typeof Chart === 'undefined') return;
 
-  _chartBW = new Chart(canvas.getContext('2d'), {
+  var ctx = canvas.getContext('2d');
+
+  // Gradient fill bawah garis — dibuat scriptable supaya menyesuaikan
+  // tinggi area chart saat resize/responsive.
+  function _gradient(colorRgb) {
+    return function (context) {
+      var area = context.chart.chartArea;
+      if (!area) return null;
+      var g = context.chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
+      g.addColorStop(0,   'rgba(' + colorRgb + ',.28)');
+      g.addColorStop(.55, 'rgba(' + colorRgb + ',.08)');
+      g.addColorStop(1,   'rgba(' + colorRgb + ',0)');
+      return g;
+    };
+  }
+
+  // Garis vertikal putus-putus mengikuti kursor (crosshair)
+  var _crosshairPlugin = {
+    id: 'crosshairBW',
+    afterDraw: function (chart) {
+      if (chart._active && chart._active.length) {
+        var c = chart.ctx;
+        var x = chart._active[0].element.x;
+        c.save();
+        c.beginPath();
+        c.setLineDash([4, 4]);
+        c.moveTo(x, chart.chartArea.top);
+        c.lineTo(x, chart.chartArea.bottom);
+        c.lineWidth = 1;
+        c.strokeStyle = 'rgba(22,35,59,.18)';
+        c.stroke();
+        c.restore();
+      }
+    },
+  };
+
+  _chartBW = new Chart(ctx, {
     type: 'line',
     data: {
       labels: [],
@@ -777,15 +906,29 @@ function initChartBW() {
           label: 'Download',
           data: [],
           borderColor: '#378add',
-          backgroundColor: 'rgba(55,138,221,.10)',
-          borderWidth: 1.8, pointRadius: 0, fill: true, tension: .4,
+          backgroundColor: _gradient('55,138,221'),
+          borderWidth: 2.2,
+          pointRadius: 0,
+          pointHoverRadius: 5,
+          pointHoverBackgroundColor: '#378add',
+          pointHoverBorderColor: '#fff',
+          pointHoverBorderWidth: 2,
+          fill: true, tension: .4,
+          borderCapStyle: 'round', borderJoinStyle: 'round',
         },
         {
           label: 'Upload',
           data: [],
           borderColor: '#1d9e75',
-          backgroundColor: 'rgba(29,158,117,.08)',
-          borderWidth: 1.8, pointRadius: 0, fill: true, tension: .4,
+          backgroundColor: _gradient('29,158,117'),
+          borderWidth: 2.2,
+          pointRadius: 0,
+          pointHoverRadius: 5,
+          pointHoverBackgroundColor: '#1d9e75',
+          pointHoverBorderColor: '#fff',
+          pointHoverBorderWidth: 2,
+          fill: true, tension: .4,
+          borderCapStyle: 'round', borderJoinStyle: 'round',
         },
       ],
     },
@@ -796,11 +939,18 @@ function initChartBW() {
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: 'rgba(10,20,34,.92)',
+          backgroundColor: 'rgba(10,20,34,.94)',
           borderColor: 'rgba(255,255,255,.12)',
           borderWidth: 1,
-          titleColor: 'rgba(255,255,255,.7)',
+          titleColor: 'rgba(255,255,255,.65)',
+          titleFont: { size: 10.5, family: 'Poppins,sans-serif', weight: '500' },
           bodyColor: '#fff',
+          bodyFont: { size: 12, family: 'Poppins,sans-serif', weight: '600' },
+          padding: 10,
+          cornerRadius: 8,
+          boxPadding: 4,
+          usePointStyle: true,
+          caretSize: 6,
           callbacks: {
             label: function (c) {
               return ' ' + c.dataset.label + ': ' + _fmtMbps(c.parsed.y);
@@ -813,27 +963,29 @@ function initChartBW() {
           ticks: {
             maxTicksLimit: 6,
             font: { size: 10, family: 'Poppins,sans-serif' },
-            color: '#6a82a8',
+            color: '#9aabc4',
           },
-          grid: { color: '#e4e8f0' },
+          grid: { display: false },
           border: { color: '#e4e8f0' },
         },
         y: {
           beginAtZero: true,
           ticks: {
             font: { size: 10, family: 'Poppins,sans-serif' },
-            color: '#6a82a8',
+            color: '#9aabc4',
+            padding: 8,
             callback: function (v) {
               if (v >= 1000) return (v/1000).toFixed(1) + 'G';
               if (v >= 100)  return v.toFixed(0) + 'M';
               return v.toFixed(1) + 'M';
             },
           },
-          grid: { color: '#e4e8f0' },
-          border: { color: '#e4e8f0' },
+          grid: { color: '#eef1f6', drawTicks: false },
+          border: { display: false },
         },
       },
     },
+    plugins: [_crosshairPlugin],
   });
 }
 
@@ -903,7 +1055,7 @@ function initChartTrend() {
 
 
 /* ══════════════════════════════════════════════════════════
-   SPARKLINES — CPU & Memory mini chart di Resource section
+   SPARKLINES — Bandwidth RX/TX mini chart di section BW
 ══════════════════════════════════════════════════════════ */
 function initSparklines() {
   _spkRx = _createSparkline('spk-rx', '#378add', 'rgba(55,138,221,.12)');
@@ -1041,44 +1193,6 @@ function _hideBWUI() {
 
 
 /* ══════════════════════════════════════════════════════════
-   SETTING
-══════════════════════════════════════════════════════════ */
-function _loadSettingDash() {
-  var refresh = localStorage.getItem('tf_setting_refresh') || '0';
-  var perpage = localStorage.getItem('tf_setting_perpage') || '50';
-  var selR = document.getElementById('setting-refresh');
-  var selP = document.getElementById('setting-perpage');
-  if (selR) selR.value = refresh;
-  if (selP) selP.value = perpage;
-  _restartAutoRefresh(Number(refresh));
-}
-
-function simpanSetting() {
-  var refresh = (document.getElementById('setting-refresh') || {}).value || '0';
-  var perpage = (document.getElementById('setting-perpage') || {}).value || '50';
-  localStorage.setItem('tf_setting_refresh', refresh);
-  localStorage.setItem('tf_setting_perpage', perpage);
-  _restartAutoRefresh(Number(refresh));
-  if (typeof closeModalSetting === 'function') closeModalSetting();
-  _showToast('Setting berhasil disimpan', 'success');
-}
-
-function _restartAutoRefresh(seconds) {
-  if (_arTimer) { clearInterval(_arTimer); _arTimer = null; }
-  if (seconds > 0 && seconds <= 3600) {
-    _arTimer = setInterval(function () {
-      if (_deviceId) {
-        _loadStats(_deviceId);
-        _loadProfil(_deviceId);
-        _loadKeuangan();
-        loadActivityLog();
-      }
-    }, seconds * 1000);
-  }
-}
-
-
-/* ══════════════════════════════════════════════════════════
    RESET DASHBOARD
 ══════════════════════════════════════════════════════════ */
 function _resetDash() {
@@ -1133,6 +1247,9 @@ function _resetDash() {
 
   _allPel = [];
 
+  /* Sembunyikan alert sinyal ONU saat reset */
+  var onuAlert = document.getElementById('onu-signal-alert');
+  if (onuAlert) onuAlert.style.display = 'none';
 }
 
 function _resetBWChart() {
@@ -1427,235 +1544,5 @@ window.onIfaceChange   = onIfaceChange;
 window.loadActivityLog = loadActivityLog;
 window.loadResource    = loadResource;
 window.loadTicker      = loadTicker;
-window.simpanSetting   = simpanSetting;
 window.doLogout        = doLogout;
 
-/* ══════════════════════════════════════════════════════════
-   DASHBOARD KOLEKTOR
-══════════════════════════════════════════════════════════ */
-var _kolData  = []; // semua tagihan kolektor (belum bayar)
-var _kolStats = {};
-
-async function _initKolektorDashboard() {
-  var hdr = (typeof getAuthHeaders === 'function') ? getAuthHeaders() : {};
-  // Load stats + tagihan belum bayar paralel
-  try {
-    var [rStats, rDevs] = await Promise.all([
-      fetch(BASE + '/api/tagihan/kolektor-stats', { credentials: 'include', headers: hdr }),
-      fetch(BASE + '/devices', { credentials: 'include', headers: hdr }),
-    ]);
-    if (rStats.ok) _kolStats = await rStats.json();
-    var devs = rDevs.ok ? await rDevs.json() : [];
-
-    // Render stat cards
-    _kolRenderStats();
-
-    // Load tagihan belum bayar dari semua device
-    _kolData = [];
-    for (var d of devs) {
-      try {
-        var rp = await fetch(BASE + '/api/pelanggan/' + d.id, { credentials: 'include', headers: hdr });
-        if (!rp.ok) continue;
-        var pels = await rp.json();
-        pels.forEach(function(p) { p._device = d; });
-        _kolData = _kolData.concat(pels);
-      } catch(_) {}
-    }
-    _kolRenderTable();
-  } catch(e) {
-    console.error('[kolektor] init error', e);
-  }
-}
-
-function _kolRenderStats() {
-  var s = _kolStats;
-  function set(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; }
-  function rp(n) { return 'Rp ' + (Number(n)||0).toLocaleString('id-ID'); }
-  set('kol-stat-total',        s.total_pelanggan || 0);
-  set('kol-stat-lunas',        s.lunas_bulan_ini || 0);
-  set('kol-stat-belum',        s.belum_bayar || 0);
-  set('kol-stat-nominal',      rp(s.nominal_belum || 0));
-  set('kol-stat-tunggakan',    s.tunggakan || 0);
-  set('kol-stat-nom-tung',     rp(s.nominal_tunggakan || 0));
-  set('kol-stat-setoran',      s.setoran_hari_ini || 0);
-  set('kol-stat-nom-setoran',  rp(s.nominal_setoran_hari_ini || 0));
-}
-
-function _kolRenderTable() {
-  var now = new Date();
-  var periodeIni = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
-
-  var tblBulanIni = document.getElementById('kol-tbody-ini');
-  var tblTunggakan = document.getElementById('kol-tbody-tung');
-  if (!tblBulanIni || !tblTunggakan) return;
-
-  // Ambil tagihan belum bayar dari API (sudah difilter kolektor di backend)
-  // _kolData berisi pelanggan — ambil username-nya lalu fetch tagihan
-  _renderKolTables(periodeIni);
-}
-
-async function _renderKolTables(periodeIni) {
-  var hdr = (typeof getAuthHeaders === 'function') ? getAuthHeaders() : {};
-  var tblIni  = document.getElementById('kol-tbody-ini');
-  var tblTung = document.getElementById('kol-tbody-tung');
-  if (!tblIni) return;
-
-  // Fetch semua tagihan belum bayar (tanpa filter periode → kita pisah di frontend)
-  var r = await fetch(BASE + '/api/tagihan?status=belum_bayar', { credentials: 'include', headers: hdr });
-  if (!r.ok) return;
-  var d = await r.json();
-  var semua = d.tagihan || [];
-
-  // Ambil hanya pelanggan kolektor ini (sudah terfilter dari backend karena login kolektor)
-  var usernames = new Set(_kolData.map(function(p){ return p.username; }));
-  semua = semua.filter(function(t){ return usernames.has(t.username); });
-
-  var bulanIni   = semua.filter(function(t){ return t.periode === periodeIni; });
-  var tunggakan  = semua.filter(function(t){ return t.periode < periodeIni; });
-
-  function rp(n) { return 'Rp ' + (Number(n)||0).toLocaleString('id-ID'); }
-  function fmtTgl(s) { if(!s) return '—'; try { return new Date(s).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}); } catch{return s;} }
-  function escHtml(s) { return String(s||'').replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
-  function rowHtml(t, i) {
-    var p = _kolData.find(function(x){ return x.username === t.username; }) || {};
-    var hp = escHtml(p.hp || '—');
-    // Buat nomor telepon jadi link panggilan jika ada
-    var hpCell = p.hp ? '<a href="tel:' + p.hp + '" style="color:var(--primary);text-decoration:none">' + escHtml(p.hp) + '</a>' : '—';
-    return '<tr>' +
-      '<td class="kol-dim" style="text-align:center">' + (i+1) + '</td>' +
-      '<td><div class="kol-nama">' + escHtml(t.nama||t.username) + '</div>' +
-        '<div class="kol-sub">@' + escHtml(t.username) + '</div></td>' +
-      '<td>' + hpCell + '</td>' +
-      '<td><span style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:2px 8px;font-size:12px;font-weight:600">' + escHtml(t.profil||'—') + '</span></td>' +
-      '<td class="kol-num">' + escHtml(t.periode) + '</td>' +
-      '<td class="kol-num" style="color:var(--primary)">' + rp(t.nominal) + '</td>' +
-      '<td class="kol-dim">' + fmtTgl(t.jatuh_tempo) + '</td>' +
-      '<td><div style="display:flex;gap:6px">' +
-        '<button class="btn btn-sm btn-blue" onclick="_kolDetail(\'' + escHtml(t.username) + '\')">' +
-          '<span class="material-symbols-outlined">person</span>Detail</button>' +
-        '<button class="btn btn-sm btn-green" onclick="_kolBayar(' + t.id + ',\'' + escHtml(t.username) + '\',' + t.nominal + ',\'' + escHtml(t.periode) + '\')">' +
-          '<span class="material-symbols-outlined">payments</span>Bayar</button>' +
-      '</div></td></tr>';
-  }
-
-  var emptyIni  = '<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-dim)"><span class="material-symbols-outlined" style="font-size:28px;display:block;margin-bottom:8px;opacity:.35">check_circle</span>Semua pelanggan sudah lunas bulan ini.</td></tr>';
-  var emptyTung = '<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-dim)"><span class="material-symbols-outlined" style="font-size:28px;display:block;margin-bottom:8px;opacity:.35">done_all</span>Tidak ada tunggakan.</td></tr>';
-
-  tblIni.innerHTML  = bulanIni.length  ? bulanIni.map(rowHtml).join('')  : emptyIni;
-  tblTung.innerHTML = tunggakan.length ? tunggakan.map(rowHtml).join('') : emptyTung;
-
-  // Update count badges
-  var cntIni  = document.getElementById('kol-count-ini');
-  var cntTung = document.getElementById('kol-count-tung');
-  if (cntIni)  cntIni.textContent  = bulanIni.length  + ' tagihan';
-  if (cntTung) cntTung.textContent = tunggakan.length + ' tagihan';
-}
-
-function _kolDetail(username) {
-  // Temukan data pelanggan dari _kolData dan buka detail
-  var p = _kolData.find(function(x){ return x.username === username; });
-  if (!p) { alert('Data tidak ditemukan'); return; }
-  try { sessionStorage.setItem('tf_detail_pelanggan', JSON.stringify(p)); } catch(_) {}
-  window.open('/app/frontend/pelanggan/detail_pelanggan.html', '_blank');
-}
-
-var _bayarTarget = null;
-async function _kolBayar(tagihan_id, username, nominal, periode) {
-  var hdr = (typeof getAuthHeaders === 'function') ? getAuthHeaders() : {};
-  function rp(n) { return 'Rp ' + (Number(n)||0).toLocaleString('id-ID'); }
-
-  // Cek apakah ada tunggakan bulan lain untuk username ini
-  var r = await fetch(BASE + '/api/tagihan/pelanggan/' + encodeURIComponent(username),
-    { credentials: 'include', headers: hdr });
-  var d = await r.json();
-  var belum = (d.tagihan || []).filter(function(t){ return t.status === 'belum_bayar'; });
-
-  if (belum.length <= 1) {
-    // Hanya 1 tagihan — langsung bayar
-    _kolBayarProses([tagihan_id], username, nominal);
-    return;
-  }
-
-  // Lebih dari 1 — tampilkan popup pilih bulan
-  _kolBayarTarget = belum;
-  _kolBayarTargetUser = username;
-  var modal = document.getElementById('kol-bayar-modal');
-  var list  = document.getElementById('kol-bayar-list');
-  if (!modal || !list) return;
-
-  list.innerHTML = belum.map(function(t) {
-    var checked = t.id === tagihan_id ? 'checked' : '';
-    return '<label class="kol-bayar-item">' +
-      '<input type="checkbox" value="' + t.id + '" ' + checked + '> ' +
-      '<span><strong>' + t.periode + '</strong> — ' + rp(t.nominal) + ' (jatuh tempo ' + (t.jatuh_tempo||'-') + ')</span>' +
-      '</label>';
-  }).join('');
-
-  modal.classList.add('show');
-  document.getElementById('kol-bayar-overlay').classList.add('show');
-}
-
-var _kolBayarTarget = [], _kolBayarTargetUser = '';
-
-function _kolBayarTutup() {
-  var m = document.getElementById('kol-bayar-modal');
-  var o = document.getElementById('kol-bayar-overlay');
-  if (m) m.classList.remove('show');
-  if (o) o.classList.remove('show');
-}
-
-async function _kolBayarKonfirm() {
-  var ids = Array.from(document.querySelectorAll('#kol-bayar-list input:checked'))
-              .map(function(el){ return parseInt(el.value); });
-  if (!ids.length) { alert('Pilih minimal 1 tagihan'); return; }
-  var metode = (document.getElementById('kol-bayar-metode') || {value:'Cash'}).value || 'Cash';
-  _kolBayarTutup();
-  _kolBayarProses(ids, _kolBayarTargetUser, 0, metode);
-}
-
-async function _kolBayarProses(ids, username, nominal, metode) {
-  metode = metode || 'Cash';
-  var hdr = (typeof getAuthHeaders === 'function') ? getAuthHeaders() : {};
-  try {
-    var r = await fetch(BASE + '/api/tagihan/bayar-multi', {
-      method: 'POST', credentials: 'include',
-      headers: Object.assign({'Content-Type':'application/json'}, hdr),
-      body: JSON.stringify({ tagihan_ids: ids, metode: metode })
-    });
-    var d = await r.json();
-    if (typeof toast === 'function') toast(d.message || (r.ok ? 'Lunas' : 'Gagal'), r.ok ? 'success' : 'danger');
-    if (r.ok) {
-      _kolStats = {};
-      _initKolektorDashboard();
-      // Tawaran kirim struk via WA
-      var pel = _kolData.find(function(p){ return p.username === username; });
-      var hp  = pel ? ((pel.hp || '').replace(/\D/g,'')) : '';
-      if (hp) {
-        var waNum  = '62' + (hp.startsWith('0') ? hp.slice(1) : hp);
-        var kol    = localStorage.getItem('tf_username') || 'Kolektor';
-        var isp    = localStorage.getItem('tf_isp_name') || 'TechnoFix';
-        var tgl    = new Date().toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
-        var total  = 'Rp ' + (Number(d.total)||0).toLocaleString('id-ID');
-        var pesan  = encodeURIComponent(
-          'Bukti Pembayaran - ' + isp + '\n' +
-          '--------------------------------\n' +
-          'Pelanggan : ' + (pel.nama || username) + '\n' +
-          'Tanggal   : ' + tgl + '\n' +
-          'Metode    : ' + metode + '\n' +
-          'Total     : ' + total + '\n' +
-          'Kolektor  : ' + kol + '\n' +
-          '--------------------------------\n' +
-          'Terima kasih telah membayar tagihan Anda.'
-        );
-        // Tawaran kirim struk lewat konfirmasi
-        setTimeout(function() {
-          if (confirm('Kirim struk pembayaran ke pelanggan via WhatsApp?')) {
-            window.open('https://wa.me/' + waNum + '?text=' + pesan, '_blank');
-          }
-        }, 400);
-      }
-    }
-  } catch(e) {
-    if (typeof toast === 'function') toast('Tidak bisa menghubungi server', 'danger');
-  }
-}

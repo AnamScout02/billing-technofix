@@ -171,12 +171,13 @@ function renderOdp() {
         </div>
 
         <div class="device-actions">
+          ${(typeof hasPerm === 'function' ? hasPerm('perangkat_manage') : true) ? `
           <button class="btn btn-amber btn-sm" onclick="editOdp(${o.id})">
             <span class="material-symbols-outlined">edit</span> Edit
           </button>
           <button class="btn btn-red btn-sm" onclick="confirmDelete(${o.id})" title="Hapus ODP">
             <span class="material-symbols-outlined">delete</span>
-          </button>
+          </button>` : ''}
         </div>
 
       </div>`;
@@ -192,13 +193,15 @@ async function showForm(prefill = null) {
   const isEdit = !!prefill;
   const v      = k => prefill ? escHtml(String(prefill[k] ?? '')) : '';
 
-  // Load opsi ODC dan ODP (untuk cascade)
-  let odcOptions = '<option value="">— Pilih ODC —</option>';
+  // Load opsi ODC, ODP, dan OLT (untuk semua mode relasi)
+  let odcOptions    = '<option value="">— Pilih ODC —</option>';
   let odpParentOptions = '<option value="">— Pilih ODP Induk —</option>';
+  let oltOptions    = '<option value="">— Pilih OLT —</option>';
   try {
-    const [rOdc, rOdp] = await Promise.all([
+    const [rOdc, rOdp, rOlt] = await Promise.all([
       fetch(`${API_BASE}/api/odc`, { credentials: 'include', headers: getAuthHeaders() }),
       fetch(`${API_BASE}/api/odp`, { credentials: 'include', headers: getAuthHeaders() }),
+      fetch(`${API_BASE}/olt`,     { credentials: 'include', headers: getAuthHeaders() }),
     ]);
     if (rOdc.ok) {
       const data = await rOdc.json();
@@ -208,16 +211,22 @@ async function showForm(prefill = null) {
     }
     if (rOdp.ok) {
       const data = await rOdp.json();
-      // Exclude diri sendiri saat edit
       odpParentOptions += data
         .filter(o => !prefill || o.id != prefill.id)
         .map(o => `<option value="${o.id}" ${prefill?.parent_odp_id == o.id ? 'selected' : ''}>${escHtml(o.nama)} (${o.jumlah_port} port)</option>`)
         .join('');
     }
+    if (rOlt.ok) {
+      const data = await rOlt.json();
+      const list = Array.isArray(data) ? data : (data.devices || []);
+      oltOptions += list.map(o =>
+        `<option value="${o.id}" ${prefill?.olt_id == o.id ? 'selected' : ''}>${escHtml(o.name)} (${o.ip})</option>`
+      ).join('');
+    }
   } catch (_) {}
 
   // Tentukan mode relasi saat edit
-  const relasiMode = prefill?.parent_odp_id ? 'odp' : 'odc';
+  const relasiMode = prefill?.parent_odp_id ? 'odp' : (prefill?.olt_id ? 'olt' : 'odc');
 
   const html = `
     <div class="form-modal" style="width:560px">
@@ -261,10 +270,10 @@ async function showForm(prefill = null) {
           </select>
         </div>
 
-        <!-- Relasi: ODC langsung ATAU ODP induk (cascade) -->
+        <!-- Relasi: ODC / ODP cascade / OLT langsung -->
         <div class="form-group full">
           <label class="form-label">Jenis Relasi</label>
-          <div style="display:flex;gap:16px;margin-bottom:8px">
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px">
             <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600">
               <input type="radio" name="relasi-mode" value="odc" id="r-odc"
                 ${relasiMode === 'odc' ? 'checked' : ''}
@@ -275,7 +284,13 @@ async function showForm(prefill = null) {
               <input type="radio" name="relasi-mode" value="odp" id="r-odp"
                 ${relasiMode === 'odp' ? 'checked' : ''}
                 onchange="_odpRelasiToggle('odp')" style="accent-color:var(--primary)">
-              Terhubung ke ODP lain (Cascade)
+              Cascade ODP
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600">
+              <input type="radio" name="relasi-mode" value="olt" id="r-olt"
+                ${relasiMode === 'olt' ? 'checked' : ''}
+                onchange="_odpRelasiToggle('olt')" style="accent-color:var(--primary)">
+              Langsung ke OLT
             </label>
           </div>
         </div>
@@ -304,6 +319,12 @@ async function showForm(prefill = null) {
           </select>
         </div>
 
+        <!-- Relasi langsung ke OLT -->
+        <div id="relasi-olt-wrap" class="form-group full" style="${relasiMode === 'olt' ? '' : 'display:none'}">
+          <label class="form-label">Relasi ke OLT <span style="font-size:10px;color:var(--text-dim)">(tanpa melalui ODC)</span></label>
+          <select class="form-input" id="f-olt-id">${oltOptions}</select>
+        </div>
+
         <div class="form-group full">
           <label class="form-label">
             <span class="material-symbols-outlined"
@@ -327,6 +348,17 @@ async function showForm(prefill = null) {
           </div>
         </div>
 
+        <div class="form-group full">
+          <label class="form-label">Lokasi (alamat singkat, opsional)</label>
+          <input class="form-input" type="text" id="f-lokasi"
+                 placeholder="mis. Tiang depan rumah No. 12" value="${v('lokasi')}">
+        </div>
+
+        <div class="form-group full">
+          <label class="form-label">Keterangan (opsional)</label>
+          <textarea class="form-input" id="f-keterangan" rows="3"
+                    placeholder="Catatan tambahan tentang ODP ini">${v('keterangan')}</textarea>
+        </div>
 
       </div>
 
@@ -358,6 +390,7 @@ async function showForm(prefill = null) {
         if (portSel && prefill.port_parent_odp) portSel.value = prefill.port_parent_odp;
       });
     }
+    // mode 'olt': dropdown sudah ter-prefill via selected di HTML
   });
 }
 
@@ -400,17 +433,19 @@ function previewKoordinat() {
 function collectForm() {
   const nama         = val('f-nama');
   const jumlahPort   = parseInt(val('f-jumlah-port'))   || 0;
-  const portTerpakai = parseInt(val('f-port-terpakai'))  || 0;
 
   if (!nama) {
     toast('Nama ODP wajib diisi', 'warning');
     return null;
   }
-  const modeOdc = document.getElementById('r-odc')?.checked !== false;
-  const odc_id       = modeOdc ? (val('f-odc-id') || null) : null;
-  const parent_odp_id = !modeOdc ? (val('f-parent-odp-id') || null) : null;
-  const port_odc       = modeOdc ? (val('f-port-odc') || null) : null;
-  const port_parent_odp = !modeOdc ? (val('f-port-parent-odp') || null) : null;
+  const modeEl  = document.querySelector('input[name="relasi-mode"]:checked');
+  const mode    = modeEl ? modeEl.value : 'odc';
+
+  const odc_id          = mode === 'odc' ? (val('f-odc-id')        || null) : null;
+  const parent_odp_id   = mode === 'odp' ? (val('f-parent-odp-id') || null) : null;
+  const olt_id          = mode === 'olt' ? (val('f-olt-id')         || null) : null;
+  const port_odc        = mode === 'odc' ? (val('f-port-odc')       || null) : null;
+  const port_parent_odp = mode === 'odp' ? (val('f-port-parent-odp')|| null) : null;
 
   return {
     nama,
@@ -419,28 +454,32 @@ function collectForm() {
     jumlah_port:      jumlahPort,
     odc_id,
     parent_odp_id,
+    olt_id,
     port_odc:         port_odc ? parseInt(port_odc) : null,
     port_parent_odp:  port_parent_odp ? parseInt(port_parent_odp) : null,
     keterangan:       val('f-keterangan'),
   };
 }
 
-// ── Toggle relasi ODC / ODP cascade ─────────────────────────
+// ── Toggle relasi ODC / ODP cascade / OLT langsung ──────────
 function _odpRelasiToggle(mode) {
   const odcWrap    = document.getElementById('relasi-odc-wrap');
   const portOdcW   = document.getElementById('port-odc-wrap');
   const odpWrap    = document.getElementById('relasi-odp-wrap');
   const portOdpW   = document.getElementById('port-parent-odp-wrap');
+  const oltWrap    = document.getElementById('relasi-olt-wrap');
+
+  // Sembunyikan semua dulu
+  [odcWrap, portOdcW, odpWrap, portOdpW, oltWrap].forEach(el => { if (el) el.style.display = 'none'; });
+
   if (mode === 'odc') {
-    if (odcWrap)  odcWrap.style.display  = '';
-    if (odpWrap)  odpWrap.style.display  = 'none';
-    if (portOdpW) portOdpW.style.display = 'none';
+    if (odcWrap) odcWrap.style.display = '';
     _loadPortOdcForOdp();
-  } else {
-    if (odcWrap)  odcWrap.style.display  = 'none';
-    if (portOdcW) portOdcW.style.display = 'none';
-    if (odpWrap)  odpWrap.style.display  = '';
+  } else if (mode === 'odp') {
+    if (odpWrap) odpWrap.style.display = '';
     _loadPortParentOdp();
+  } else if (mode === 'olt') {
+    if (oltWrap) oltWrap.style.display = '';
   }
 }
 

@@ -10,7 +10,15 @@ node_modules/
 venv/
 .env
 
+# Abaikan cache bytecode Python
+__pycache__/
+*.pyc
+
 # Abaikan database lokal (jika tidak ingin di-upload)
 *.db
+*.db-shm
+*.db-wal
+*.db-journal
 
 *.exe
+.claude

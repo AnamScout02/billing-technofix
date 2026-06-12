@@ -75,8 +75,10 @@ async function loadDetail() {
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     _pelangganData = await r.json();
 
-    // Jika akun terisolir → redirect ke halaman isolir
-    if (_pelangganData.aktif === false || _pelangganData.aktif === 0) {
+    // Jika akun di-nonaktifkan ATAU sedang diisolir krn nunggak (profil
+    // diganti ke profil isolir, akun tetap aktif supaya bisa login & bayar)
+    // → redirect ke halaman isolir
+    if (_pelangganData.aktif === false || _pelangganData.isolir === true) {
       window.location.replace('/app/frontend/isolir/isolir.html');
       return;
     }
@@ -104,6 +106,18 @@ function renderDetail(d) {
   setText('welcome-greeting', sapa + '! 👋');
   setText('welcome-name', displayName);
   setText('welcome-sub', d.profil ? `Paket ${d.profil} · ${d.router_name || 'TechnoFix'}` : 'Selamat datang di Portal Pelanggan TechnoFix');
+
+  // Pesan pengumuman dari ISP (diset di Pengaturan > Portal)
+  const wmBanner = document.getElementById('welcome-msg-banner');
+  const wmText   = document.getElementById('welcome-msg-text');
+  if (wmBanner && wmText) {
+    if (d.welcome_msg) {
+      wmText.textContent = d.welcome_msg;
+      wmBanner.style.display = '';
+    } else {
+      wmBanner.style.display = 'none';
+    }
+  }
 
   // Tampilkan paket di welcome card
   const paketWrap = document.getElementById('welcome-paket-wrap');
@@ -249,8 +263,7 @@ function renderStatusOffline(msg) {
 function renderRxGauge(rx) {
   const fill  = document.getElementById('rx-gauge-fill');
   const text  = document.getElementById('rx-gauge-text');
-  const badge = document.getElementById('rx-status-badge');
-  if (!fill || !text || !badge) return;
+  if (!fill || !text) return;
 
   // SVG circle r=30 → circumference = 2*π*30 ≈ 188.5
   const CIRC = 188.5;
@@ -259,8 +272,6 @@ function renderRxGauge(rx) {
     text.textContent  = '—';
     fill.style.stroke = 'rgba(255,255,255,.2)';
     fill.setAttribute('stroke-dashoffset', CIRC);
-    badge.textContent = 'Data tidak tersedia';
-    badge.className   = 'rx-status-badge none';
     return;
   }
 
@@ -268,17 +279,15 @@ function renderRxGauge(rx) {
   const pct   = Math.min(1, Math.max(0, (rxNum - (-35)) / ((-10) - (-35))));
   const offset = CIRC * (1 - pct);
 
-  let color, badgeClass, badgeText;
-  if (rxNum > -20)      { color = '#16a34a'; badgeClass = '';     badgeText = 'Sinyal Normal'; }
-  else if (rxNum > -27) { color = '#d97706'; badgeClass = 'warn'; badgeText = 'Sinyal Sedang'; }
-  else                  { color = '#dc2626'; badgeClass = 'crit'; badgeText = 'Sinyal Lemah!'; }
+  let color;
+  if (rxNum > -20)      color = '#16a34a';
+  else if (rxNum > -27) color = '#d97706';
+  else                  color = '#dc2626';
 
   fill.style.stroke = color;
   fill.setAttribute('stroke-dashoffset', offset.toFixed(1));
   text.textContent  = rxNum.toFixed(1);
   text.setAttribute('fill', color);
-  badge.textContent = badgeText;
-  badge.className   = `rx-status-badge ${badgeClass}`;
 }
 
 function renderRxCard(rx) {
@@ -401,7 +410,7 @@ function renderTagihan(d) {
   // Tabel rows
   const tbody = document.getElementById('tagihan-list');
   if (!d.tagihan || d.tagihan.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7"><div class="p-empty"><span class="material-symbols-outlined">receipt_long</span><div class="p-empty-txt">Belum ada riwayat tagihan.</div></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8"><div class="p-empty"><span class="material-symbols-outlined">receipt_long</span><div class="p-empty-txt">Belum ada riwayat tagihan.</div></div></td></tr>`;
     return;
   }
   tbody.innerHTML = d.tagihan.map(t => {
@@ -409,6 +418,9 @@ function renderTagihan(d) {
     const isBelum  = t.status === 'belum_bayar';
     const statusLbl = isLunas ? 'Lunas' : isBelum ? 'Belum Bayar' : (t.status || '—');
     const badgeCls  = isLunas ? 'badge-on' : isBelum ? 'badge-iso' : 'badge-off';
+    const strukBtn  = isLunas
+      ? `<button class="icon-btn-sm" title="Lihat struk" onclick="_lihatStruk(${t.id})"><span class="material-symbols-outlined">receipt</span></button>`
+      : '—';
     return `<tr>
       <td style="font-weight:700">${escHtml(t.periode || '—')}</td>
       <td>${escHtml(t.profil || t.keterangan || '—')}</td>
@@ -417,8 +429,14 @@ function renderTagihan(d) {
       <td>${isLunas ? fmtTanggal(t.paid_at || '') : '—'}</td>
       <td>${escHtml(t.metode || '—')}</td>
       <td><span class="badge-status ${badgeCls}"><span class="badge-dot"></span>${statusLbl}</span></td>
+      <td>${strukBtn}</td>
     </tr>`;
   }).join('');
+}
+
+function _lihatStruk(tagihanId) {
+  const url = `/app/frontend/invoice/struk.html?id=${tagihanId}&portal=1`;
+  window.open(url, '_blank', 'width=440,height=700,noopener');
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -596,58 +614,6 @@ async function submitTiket() {
   } finally {
     btn.disabled = false;
     btn.innerHTML = '<span class="material-symbols-outlined">send</span> Kirim Laporan';
-  }
-}
-
-/* ════════════════════════════════════════════════════════════
-   UBAH WIFI MODEM
-════════════════════════════════════════════════════════════ */
-function toggleWifiPwd() {
-  const inp = document.getElementById('wifi-pass');
-  const eye = document.getElementById('wifi-pwd-eye');
-  if (!inp) return;
-  if (inp.type === 'password') { inp.type = 'text'; if (eye) eye.textContent = 'visibility_off'; }
-  else                          { inp.type = 'password'; if (eye) eye.textContent = 'visibility'; }
-}
-
-async function submitWifi() {
-  const btn    = document.getElementById('btn-wifi');
-  const ssid   = document.getElementById('wifi-ssid')?.value.trim()  || '';
-  const pass   = document.getElementById('wifi-pass')?.value.trim()  || '';
-  const errEl  = document.getElementById('wifi-error');
-  const sucEl  = document.getElementById('wifi-success');
-
-  const setMsg = (el, msg) => { if(!el)return; const sp=el.querySelector('span:last-child'); if(sp)sp.textContent=msg; else el.textContent=msg; };
-  const showErr = msg => { if(errEl){setMsg(errEl,msg);errEl.style.display='flex';} if(sucEl)sucEl.style.display='none'; };
-  const showSuc = msg => { if(sucEl){setMsg(sucEl,msg);sucEl.style.display='flex';} if(errEl)errEl.style.display='none'; };
-  if(errEl)errEl.style.display='none'; if(sucEl)sucEl.style.display='none';
-
-  if (!ssid && !pass) { showErr('Isi SSID atau password WiFi yang ingin diubah.'); return; }
-  if (pass && pass.length < 8) { showErr('Password WiFi minimal 8 karakter.'); return; }
-
-  btn.disabled = true;
-  btn.innerHTML = '<span class="material-symbols-outlined spin">refresh</span> Mengirim...';
-
-  try {
-    const r = await fetch(`${PORTAL_API}/wifi`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ ssid, password: pass }),
-    });
-    const d = await r.json();
-    if (r.ok && d.success) {
-      showSuc(d.message || 'Pengaturan WiFi berhasil dikirim. Tunggu ~30 detik lalu reconnect.');
-      document.getElementById('wifi-ssid').value = '';
-      document.getElementById('wifi-pass').value = '';
-    } else {
-      showErr(d.error || 'Gagal mengirim permintaan.');
-    }
-  } catch(e) {
-    showErr('Tidak dapat terhubung ke server.');
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = '<span class="material-symbols-outlined">wifi</span> Terapkan Perubahan WiFi';
   }
 }
 

@@ -79,6 +79,37 @@ body { overflow: hidden; }
   white-space: nowrap;
 }
 
+.map-export-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  font-family: var(--sans);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--primary);
+  cursor: pointer;
+  transition: background .13s, border-color .13s, box-shadow .13s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.map-export-btn .material-symbols-outlined { font-size: 15px; }
+.map-export-btn:hover {
+  background: var(--primary-light);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-ring);
+}
+.map-export-label { display: inline; }
+
+@media (max-width: 600px) {
+  .map-export-label { display: none; }
+  .map-export-btn { padding: 0 8px; }
+}
+
 
 /* ── Map container ── */
 .map-inner {
@@ -129,6 +160,12 @@ body { overflow: hidden; }
    (untuk scale zoom). transition HANYA filter. */
 .tf-marker {
   position: relative;
+  /* will-change: hint GPU untuk layer compositing — hemat repaint CPU */
+  will-change: transform, opacity;
+}
+/* Ring animasi ONU — composite layer terpisah agar tidak repaint marker */
+.tf-marker > div[style*="animation"] {
+  will-change: transform, opacity;
 }
 
 /* Pulse ring ONU sinyal bagus */
@@ -136,9 +173,65 @@ body { overflow: hidden; }
   0%   { transform: scale(0.75); opacity: 0.60; }
   100% { transform: scale(2.0);  opacity: 0; }
 }
+/* Animasi OFFLINE — ring pertama meletup keluar */
+@keyframes tfOffPulse1 {
+  0%   { transform: scale(0.85); opacity: 0.90; }
+  70%  { transform: scale(1.50); opacity: 0.50; }
+  100% { transform: scale(2.00); opacity: 0; }
+}
+/* Ring kedua menyusul dengan delay — efek ripple ganda */
+@keyframes tfOffPulse2 {
+  0%   { transform: scale(0.50); opacity: 0; }
+  30%  { transform: scale(0.70); opacity: 0.70; }
+  100% { transform: scale(1.30); opacity: 0; }
+}
+/* Marker offline berdenyut (gelap-terang) agar berbeda dari online */
+@keyframes tfOffBlink {
+  0%, 100% { opacity: 1.0; }
+  45%       { opacity: 0.55; }
+}
 
-/* ── Filter Panel ── */
-.map-filter-panel {
+/* ── Cluster bubble ── */
+.tf-cluster {
+  position: absolute;
+  pointer-events: all;
+  animation: clusterPop .25s cubic-bezier(.22,1,.36,1) both;
+}
+@keyframes clusterPop {
+  from { transform: translate(-50%,-50%) scale(0.5); opacity: 0; }
+  to   { transform: translate(-50%,-50%) scale(1);   opacity: 1; }
+}
+.tf-cluster-inner {
+  position: relative;
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1a5dd8 0%, #0040a1 100%);
+  border: 3px solid rgba(255,255,255,.9);
+  box-shadow: 0 4px 16px rgba(0,64,161,.5), 0 0 0 6px rgba(0,64,161,.15);
+  display: flex; align-items: center; justify-content: center;
+  transition: transform .15s;
+}
+.tf-cluster:hover .tf-cluster-inner { transform: scale(1.12); }
+.tf-cluster-count {
+  font-family: 'Montserrat', 'Poppins', sans-serif;
+  font-size: 15px; font-weight: 800; color: #fff; line-height: 1;
+}
+/* Warning dot — ada offline di cluster ini */
+.tf-cluster-warn-dot {
+  position: absolute; top: 1px; right: 1px;
+  width: 11px; height: 11px; border-radius: 50%;
+  background: #ef4444;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 3px rgba(239,68,68,.3);
+  animation: clgBlink .7s ease-in-out infinite;
+}
+.tf-cluster-warn .tf-cluster-inner {
+  background: linear-gradient(135deg, #d97706 0%, #92400e 100%);
+  box-shadow: 0 4px 16px rgba(217,119,6,.5), 0 0 0 6px rgba(217,119,6,.15);
+}
+
+/* ── Panel Terpadu: Filter + Legenda ── */
+.mlp {
   position: absolute;
   top: 12px;
   left: 12px;
@@ -149,16 +242,18 @@ body { overflow: hidden; }
   border: 1px solid rgba(255,255,255,.65);
   border-radius: 14px;
   box-shadow: 0 8px 28px rgba(0,0,0,.16), 0 2px 6px rgba(0,0,0,.08);
-  min-width: 190px;
-  max-width: 210px;
+  width: 204px;
   overflow: hidden;
+  max-height: calc(100vh - 160px);
+  display: flex;
+  flex-direction: column;
 }
 
-.mfp-header {
+.mlp-header {
   display: flex;
   align-items: center;
   gap: 7px;
-  padding: 10px 13px;
+  padding: 10px 12px;
   font-size: 12px;
   font-weight: 700;
   font-family: var(--sans);
@@ -167,24 +262,58 @@ body { overflow: hidden; }
   border-bottom: 1px solid rgba(0,0,0,.07);
   letter-spacing: .01em;
   user-select: none;
+  flex-shrink: 0;
 }
-.mfp-header .material-symbols-outlined { font-size: 16px; color: var(--primary); }
-.mfp-chevron {
-  font-size: 16px !important;
-  color: var(--text-dim) !important;
-  margin-left: auto;
-  transition: transform .2s;
+.mlp-header .material-symbols-outlined { font-size: 16px; color: var(--primary); }
+.mlp-chevron { font-size: 16px !important; color: var(--text-dim) !important; margin-left: auto; }
+
+.mlp-body {
+  overflow-y: auto;
+  flex: 1;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
 }
 
-.mfp-body { padding: 6px 0 8px; }
+/* Tabs */
+.mlp-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.mlp-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 7px 4px;
+  border: none;
+  background: none;
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-dim);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color .14s, border-color .14s;
+  letter-spacing: .01em;
+  user-select: none;
+}
+.mlp-tab .material-symbols-outlined { font-size: 13px; }
+.mlp-tab:hover { color: var(--text); }
+.mlp-tab-active { color: var(--primary) !important; border-bottom-color: var(--primary) !important; }
 
-.mfp-section {
+/* Pane */
+.mlp-pane { padding: 4px 0 8px; }
+
+/* Section label dalam pane */
+.mlp-section {
   font-size: 9px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: .09em;
   color: var(--text-dim);
-  padding: 6px 13px 3px;
+  padding: 6px 12px 3px;
 }
 
 .mfp-row {
@@ -249,34 +378,49 @@ body { overflow: hidden; }
 /* ════════════════════════════════════════════════════════════
    KETERANGAN KABEL — bottom left
 ════════════════════════════════════════════════════════════ */
-.cable-legend {
+/* ── Map Style Switcher ── */
+.map-style-switcher {
   position: absolute;
   bottom: 32px;
-  left: 12px;
+  right: 52px;   /* di atas kontrol zoom MapLibre */
   z-index: 800;
-  background: rgba(255,255,255,.94);
-  backdrop-filter: blur(14px) saturate(1.3);
-  -webkit-backdrop-filter: blur(14px) saturate(1.3);
-  border: 1px solid rgba(255,255,255,.65);
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0,0,0,.14);
-  width: 184px;
+  display: flex;
+  gap: 0;
+  border-radius: 10px;
   overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0,0,0,.18);
+  border: 1px solid rgba(255,255,255,.5);
 }
-.cable-legend-head {
-  display: flex; align-items: center; gap: 7px;
-  padding: 9px 12px;
-  font-size: 12px; font-weight: 700; font-family: var(--sans);
-  color: var(--text); cursor: pointer; user-select: none;
-  border-bottom: 1px solid rgba(0,0,0,.07);
+.msw-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 13px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--sans);
+  background: rgba(255,255,255,.88);
+  backdrop-filter: blur(12px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
+  color: var(--text-dim);
+  border: none;
+  cursor: pointer;
+  transition: background .18s, color .18s;
+  line-height: 1;
 }
-.cable-legend-head .material-symbols-outlined { font-size: 16px; color: var(--primary); }
-.clg-chevron { font-size: 16px !important; color: var(--text-dim) !important; margin-left: auto; transition: transform .2s; }
-.cable-legend.collapsed .clg-chevron { transform: rotate(-90deg); }
-.cable-legend.collapsed .cable-legend-body { display: none; }
+.msw-btn + .msw-btn { border-left: 1px solid rgba(0,0,0,.1); }
+.msw-btn .material-symbols-outlined { font-size: 16px; }
+.msw-btn:hover { background: rgba(255,255,255,.98); color: var(--primary); }
+.msw-btn.msw-active {
+  background: var(--primary);
+  color: #fff;
+}
+@media (max-width: 768px) {
+  .msw-btn span:not(.material-symbols-outlined) { display: none; }
+}
 
-.cable-legend-body { padding: 8px 12px 10px; display: flex; flex-direction: column; gap: 9px; }
-.clg-row { display: flex; align-items: center; gap: 9px; }
+/* clg-* — dipakai di dalam mlp-pane legenda */
+.clg-row { display: flex; align-items: center; gap: 9px; padding: 3px 12px; }
 .clg-line {
   width: 26px; height: 5px; border-radius: 99px; flex-shrink: 0;
   position: relative;
@@ -288,15 +432,15 @@ body { overflow: hidden; }
   transform: translate(-50%,-50%);
   border: 1px solid #fff;
 }
-.clg-good { background: var(--green); }   .clg-good::after { background: #86efac; }
-.clg-warn { background: var(--amber); }   .clg-warn::after { background: #fcd34d; }
-.clg-bad  { background: var(--red); }     .clg-bad::after  { background: #fca5a5; }
+.clg-good { background: #16a34a; }   .clg-good::after { background: #86efac; }
+.clg-warn { background: #eab308; }   .clg-warn::after { background: #fde68a; }
+.clg-bad  { background: #ea580c; }   .clg-bad::after  { background: #fdba74; }
 .clg-off  {
-  background: repeating-linear-gradient(90deg, var(--red) 0 4px, transparent 4px 7px);
-  animation: clgBlink 1s ease-in-out infinite;
+  background: repeating-linear-gradient(90deg, #7f1d1d 0 4px, transparent 4px 7px);
+  animation: clgBlink .56s ease-in-out infinite;
 }
 .clg-off::after { display: none; }
-@keyframes clgBlink { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+@keyframes clgBlink { 0%,100% { opacity: 1; } 50% { opacity: .30; } }
 
 .clg-text { display: flex; flex-direction: column; line-height: 1.2; }
 .clg-text b { font-size: 11.5px; font-weight: 700; color: var(--text); }
@@ -470,18 +614,16 @@ body { overflow: hidden; }
    DEVICE DETAIL CARD — Desktop: floating centered modal
 ════════════════════════════════════════════════════════════ */
 .device-card {
-  /* Di luar map-page-wrapper → position:fixed bebas dari stacking context isolation */
   position: fixed;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   z-index: 830;
   width: 340px;
-  max-width: calc(100vw - 32px);
-  max-height: calc(100vh - 120px);
+  max-width: calc(100vw - 24px);
+  max-height: calc(100vh - 100px);
   background: #fff;
   border-radius: 18px;
-  /* border-left diset oleh JS sesuai warna tipe perangkat */
   border-left: 4px solid #6366f1;
   box-shadow: 0 24px 64px rgba(0,0,0,.22), 0 4px 16px rgba(0,0,0,.10), 0 0 0 1px rgba(0,0,0,.04);
   overflow: hidden;
@@ -504,145 +646,15 @@ body { overflow: hidden; }
   flex-shrink: 0;
 }
 
-/* Inner wrapper — position:relative agar close button bisa absolute */
-.dcc { display: flex; flex-direction: column; overflow: hidden; position: relative; }
-
-/* ── Close button — pojok kanan atas card ── */
-.dcc-close {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 5;
-  width: 26px; height: 26px; border-radius: 50%;
-  border: 1px solid var(--border); background: var(--surface);
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer; color: var(--text-dim);
-  transition: background .12s, color .12s, border-color .12s;
-}
-.dcc-close:hover { background: var(--red-bg); color: var(--red); border-color: var(--red-border); }
-.dcc-close .material-symbols-outlined { font-size: 14px; }
-
-/* ── Header — icon + meta rata kiri, padding kanan hindari tombol X ── */
-.dcc-head {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 44px 8px 14px; /* kanan 44px beri ruang tombol X */
-  flex-shrink: 0;
-}
-
-.dcc-icon {
-  width: 34px; height: 34px; border-radius: 9px;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
-.dcc-icon .material-symbols-outlined { font-size: 18px; }
-
-.dcc-meta { flex: 1; min-width: 0; }
-
-.dcc-type-tag {
-  font-size: 9px; font-weight: 800;
-  letter-spacing: .10em; text-transform: uppercase;
-  color: var(--text-dim); display: block; margin-bottom: 2px;
-}
-
-.dcc-name {
-  font-size: 14px; font-weight: 800;
-  font-family: var(--heading); color: var(--text);
-  letter-spacing: -.02em; line-height: 1.2;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-
-.dcc-status {
-  display: flex; align-items: center; gap: 5px;
-  font-size: 10.5px; font-weight: 600; color: var(--text-muted);
-  margin-top: 3px;
-}
-.dcc-st-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-.dcc-st-online  .dcc-st-dot { background: var(--green); animation: pulseGreen .9s infinite; }
-.dcc-st-offline .dcc-st-dot { background: var(--red); }
-
-/* ── Body scrollable ── */
-.dcc-body {
-  overflow-y: auto; flex: 1;
-  scrollbar-width: thin; scrollbar-color: var(--border) transparent;
-}
-.dcc-body::-webkit-scrollbar { width: 3px; }
-.dcc-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
-/* ── RX Power block ── */
-.dcc-rx {
-  display: flex; align-items: center; gap: 10px;
-  margin: 0 14px 6px;
-  padding: 9px 12px;
-  border-radius: 10px; border: 1px solid;
-  flex-shrink: 0;
-}
-.dcc-rx-icon { font-size: 22px !important; flex-shrink: 0; opacity: .85; }
-.dcc-rx-right { display: flex; flex-direction: column; gap: 1px; }
-.dcc-rx-val {
-  font-size: 17px; font-weight: 800;
-  font-family: var(--heading); letter-spacing: -.03em; line-height: 1;
-}
-.dcc-rx-label { font-size: 10px; font-weight: 600; opacity: .80; }
-
-.dcc-rx-ok   { background: var(--green-bg); border-color: var(--green-border); color: var(--green); }
-.dcc-rx-warn { background: var(--amber-bg); border-color: var(--amber-border); color: var(--amber); }
-.dcc-rx-crit { background: var(--red-bg);   border-color: var(--red-border);   color: var(--red); }
-
-/* ── Profil pill ── */
-.dcc-profil {
-  display: inline-flex; align-items: center; gap: 5px;
-  font-size: 11.5px; font-weight: 700;
-  margin: 0 14px 6px; padding: 4px 10px;
-  border-radius: 99px; border: 1px solid;
-  align-self: flex-start; /* tidak stretch penuh di flex column */
-  max-width: calc(100% - 28px);
-}
-.dcc-profil .material-symbols-outlined { font-size: 13px; }
-
-/* ── Info rows ── */
-.dcc-row {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 5px 14px; border-bottom: 1px solid var(--border);
-  transition: background .10s;
-}
-.dcc-row:last-child { border-bottom: none; }
-.dcc-row:hover { background: var(--surface); }
-.dcc-key { font-size: 10.5px; font-weight: 600; color: var(--text-dim); flex-shrink: 0; }
-.dcc-val { font-size: 11.5px; font-weight: 700; color: var(--text); text-align: right; word-break: break-word; max-width: 162px; }
-
-/* ── Action buttons — satu baris flex, rata tengah ── */
-.dcc-btns {
-  display: flex;
-  gap: 6px;
-  padding: 8px 14px 10px;
-  border-top: 1px solid var(--border);
-  flex-shrink: 0;
-}
-
-.dcbtn {
-  flex: 1;
-  display: inline-flex; align-items: center; justify-content: center;
-  gap: 4px; padding: 8px 4px; border-radius: 9px; border: none;
-  font-size: 11px; font-weight: 700; font-family: var(--sans);
-  cursor: pointer; color: #fff; white-space: nowrap; overflow: hidden;
-  transition: filter .14s, transform .1s; min-width: 0;
-}
-.dcbtn:hover  { filter: brightness(1.12); }
-.dcbtn:active { transform: scale(.97); }
-.dcbtn .material-symbols-outlined { font-size: 14px; flex-shrink: 0; }
-.dcbtn-purple { background: #7c3aed; }
-.dcbtn-navy   { background: #1e3a5f; }
-.dcbtn-green  { background: #16a34a; }
-
 /* ════════════════════════════════════════════════════════════
    PREMIUM CARD (dcx) — desain baru profesional
 ════════════════════════════════════════════════════════════ */
-.dcx { display: flex; flex-direction: column; position: relative; overflow: hidden; }
+.dcx { display: flex; flex-direction: column; position: relative; overflow: hidden; width: 100%; box-sizing: border-box; }
 
 /* ── Banner header gradient ── */
 .dcx-banner {
   position: relative;
-  padding: 16px 16px 14px;
+  padding: 14px 14px 12px;
   background:
     radial-gradient(120% 120% at 100% 0%, rgba(255,255,255,.18) 0%, rgba(255,255,255,0) 45%),
     linear-gradient(135deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 78%, #000) 100%);
@@ -747,77 +759,42 @@ body { overflow: hidden; }
 
 /* area putih tombol (ONU) */
 .dcx-actions {
-  display: flex; gap: 8px; padding: 14px;
+  display: flex; flex-wrap: wrap; gap: 8px; padding: 14px;
   background: var(--bg);
 }
 
 /* ── Body ── */
-.dcx-body { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.dcx-body { padding: 0 0 6px; display: flex; flex-direction: column; gap: 0; }
 
-/* RX signal gauge */
-.dcx-rx {
-  border-radius: 14px; padding: 12px 14px;
-  border: 1px solid;
-}
-.dcx-rx-top { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
-.dcx-rx-ic  { font-size: 30px !important; flex-shrink: 0; }
-.dcx-rx-val { font-family: var(--heading); font-size: 22px; font-weight: 800; letter-spacing: -.03em; line-height: 1; }
-.dcx-rx-val small { font-size: 12px; font-weight: 700; opacity: .7; }
-.dcx-rx-label { font-size: 11.5px; font-weight: 700; margin-top: 3px; }
-.dcx-rx-bar { height: 6px; border-radius: 99px; background: rgba(0,0,0,.08); overflow: hidden; }
-.dcx-rx-fill { height: 100%; border-radius: 99px; transition: width .5s cubic-bezier(.22,1,.36,1); }
-
-.dcx-rx-ok   { background: var(--green-bg); border-color: var(--green-border); }
-.dcx-rx-ok   .dcx-rx-ic, .dcx-rx-ok .dcx-rx-val, .dcx-rx-ok .dcx-rx-label { color: var(--green); }
-.dcx-rx-ok   .dcx-rx-fill { background: var(--green); }
-.dcx-rx-warn { background: var(--amber-bg); border-color: var(--amber-border); }
-.dcx-rx-warn .dcx-rx-ic, .dcx-rx-warn .dcx-rx-val, .dcx-rx-warn .dcx-rx-label { color: var(--amber); }
-.dcx-rx-warn .dcx-rx-fill { background: var(--amber); }
-.dcx-rx-crit { background: var(--red-bg); border-color: var(--red-border); }
-.dcx-rx-crit .dcx-rx-ic, .dcx-rx-crit .dcx-rx-val, .dcx-rx-crit .dcx-rx-label { color: var(--red); }
-.dcx-rx-crit .dcx-rx-fill { background: var(--red); }
-
-/* Chip (profil) */
-.dcx-chip {
-  display: inline-flex; align-items: center; gap: 6px; align-self: flex-start;
-  padding: 5px 12px; border-radius: 99px;
-  background: var(--primary-light); color: var(--primary);
-  border: 1px solid var(--primary-ring);
-  font-size: 12px; font-weight: 700;
-}
-.dcx-chip .material-symbols-outlined { font-size: 15px; }
-
-/* Info rows */
-.dcx-rows {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  overflow: hidden;
-}
+/* Info rows — flush ke pinggir card */
+.dcx-rows { display: flex; flex-direction: column; }
 .dcx-row {
   display: flex; align-items: center; gap: 10px;
-  padding: 9px 12px;
+  padding: 9px 16px;
   border-bottom: 1px solid var(--border);
 }
 .dcx-row:last-child { border-bottom: none; }
+.dcx-row:nth-child(odd)  { background: #ffffff; }
+.dcx-row:nth-child(even) { background: #f0f5ff; }
+.dcx-row:hover { background: #e0eaff; transition: background .12s; }
 .dcx-row-ic { font-size: 17px !important; color: var(--text-dim); flex-shrink: 0; }
 .dcx-row-key { font-size: 11.5px; font-weight: 600; color: var(--text-muted); flex: 1; }
 .dcx-row-val {
   font-size: 12px; font-weight: 700; color: var(--text);
-  text-align: right; word-break: break-word; max-width: 175px;
+  text-align: right; word-break: break-word; max-width: 240px;
 }
 
 .dcx-empty {
   display: flex; align-items: center; gap: 8px; justify-content: center;
-  padding: 18px; color: var(--text-dim); font-size: 12.5px;
+  padding: 16px; color: var(--text-dim); font-size: 12.5px;
+  border-top: 1px solid var(--border);
 }
 
 /* Buttons */
-.dcx-btns { display: flex; gap: 7px; margin-top: 2px; }
 .dcx-btn {
-  flex: 1; min-width: 0;
+  flex: 1 1 120px; min-width: 0;
   display: inline-flex; align-items: center; justify-content: center; gap: 5px;
-  padding: 10px 6px; border-radius: 11px; border: none;
+  padding: 10px 8px; border-radius: 11px; border: none;
   font-size: 11.5px; font-weight: 700; font-family: var(--sans);
   cursor: pointer; color: #fff; white-space: nowrap; overflow: hidden;
   transition: filter .14s, transform .1s, box-shadow .14s;
@@ -833,6 +810,104 @@ body { overflow: hidden; }
 /* Handle light untuk banner gelap (mobile) */
 .bs-handle-light { background: rgba(255,255,255,.45); }
 
+/* ── Router / OLT stat chips ── */
+.dcx-stats-row {
+  display: flex; gap: 8px;
+  padding: 10px 16px 6px;
+}
+.dcx-stat-chip {
+  flex: 1;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  background: color-mix(in srgb, var(--chip-color, var(--primary)) 10%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--chip-color, var(--primary)) 25%, transparent);
+  border-radius: 10px;
+  padding: 8px 6px 7px;
+}
+.dcx-stat-chip .material-symbols-outlined {
+  font-size: 16px;
+  color: var(--chip-color, var(--primary));
+}
+.dcx-stat-val {
+  font-family: var(--heading);
+  font-size: 15px; font-weight: 800;
+  color: var(--text);
+  line-height: 1;
+}
+.dcx-stat-lbl {
+  font-size: 9.5px; font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: .04em;
+}
+
+/* ── ODC / ODP port list ── */
+.dcx-port-stat {
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 16px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.dcx-port-bar-wrap {
+  height: 6px; border-radius: 4px;
+  background: var(--border);
+  overflow: hidden;
+}
+.dcx-port-bar {
+  height: 100%; border-radius: 4px;
+  transition: width .4s;
+}
+.dcx-port-nums {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 11.5px; color: var(--text-dim);
+}
+.dcx-port-nums .material-symbols-outlined { font-size: 13px; vertical-align: middle; margin-right: 3px; }
+.dcx-port-sisa { font-weight: 700; font-size: 11px; }
+
+.dcx-port-list {
+  overflow: hidden;
+  max-height: 220px;
+  overflow-y: auto;
+  border-top: 1px solid var(--border);
+}
+.dcx-port-list-hdr {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 16px;
+  font-size: 11px; font-weight: 700; letter-spacing: .04em;
+  color: var(--text-dim); text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0;
+  background: var(--surface); z-index: 1;
+}
+.dcx-port-list-hdr .material-symbols-outlined { font-size: 14px; }
+.dcx-port-item {
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  grid-template-rows: auto auto;
+  gap: 1px 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.dcx-port-item:last-child { border-bottom: none; }
+.dcx-pi-port {
+  grid-row: 1 / 3;
+  align-self: center;
+  font-size: 10px; font-weight: 800;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  border-radius: 6px;
+  padding: 3px 5px;
+  text-align: center;
+  white-space: nowrap;
+}
+.dcx-pi-name {
+  font-size: 12px; font-weight: 700; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dcx-pi-info {
+  font-size: 10.5px; color: var(--text-dim);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
 /* ── Responsive ── */
 @media (max-width: 768px) {
   .map-toolbar { padding: 5px 10px; gap: 6px; }
@@ -846,19 +921,29 @@ body { overflow: hidden; }
   }
   .map-search-results { max-height: 200px; }
 
-  /* Filter panel mobile: lebih kecil, top left */
-  .map-filter-panel {
-    top: 8px;
-    left: 8px;
-    min-width: 160px;
-    max-width: 180px;
+  /* Pilihan layer (Satelit/Jalan): taruh di bawah kotak pencarian,
+     bukan dekat kontrol zoom (supaya tidak saling tumpuk di mobile) */
+  .map-style-switcher {
+    top: 54px;
+    bottom: auto;
+    right: 8px;
   }
 
-  /* Keterangan kabel mobile: di atas bottom-nav, lebih kecil */
-  .cable-legend {
-    bottom: calc(var(--bnav-h, 62px) + 10px);
+  /* Panel terpadu mobile: ikut posisi top seperti desktop, TAPI dibatasi
+     tinggi & boleh di-collapse — sebelumnya pakai top+bottom sekaligus
+     yang membuat kotak melar penuh layar & terlihat "tidak bisa ditutup" */
+  .mlp {
+    top: 8px;
+    bottom: auto;
     left: 8px;
-    width: 168px;
+    width: 196px;
+    max-height: calc(100vh - var(--bnav-h, 62px) - 90px);
+  }
+
+  /* Kontrol zoom in/out bawaan MapLibre (bottom-right) — naikkan agar
+     tidak tertutup bottom-nav aplikasi */
+  .maplibregl-ctrl-bottom-right {
+    bottom: calc(var(--bnav-h, 62px) + 12px) !important;
   }
 
   /* Mobile: BOTTOM SHEET — sama pola dengan psheet global
@@ -899,8 +984,7 @@ body { overflow: hidden; }
   /* Tombol mengalir normal (TIDAK sticky) agar tidak terdorong ke
      balik bottom-nav. Card sudah punya padding-bottom = tinggi nav,
      jadi tombol otomatis berada di atas navbar. */
-  .device-card .dcx-actions,
-  .device-card .dcx-btns {
+  .device-card .dcx-actions {
     padding-bottom: 14px;
   }
 
@@ -917,3 +1001,13 @@ body { overflow: hidden; }
   .map-stat-pill { display: none; }
   .map-toolbar-title { font-size: 12px; }
 }
+
+
+/* Dot bulat kecil untuk legenda marker */
+.mkr-dot {
+  width: 11px; height: 11px;
+  border-radius: 50%; flex-shrink: 0;
+  border: 2px solid rgba(255,255,255,.85);
+  box-shadow: 0 1px 4px rgba(0,0,0,.22);
+}
+.mkr-dot-offline { box-shadow: 0 0 0 2px rgba(127,29,29,.35), 0 1px 4px rgba(0,0,0,.22); }

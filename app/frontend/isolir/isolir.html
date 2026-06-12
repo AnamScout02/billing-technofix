@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 <head>
 <meta charset="UTF-8"/>
@@ -6,13 +6,13 @@
 <title>Koneksi Terisolir — TechnoFix</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet"/>
 <style>
-/* ── Reset ── */
+/* â”€â”€ Reset â”€â”€ */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 
-/* ── Design tokens (sama persis dengan portal_login.html) ── */
+/* â”€â”€ Design tokens (sama persis dengan portal_login.html) â”€â”€ */
 :root{
   --primary:       #0040a1;
   --primary-light: #e8f0fc;
@@ -35,10 +35,10 @@
   --r-md:          10px;
   --r-sm:          8px;
   --sans:          'Poppins', sans-serif;
-  --heading:       'Plus Jakarta Sans', sans-serif;
+  --heading:       'Montserrat', sans-serif;
 }
 
-/* ── Body — background sama seperti portal_login ── */
+/* â”€â”€ Body — background sama seperti portal_login â”€â”€ */
 body{
   font-family: var(--sans);
   background: linear-gradient(135deg, #0040a1 0%, #0055cc 40%, #1a6dd4 100%);
@@ -60,7 +60,7 @@ body::before{
 .deco-2{width:200px;height:200px;bottom:-60px;left:-60px}
 .deco-3{width:150px;height:150px;top:50%;left:10%}
 
-/* ── Card — sama persis dengan portal_login ── */
+/* â”€â”€ Card — sama persis dengan portal_login â”€â”€ */
 .card{
   background: var(--bg);
   border-radius: 20px;
@@ -72,7 +72,7 @@ body::before{
 }
 @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
 
-/* ── Header card — blue gradient (sama dengan portal_login) ── */
+/* â”€â”€ Header card — blue gradient (sama dengan portal_login) â”€â”€ */
 .card-header{
   background: linear-gradient(135deg, var(--primary) 0%, #1a6dd4 100%);
   padding: 28px 32px 24px;
@@ -95,7 +95,7 @@ body::before{
 }
 .header-tagline{font-size:13px;color:rgba(255,255,255,.75);margin-top:4px}
 
-/* ── Warning banner ── */
+/* â”€â”€ Warning banner â”€â”€ */
 .warn-banner{
   background: var(--amber-bg);
   border-top: 3px solid var(--amber);
@@ -118,10 +118,10 @@ body::before{
 }
 .warn-sub{font-size:12px;color:#b45309;margin-top:2px;line-height:1.5}
 
-/* ── Card body ── */
+/* â”€â”€ Card body â”€â”€ */
 .card-body{padding:20px 28px 24px}
 
-/* ── Info list ── */
+/* â”€â”€ Info list â”€â”€ */
 .info-list{list-style:none;margin-bottom:20px}
 .info-row{
   display:flex;align-items:center;justify-content:space-between;
@@ -134,7 +134,7 @@ body::before{
 .info-val.amber{color:var(--amber)}
 .info-val.red  {color:var(--red)}
 
-/* ── Status badge ── */
+/* â”€â”€ Status badge â”€â”€ */
 .status-badge{
   display:inline-flex;align-items:center;gap:5px;
   padding:3px 10px;border-radius:99px;
@@ -144,7 +144,7 @@ body::before{
 }
 .status-dot{width:7px;height:7px;border-radius:50%;background:var(--red);flex-shrink:0}
 
-/* ── Hint kecil ── */
+/* â”€â”€ Hint kecil â”€â”€ */
 .hint-text{
   font-size:12px;color:var(--text-muted);
   text-align:center;margin-bottom:18px;
@@ -155,7 +155,7 @@ body::before{
   border:1px solid var(--border);
 }
 
-/* ── Tombol — sama persis dengan portal_login ── */
+/* â”€â”€ Tombol — sama persis dengan portal_login â”€â”€ */
 .btn{
   width:100%;height:48px;border:none;border-radius:var(--r-md);
   font-size:14px;font-weight:700;font-family:var(--heading);
@@ -182,7 +182,7 @@ body::before{
 }
 .btn .material-symbols-outlined{font-size:18px}
 
-/* ── Footer card ── */
+/* â”€â”€ Footer card â”€â”€ */
 .card-footer{
   padding:14px 32px 20px;
   text-align:center;border-top:1px solid var(--border);
@@ -190,7 +190,7 @@ body::before{
 .card-footer p{font-size:12px;color:var(--text-dim);line-height:1.6}
 .card-footer strong{color:var(--text-muted)}
 
-/* ── Auto-check indicator ── */
+/* â”€â”€ Auto-check indicator â”€â”€ */
 .auto-check{
   display:flex;align-items:center;justify-content:center;gap:6px;
   font-size:11px;color:var(--text-dim);margin-top:14px;
@@ -200,7 +200,15 @@ body::before{
   width:7px;height:7px;border-radius:50%;background:var(--primary);
   animation:pulse 1.8s ease-in-out infinite;
 }
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) .card { background: #161b22; }
+}
+[data-theme="dark"] .card { background: #161b22; }
+[data-theme="dark"] .card-body { background: #161b22; }
+
 </style>
+<script>(function(){ var t=localStorage.getItem("tf_theme"); if(t) document.documentElement.dataset.theme=t; else if(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches) document.documentElement.dataset.theme="dark"; })();</script>
 </head>
 <body>
 
@@ -320,7 +328,7 @@ function fmtRp(n){
 }
 function setText(id, val){ const e=document.getElementById(id); if(e)e.textContent=val||'—'; }
 
-/* ─── Load data dari portal session ─── */
+/* â”€â”€â”€ Load data dari portal session â”€â”€â”€ */
 async function loadData(){
   try{
     const r = await fetch(`${_API}/detail`, { credentials:'include' });
@@ -340,7 +348,11 @@ async function loadData(){
     );
 
     // WA button
-    const wa  = (d.isp_wa || d.wa_number || '').replace(/\D/g,'');
+    let wa = (d.isp_wa || d.wa_number || '').replace(/\D/g,'');
+    if (wa) {
+      if (wa.startsWith('0')) wa = '62' + wa.slice(1);
+      else if (!wa.startsWith('62')) wa = '62' + wa;
+    }
     const msg = encodeURIComponent(
       `Halo ${ispName}, saya ${d.nama||d.username} ingin melunasi tagihan dan memulihkan koneksi. Username: ${d.username||'-'}`
     );
@@ -350,28 +362,35 @@ async function loadData(){
   }catch(_){}
 }
 
-/* ─── Cek status tiap 30 dtk — kalau online, redirect ke portal ─── */
+/* â”€â”€â”€ Cek status tiap 30 dtk — kalau sudah lunas & dipulihkan, balik ke portal â”€â”€â”€
+   Catatan: TIDAK pakai /status (online di MikroTik), karena modem pelanggan
+   yang diisolir tetap bisa reconnect & "online" memakai profil isolir
+   berkecepatan rendah. Yang jadi acuan adalah /detail â†’ flag isolir (dari
+   profil) & aktif (dari status disable), keduanya direset saat tagihan lunas. */
 async function checkStatus(){
   try{
-    const r = await fetch(`${_API}/status`, { credentials:'include' });
+    const r = await fetch(`${_API}/detail`, { credentials:'include' });
     if(!r.ok) return;
     const d = await r.json();
-    if(d.online === true)
+    if(d.aktif !== false && d.isolir !== true)
       window.location.replace('/app/frontend/portal/portal_dashboard.html');
   }catch(_){}
 }
 
-/* ─── Init: cek session dulu ─── */
+/* â”€â”€â”€ Init: tampilkan halaman dulu, load data jika sudah login â”€â”€â”€
+   Halaman isolir TIDAK redirect paksa — pelanggan yang belum login
+   tetap bisa melihat info dasar. Jika sudah login, tampilkan data
+   personalnya. Ini agar captive-portal redirect tetap berfungsi. */
 async function init(){
   try{
     const r = await fetch(`${_API}/check`, { credentials:'include' });
-    if(!r.ok){ window.location.replace('/app/frontend/portal/portal_login.html'); return; }
+    if(!r.ok) return; // Tidak login — tampil halaman default saja
     const d = await r.json();
-    if(!d.logged_in){ window.location.replace('/app/frontend/portal/portal_login.html'); return; }
+    if(!d.logged_in) return; // Sama, tampil default
     await loadData();
     setInterval(checkStatus, 30000);
   }catch(_){
-    // Server tidak terjangkau — tampil halaman default
+    // Server tidak terjangkau — tampil halaman default saja
   }
 }
 

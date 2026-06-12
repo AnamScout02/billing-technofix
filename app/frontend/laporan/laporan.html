@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Laporan — TechnoFix</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800;900&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: #eef2fb;
+      min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 24px 16px 64px;
+      color: #1e293b;
+    }
+
+    .actions {
+      display: flex; gap: 10px;
+      width: 100%; max-width: 880px;
+      margin-bottom: 16px;
+    }
+    .btn-act {
+      display: flex; align-items: center; justify-content: center; gap: 7px;
+      height: 42px; padding: 0 18px; border: none; border-radius: 10px;
+      font-family: 'Poppins', sans-serif; font-size: 13px; font-weight: 700;
+      cursor: pointer; transition: .15s; background: #0040a1; color: #fff;
+    }
+    .btn-act:hover { filter: brightness(1.1); }
+    .btn-act svg { width: 16px; height: 16px; }
+
+    .report-card {
+      width: 100%; max-width: 880px;
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 12px 40px rgba(0,20,80,.12);
+      overflow: hidden;
+    }
+
+    .r-header {
+      background: linear-gradient(150deg, #001d6e 0%, #0040a1 50%, #1a5dd8 100%);
+      padding: 24px 28px;
+      display: flex; align-items: center; gap: 16px;
+      color: #fff;
+    }
+    .r-logo-wrap {
+      width: 56px; height: 56px; border-radius: 14px;
+      background: rgba(255,255,255,.16); border: 2px solid rgba(255,255,255,.28);
+      display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0;
+    }
+    .r-logo-wrap img { width: 100%; height: 100%; object-fit: contain; }
+    .r-logo-wrap span { font-family: 'Montserrat', sans-serif; font-size: 20px; font-weight: 900; }
+    .r-isp-name { font-family: 'Montserrat', sans-serif; font-size: 18px; font-weight: 900; letter-spacing: -.02em; }
+    .r-title { font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: rgba(255,255,255,.65); margin-top: 3px; }
+
+    .r-meta {
+      display: flex; flex-wrap: wrap; gap: 24px;
+      padding: 16px 28px; border-bottom: 1px solid #eef1f8;
+      font-size: 12.5px;
+    }
+    .r-meta-item .k { color: #94a3b8; font-weight: 600; text-transform: uppercase; font-size: 10px; letter-spacing: .08em; margin-bottom: 2px; }
+    .r-meta-item .v { font-weight: 700; color: #1e293b; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    thead th {
+      background: #f8faff; color: #64748b; font-weight: 700; text-transform: uppercase;
+      font-size: 10px; letter-spacing: .06em; text-align: left; padding: 10px 14px;
+      border-bottom: 1px solid #eef1f8; white-space: nowrap;
+    }
+    tbody td { padding: 9px 14px; border-bottom: 1px solid #f4f6fb; vertical-align: top; }
+    tbody tr:nth-child(even) { background: #fbfcff; }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .pill { display: inline-block; padding: 2px 9px; border-radius: 99px; font-size: 10.5px; font-weight: 700; }
+    .pill-lunas    { background: #dcfce7; color: #15803d; }
+    .pill-pending,
+    .pill-belum_bayar { background: #fef3c7; color: #b45309; }
+    .pill-piutang  { background: #ede9fe; color: #6d28d9; }
+    .pill-gagal    { background: #fee2e2; color: #b91c1c; }
+    .pill-pemasukan   { background: #dcfce7; color: #15803d; }
+    .pill-pengeluaran { background: #fee2e2; color: #b91c1c; }
+
+    tfoot td {
+      padding: 12px 14px; font-weight: 800; border-top: 2px solid #eef1f8;
+      background: #f8faff;
+    }
+
+    .r-footer {
+      padding: 16px 28px 22px; text-align: center;
+      font-size: 10.5px; color: #94a3b8; font-weight: 600;
+    }
+
+    .r-state { padding: 64px 24px; text-align: center; color: #6a82a8; font-size: 13.5px; font-weight: 500; }
+    .spinner {
+      width: 32px; height: 32px; margin: 0 auto 12px;
+      border: 3px solid rgba(0,64,161,.15);
+      border-top-color: #0040a1; border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media print {
+      body { background: #fff; padding: 0; }
+      .actions { display: none !important; }
+      .report-card { box-shadow: none; border-radius: 0; max-width: 100%; }
+      .r-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="actions">
+  <button class="btn-act" onclick="window.print()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+      <path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/>
+    </svg>
+    Cetak / Simpan PDF
+  </button>
+</div>
+
+<div class="report-card" id="report-card">
+  <div class="r-state"><div class="spinner"></div><span>Memuat laporan…</span></div>
+</div>
+
+<script>
+  var BASE = (function() {
+    var h = location.hostname;
+    if (h === 'localhost' || h === '127.0.0.1') return 'http://localhost:5000';
+    return 'http://' + h + ':5000';
+  })();
+
+  function rp(n) { return 'Rp ' + (Number(n) || 0).toLocaleString('id-ID'); }
+  function fmtTgl(s) {
+    if (!s) return '—';
+    try { return new Date(String(s).replace(' ', 'T')).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }); }
+    catch (e) { return s; }
+  }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+  function initials(name) {
+    var parts = String(name || '').trim().split(/\s+/);
+    return parts.slice(0, 2).map(function (p) { return p[0] || ''; }).join('').toUpperCase() || '?';
+  }
+  function pill(label, cls) { return '<span class="pill pill-' + cls + '">' + esc(label) + '</span>'; }
+
+  function headerHtml(d, title, periodeLabel, generatedAt) {
+    var logoInner = d.isp_logo
+      ? '<img src="' + d.isp_logo + '" alt="logo">'
+      : '<span>' + initials(d.isp_name) + '</span>';
+    return '<div class="r-header">'
+      + '<div class="r-logo-wrap">' + logoInner + '</div>'
+      + '<div><div class="r-isp-name">' + esc(d.isp_name) + '</div><div class="r-title">' + esc(title) + '</div></div>'
+      + '</div>'
+      + '<div class="r-meta">'
+        + '<div class="r-meta-item"><div class="k">Periode</div><div class="v">' + esc(periodeLabel) + '</div></div>'
+        + '<div class="r-meta-item"><div class="k">Dicetak</div><div class="v">' + esc(generatedAt) + '</div></div>'
+      + '</div>';
+  }
+
+  function renderKeuangan(d) {
+    var rows = d.rows || [];
+    var body = rows.map(function (t, i) {
+      var statusCls = (t.status || '').toLowerCase();
+      var tipeCls   = t.tipe;
+      return '<tr>'
+        + '<td>' + (i + 1) + '</td>'
+        + '<td>' + esc(fmtTgl(t.tanggal)) + '</td>'
+        + '<td>' + esc(t.keterangan || '-') + (t.username ? '<br><span style="color:#94a3b8">@' + esc(t.username) + '</span>' : '') + '</td>'
+        + '<td>' + pill(t.tipe === 'pemasukan' ? 'Pemasukan' : 'Pengeluaran', tipeCls) + '</td>'
+        + '<td>' + pill(t.status || '-', statusCls) + '</td>'
+        + '<td>' + esc(t.metode || '-') + '</td>'
+        + '<td class="num">' + rp(t.nominal) + '</td>'
+        + '</tr>';
+    }).join('');
+
+    var totals = d.totals || {};
+    var html = headerHtml(d, 'Laporan Keuangan', d.periode || '-', new Date().toLocaleString('id-ID'))
+      + '<table>'
+      + '<thead><tr><th>#</th><th>Tanggal</th><th>Keterangan</th><th>Tipe</th><th>Status</th><th>Metode</th><th class="num">Nominal</th></tr></thead>'
+      + '<tbody>' + (body || '<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:24px">Tidak ada data.</td></tr>') + '</tbody>'
+      + '<tfoot>'
+        + '<tr><td colspan="6">Total Pemasukan</td><td class="num">' + rp(totals.pemasukan) + '</td></tr>'
+        + '<tr><td colspan="6">Total Pengeluaran</td><td class="num">' + rp(totals.pengeluaran) + '</td></tr>'
+        + '<tr><td colspan="6">Saldo</td><td class="num">' + rp(totals.saldo) + '</td></tr>'
+      + '</tfoot>'
+      + '</table>'
+      + '<div class="r-footer">Powered by TechnoFix &middot; Billing &amp; Network Management</div>';
+    document.getElementById('report-card').innerHTML = html;
+  }
+
+  function renderTagihan(d) {
+    var rows = d.rows || [];
+    var body = rows.map(function (t, i) {
+      var statusLabel = { lunas: 'Lunas', piutang: 'Piutang', belum_bayar: 'Belum Bayar' }[t.status] || t.status;
+      return '<tr>'
+        + '<td>' + (i + 1) + '</td>'
+        + '<td>' + esc(t.nama) + '<br><span style="color:#94a3b8">@' + esc(t.username) + '</span></td>'
+        + '<td>' + esc(t.profil || '-') + '</td>'
+        + '<td>' + esc(fmtTgl(t.jatuh_tempo)) + '</td>'
+        + '<td>' + pill(statusLabel, t.status) + '</td>'
+        + '<td>' + esc(fmtTgl(t.paid_at)) + '</td>'
+        + '<td class="num">' + rp(t.nominal) + '</td>'
+        + '</tr>';
+    }).join('');
+
+    var totals = d.totals || {};
+    var html = headerHtml(d, 'Laporan Tagihan', d.periode || '-', new Date().toLocaleString('id-ID'))
+      + '<table>'
+      + '<thead><tr><th>#</th><th>Pelanggan</th><th>Profil</th><th>Jatuh Tempo</th><th>Status</th><th>Tgl Bayar</th><th class="num">Nominal</th></tr></thead>'
+      + '<tbody>' + (body || '<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:24px">Tidak ada data.</td></tr>') + '</tbody>'
+      + '<tfoot>'
+        + '<tr><td colspan="6">Total Tagihan</td><td class="num">' + rp(totals.nominal_total) + '</td></tr>'
+        + '<tr><td colspan="6">Sudah Lunas</td><td class="num">' + rp(totals.nominal_lunas) + '</td></tr>'
+        + '<tr><td colspan="6">Belum Tertagih</td><td class="num">' + rp(totals.nominal_belum) + '</td></tr>'
+      + '</tfoot>'
+      + '</table>'
+      + '<div class="r-footer">Powered by TechnoFix &middot; Billing &amp; Network Management</div>';
+    document.getElementById('report-card').innerHTML = html;
+  }
+
+  (async function init() {
+    var p      = new URLSearchParams(location.search);
+    var jenis  = p.get('jenis') || 'keuangan';
+    var token  = localStorage.getItem('tf_token') || '';
+    var netId  = localStorage.getItem('tf_network_id') || '';
+    var headers = { 'Authorization': 'Bearer ' + token };
+    if (netId) headers['X-Network-ID'] = netId;
+
+    var endpoint;
+    if (jenis === 'tagihan') {
+      var qs = new URLSearchParams();
+      qs.set('periode', p.get('periode') || '');
+      if (p.get('status')) qs.set('status', p.get('status'));
+      endpoint = BASE + '/api/tagihan/export?' + qs;
+    } else {
+      var qs2 = new URLSearchParams();
+      ['bulan', 'status', 'q', 'tipe'].forEach(function (k) {
+        if (p.get(k)) qs2.set(k, p.get(k));
+      });
+      qs2.set('format', 'json');
+      endpoint = BASE + '/api/keuangan/export?' + qs2;
+    }
+
+    try {
+      var r = await fetch(endpoint, { credentials: 'include', headers: headers });
+      var d = await r.json();
+      if (!r.ok || d.status !== 'success') {
+        document.getElementById('report-card').innerHTML =
+          '<div class="r-state">' + esc(d.message || 'Gagal memuat laporan.') + '</div>';
+        return;
+      }
+      if (jenis === 'tagihan') renderTagihan(d); else renderKeuangan(d);
+    } catch (e) {
+      document.getElementById('report-card').innerHTML =
+        '<div class="r-state">Tidak bisa menghubungi server.</div>';
+    }
+  })();
+</script>
+</body>
+</html>

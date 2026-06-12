@@ -76,7 +76,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Tentukan tab default berdasarkan tipe OLT yang tersimpan
   const tipe = (_pelanggan._oltTipe || '').toLowerCase();
-  _cliTab = tipe.includes('huawei') ? 'huawei' : 'zte';
+  if (tipe.includes('huawei'))
+    _cliTab = 'huawei';
+  else if (['epon','hsgq','e04','e08'].some(k => tipe.includes(k)))
+    _cliTab = 'epon';
+  else
+    _cliTab = 'zte';
   _syncCliTabs();
   _renderCli(_pelanggan);
 
@@ -89,42 +94,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // ── Fetch password REAL dari MikroTik secara async ──
-  _fetchCredentialsThenRerender();
-
   // ── Load riwayat transaksi ──
   _loadRiwayat(_pelanggan.username);
 });
-
-
-/* ══════════════════════════════════════════════════════════
-   FETCH CREDENTIALS — ambil password real dari /credentials
-═══════════════════════════════════════════════════════════ */
-async function _fetchCredentialsThenRerender() {
-  if (!_pelanggan?.id) return;
-  try {
-    const res = await fetch(`${API_BASE}/api/pelanggan/${_pelanggan.id}/credentials`, {
-      credentials: 'include',
-      headers:     getAuthHeaders(),
-    });
-    if (!res.ok) {
-      console.warn('[credentials] fetch gagal:', res.status);
-      return;
-    }
-    const data = await res.json();
-    if (data.password) {
-      _pelanggan.password = data.password;
-      // Update sessionStorage agar persistent kalau user refresh
-      try {
-        sessionStorage.setItem('tf_detail_pelanggan', JSON.stringify(_pelanggan));
-      } catch (_) {}
-      // Re-render CLI script dengan password real
-      _renderCli(_pelanggan);
-    }
-  } catch (e) {
-    console.warn('[credentials] error:', e);
-  }
-}
 
 
 /* ══════════════════════════════════════════════════════════
@@ -148,7 +120,17 @@ function _renderHero(p) {
     statusBadge.classList.toggle('offline', !isOnline);
   }
 
-  const rxInfo  = (typeof parseRxTx === 'function') ? parseRxTx(p) : _fallbackRxTx(p);
+  // Badge prioritas
+  const badgePrioritas = document.getElementById('dp-badge-prioritas');
+  if (badgePrioritas) badgePrioritas.style.display = p.is_prioritas ? 'inline-flex' : 'none';
+  // Tombol piutang — tampilkan hanya untuk owner/admin
+  const btnPiutang = document.getElementById('btn-dp-piutang');
+  if (btnPiutang) {
+    const r = localStorage.getItem('tf_role') || '';
+    btnPiutang.style.display = (r === 'owner' || r === 'admin') ? '' : 'none';
+  }
+
+  const rxInfo  = (typeof parseRxTx === 'function') ? parseRxTx(p, isOnline) : _fallbackRxTx(p, isOnline);
   const rxEl    = document.getElementById('dp-rx');
   const txSubEl = document.getElementById('dp-tx-sub');
 
@@ -185,7 +167,7 @@ function _renderInfoCards(p) {
   _setText('info-harga', _rp(p.harga));
   _setText('info-tgl-pasang', fmtDate(p.tgl_pasang));
   _setText('info-tgl-jatuh',  fmtDate(p.tgl_jatuh));
-  _setText('info-koordinat',  fmt(p.koordinat));
+  _setText('info-koordinat',  fmt(p.titik_koordinat || p.koordinat));
   _setText('info-status',     isOnline ? 'Online ✅' : (p.status === 'Router Disconnected' ? 'Router Disconnected ⚠' : 'Offline ❌'));
 
   // IP Address & MAC Address dari MikroTik active session
@@ -199,11 +181,14 @@ function _renderInfoCards(p) {
   _setText('info-olt-ip',    fmt(p._oltIp));
   _setText('info-slot-port', fmt(p.slot_port));
   _setText('info-vlan',      fmt(p.vlan));
-  _setText('info-sn',        fmt(p.sn));
+  const _snTipe = (p._oltTipe || '').toLowerCase();
+  const _snIsEpon = _snTipe === 'epon' || _snTipe === 'hsgq';
+  _setText('info-sn', _snIsEpon ? '(-)' : fmt(p.sn));
 
-  const rxInfo = (typeof parseRxTx === 'function') ? parseRxTx(p) : _fallbackRxTx(p);
+  const _isOnline = p.status === 'Online';
+  const rxInfo = (typeof parseRxTx === 'function') ? parseRxTx(p, _isOnline) : _fallbackRxTx(p, _isOnline);
   _setText('info-rx', rxInfo.rxFormatted);
-  // TX Power tidak ditampilkan di tabel (masih tersedia di Hero card via dp-tx-sub)
+  _setText('info-tx', rxInfo.txFormatted);
 }
 
 
@@ -214,87 +199,55 @@ function _renderInfoCards(p) {
 ══════════════════════════════════════════════════════════ */
 
 /**
- * Bangun script CLI berdasarkan data pelanggan dan tab aktif.
- * @param {object}  p         - data pelanggan
- * @param {string}  forceTipe - 'zte' | 'huawei' (override tipe OLT)
- * @returns {string} teks CLI siap tempel
+ * Ambil & tampilkan preview script CLI dari backend (GET /cli-preview).
+ * Backend memakai _build_olt_cli() — satu-satunya generator, sama persis
+ * dengan yang dipakai saat "Regis Ulang" benar-benar mengirim ke OLT —
+ * supaya preview tidak pernah berbeda/ketinggalan dari implementasi nyata.
+ * @param {object} p - data pelanggan
  */
-function _buildCliScript(p, forceTipe) {
-  const slotRaw  = p.slot_port || '1/3/6:1';
-  const parts    = slotRaw.split(':');
-  const gponPath = parts[0] || '1/3/6';
-  const onuId    = parts[1] || '1';
-  const username = p.username || 'pelanggan';
-  const sn       = p.sn       || 'ZTEG00000000';
-  const vlan     = p.vlan     || '200';
-  const profil   = (p.profil  || 'PAKET1').toUpperCase();
-  // TCONT profile di OLT — beda dengan profil PPPoE. Fallback 'default'.
-  const tcont    = (p.tcont_profile || '').trim() || 'default';
-
-  // Password: prioritas dari _pelanggan.password (di-fetch dari /credentials)
-  // Fallback ke placeholder jika belum ter-fetch
-  const password = (p.password && p.password.length > 0)
-                 ? p.password
-                 : '••••••';
-  const pwdNote  = password === '••••••'
-    ? '\n! CATATAN: Password belum di-fetch. Tunggu loading selesai\n! atau klik "Regis Ulang" untuk kirim otomatis ke OLT\n'
-    : '';
-
-  const isHuawei = (forceTipe || '').toLowerCase().includes('huawei');
-
-  if (isHuawei) {
-    /* ── Script Huawei MA5600 / MA5800 ── */
-    return [
-      'enable',
-      'config',
-      `interface gpon 0/${gponPath}`,
-      `ont add ${onuId} sn-auth ${sn} omci ont-lineprofile-id 10 ont-srvprofile-id 10 desc ${username}`,
-      'quit',
-      `service-port vlan ${vlan} gpon 0/${gponPath} ont ${onuId} gemport 1 multi-service user-vlan ${vlan} tag-transform translate`,
-      'quit',
-      'save',
-    ].join('\n');
-  }
-
-  /* ── Script ZTE C300 / C600 (default) ── */
-  return [
-    pwdNote,
-    'con t',
-    `interface gpon-olt_${gponPath}`,
-    `no onu ${onuId}`,
-    `onu ${onuId} type ALL-ONT sn ${sn} vport-mode gemport`,
-    'exit',
-    '',
-    `interface gpon-onu_${gponPath}:${onuId}`,
-    `name ${username}`,
-    'sn-bind enable sn',
-    `tcont 1 profile ${tcont}`,
-    'gemport 1 tcont 1',
-    'switchport mode hybrid vport 1',
-    `service-port 1 vport 1 user-vlan ${vlan} vlan ${vlan}`,
-    'exit',
-    '',
-    `pon-onu-mng gpon-onu_${gponPath}:${onuId}`,
-    `service HSI gemport 1 cos 0-7 vlan ${vlan}`,
-    `wan-ip 1 mode pppoe username ${username} password ${password} vlan-profile vlan${vlan} host 1`,
-    'wan-ip 1 ping-response enable traceroute-response enable',
-    'security-mgmt 212 state enable mode forward protocol web',
-    'end',
-    'wr',
-  ].join('\n');
-}
-
-function _renderCli(p) {
-  const script  = _buildCliScript(p, _cliTab);
+async function _renderCli(p) {
   const cliEl   = document.getElementById('cli-script-content');
   const labelEl = document.getElementById('dp-cli-device-label');
+  const labels  = { huawei: 'Huawei MA5600/MA5800', epon: 'HSGQ EPON' };
 
-  if (cliEl)   cliEl.textContent = script;
+  if (labelEl) labelEl.textContent = `${labels[_cliTab] || 'ZTE C300/C600 GPON'} Terminal — ${p._oltName || 'OLT'}`;
+  if (cliEl) cliEl.textContent = 'Memuat script CLI…';
 
-  if (labelEl) {
-    labelEl.textContent = _cliTab === 'huawei'
-      ? `Huawei MA5600/MA5800 Terminal — ${p._oltName || 'OLT'}`
-      : `ZTE C300/C600 GPON Terminal — ${p._oltName || 'OLT'}`;
+  if (!p?.id) return;
+
+  try {
+    const res  = await fetch(`${API_BASE}/api/pelanggan/${p.id}/cli-preview?cli_type=${encodeURIComponent(_cliTab)}`, {
+      credentials: 'include',
+      headers:     getAuthHeaders(),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      if (cliEl) cliEl.textContent = `! ${data.error || 'Gagal memuat preview script CLI dari server.'}`;
+      return;
+    }
+    if (cliEl) cliEl.textContent = data.script || '';
+    _renderCliCatatan(data.catatan_onu || '');
+  } catch (e) {
+    if (cliEl) cliEl.textContent = '! Tidak bisa menghubungi server untuk memuat preview script CLI.';
+  }
+}
+
+/**
+ * Tampilkan catatan konfigurasi manual ONU (kolom "keterangan" pada OLT)
+ * di bawah script CLI — mis. langkah konfigurasi untuk ONU tanpa OMCI.
+ * @param {string} catatan
+ */
+function _renderCliCatatan(catatan) {
+  const wrap = document.getElementById('dp-cli-catatan');
+  const text = document.getElementById('dp-cli-catatan-text');
+  if (!wrap || !text) return;
+
+  if (catatan && catatan.trim()) {
+    text.textContent = catatan.trim();
+    wrap.style.display = '';
+  } else {
+    wrap.style.display = 'none';
   }
 }
 
@@ -311,8 +264,10 @@ function switchCliTab(tab) {
 function _syncCliTabs() {
   const tabZte    = document.getElementById('tab-zte');
   const tabHuawei = document.getElementById('tab-huawei');
+  const tabEpon   = document.getElementById('tab-epon');
   if (tabZte)    tabZte.classList.toggle('active',    _cliTab === 'zte');
   if (tabHuawei) tabHuawei.classList.toggle('active', _cliTab === 'huawei');
+  if (tabEpon)   tabEpon.classList.toggle('active',   _cliTab === 'epon');
 }
 
 
@@ -776,7 +731,8 @@ function _redirectBack(msg) {
 /* ══════════════════════════════════════════════════════════
    HELPERS — Fallback parseRxTx (jika global.js belum load)
 ══════════════════════════════════════════════════════════ */
-function _fallbackRxTx(p) {
+function _fallbackRxTx(p, isOnline) {
+  if (isOnline === false) return { rx: null, tx: null, rxFormatted: '—', txFormatted: '—', rxClass: 'rx-none' };
   const rx = p.rx_power ? parseFloat(String(p.rx_power).replace(/[^\d.-]/g, '')) : null;
   const tx = p.tx_power ? parseFloat(String(p.tx_power).replace(/[^\d.-]/g, '')) : null;
   const fmt = v => (v !== null && !isNaN(v)) ? `${v.toFixed(1)} dBm` : '—';
@@ -813,12 +769,15 @@ async function _loadRiwayat(username) {
     function rp(n) { return 'Rp ' + (Number(n)||0).toLocaleString('id-ID'); }
     function fmtTgl(s) { if (!s) return '—'; try { return new Date(s).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}); } catch { return s; } }
     tbody.innerHTML = list.map(t => {
-      const lunas = t.status === 'lunas';
+      const lunas   = t.status === 'lunas';
+      const piutang = t.status === 'piutang';
       const badge = lunas
         ? '<span class="rw-badge rw-lunas"><span class="dot"></span>Lunas</span>'
-        : '<span class="rw-badge rw-belum"><span class="dot"></span>Belum Bayar</span>';
+        : piutang
+          ? '<span class="rw-badge" style="background:var(--purple-bg,#f3e8ff);color:var(--purple,#7c3aed)"><span class="dot" style="background:var(--purple,#7c3aed)"></span>Piutang</span>'
+          : '<span class="rw-badge rw-belum"><span class="dot"></span>Belum Bayar</span>';
       return `<tr>
-        <td class="rw-col-periode">${t.periode}</td>
+        <td class="rw-col-periode sticky-col-0">${t.periode}</td>
         <td>${t.profil || '—'}</td>
         <td class="rw-col-nominal">${rp(t.nominal)}</td>
         <td class="rw-col-dim">${fmtTgl(t.jatuh_tempo)}</td>
@@ -851,4 +810,63 @@ function _dpRute() {
   var lng = parts[1] ? parts[1].trim() : '';
   if (!lat || !lng) { if (typeof toast === 'function') toast('Format koordinat tidak valid', 'warning'); return; }
   window.open('https://www.google.com/maps/dir/?api=1&destination=' + lat + ',' + lng, '_blank');
+}
+
+
+/* ══════════════════════════════════════════════════════════
+   PIUTANG — dari detail pelanggan
+   Cari tagihan belum_bayar terbaru milik pelanggan ini, lalu setujui piutang
+══════════════════════════════════════════════════════════ */
+let _dpPiutangTagihanId = null;
+
+async function aksiPiutang() {
+  if (!_pelanggan) return;
+  const base = (typeof API_BASE !== 'undefined') ? API_BASE : '';
+  const hdr  = (typeof getAuthHeaders === 'function') ? getAuthHeaders() : {};
+  try {
+    const r = await fetch(`${base}/api/tagihan/pelanggan/${encodeURIComponent(_pelanggan.username)}`,
+      { credentials: 'include', headers: hdr });
+    const d = await r.json();
+    const list = (d.tagihan || []).filter(t => t.status === 'belum_bayar' || t.status === 'piutang');
+    if (!list.length) {
+      toast('Tidak ada tagihan belum bayar untuk pelanggan ini', 'warning');
+      return;
+    }
+    // Ambil tagihan belum_bayar terbaru (bukan piutang)
+    const belum = list.filter(t => t.status === 'belum_bayar');
+    const target = belum.length ? belum[0] : list[0];
+    _dpPiutangTagihanId = target.id;
+    const namaEl = document.getElementById('dp-piutang-nama');
+    if (namaEl) namaEl.textContent = (_pelanggan.nama || _pelanggan.username) + ' — ' + target.periode;
+    _bukaModal('modal-dp-piutang');
+  } catch (_) {
+    toast('Gagal memuat tagihan pelanggan', 'danger');
+  }
+}
+
+function tutupModalDpPiutang() {
+  _dpPiutangTagihanId = null;
+  _tutupModal('modal-dp-piutang');
+}
+
+async function eksekusiDpPiutang() {
+  if (!_dpPiutangTagihanId) return;
+  const base = (typeof API_BASE !== 'undefined') ? API_BASE : '';
+  const hdr  = (typeof getAuthHeaders === 'function') ? getAuthHeaders() : {};
+  const btn  = document.getElementById('btn-dp-piutang-ok');
+  if (btn) { btn.disabled = true; btn.textContent = 'Memproses…'; }
+  try {
+    const r = await fetch(`${base}/api/tagihan/${_dpPiutangTagihanId}/piutang`,
+      { method: 'POST', credentials: 'include', headers: hdr });
+    const d = await r.json();
+    toast(r.ok ? (d.message || 'Piutang disetujui') : (d.message || 'Gagal'), r.ok ? 'success' : 'danger');
+    if (r.ok) {
+      tutupModalDpPiutang();
+      _loadRiwayat(_pelanggan.username);
+    }
+  } catch (_) { toast('Gagal menghubungi server', 'danger'); }
+  if (btn) {
+    btn.disabled = false;
+    btn.innerHTML = '<span class="material-symbols-outlined">handshake</span>Ya, Setujui';
+  }
 }

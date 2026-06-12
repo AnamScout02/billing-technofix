@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="id">
 
 <head>
@@ -9,618 +9,418 @@
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Poppins:wght@400;500;600&display=swap"
-    rel="stylesheet" />
-
-  <!-- Material Icons -->
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
-    rel="stylesheet" />
-
-  <!-- global.css wajib di-load PERTAMA -->
-  <link rel="stylesheet" href="/app/frontend/statis/global.css?v=33" />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
+  <link rel="stylesheet" href="/app/frontend/statis/global.css?v=48" />
 
   <style>
     /* ══════════════════════════════════════════════════════════
-       AUTH PAGE v2 — Split layout, professional & on-brand
+       AUTH PAGE v3 — Full dark, split layout, premium glassmorphism
     ══════════════════════════════════════════════════════════ */
 
-    html {
-      overflow-x: hidden;
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --auth-dark:    #050c1a;
+      --auth-surface: rgba(255,255,255,.04);
+      --auth-border:  rgba(255,255,255,.10);
+      --auth-input:   rgba(255,255,255,.055);
+      --auth-input-f: rgba(255,255,255,.09);
+      --auth-blue:    #2563eb;
+      --auth-sky:     #0ea5e9;
+      --auth-text:    #e2e8f8;
+      --auth-muted:   #6d83a8;
+      --auth-dim:     #3d5070;
     }
+
+    html { overflow-x: hidden; }
 
     body {
       min-height: 100vh;
       display: flex;
       align-items: stretch;
       padding: 0;
-      background: var(--page-bg);
+      background: var(--auth-dark);
+      font-family: 'Poppins', sans-serif;
       overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
     }
 
-    /* ── LAYOUT SPLIT ────────────────────────────────────── */
+    /* ── LAYOUT ─────────────────────────────────────────────── */
     .auth-layout {
       display: flex;
       width: 100%;
       min-height: 100vh;
-      max-width: 100vw;
-      overflow-x: hidden;
     }
 
-    /* ── PANEL KIRI: Branding / Visual ── */
+    /* ── PANEL KIRI ─────────────────────────────────────────── */
     .auth-left {
       flex: 0 0 46%;
-      background: linear-gradient(150deg, #002a70 0%, #0040a1 45%, #0059d6 100%);
+      background: linear-gradient(150deg, #020812 0%, #061430 40%, #082460 70%, #0a3080 100%);
       position: relative;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      padding: 40px 44px;
+      padding: 44px 48px;
       overflow: hidden;
     }
 
-    /* Noise texture overlay */
-    .auth-left::before {
+    /* Grid pattern overlay */
+    .auth-left::after {
       content: '';
       position: absolute;
       inset: 0;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
-      opacity: 0.4;
+      background-image:
+        linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
+      background-size: 48px 48px;
       pointer-events: none;
-      z-index: 0;
     }
 
-    /* Decorative orbs */
     .auth-left-orb {
       position: absolute;
       border-radius: 50%;
-      filter: blur(60px);
+      filter: blur(70px);
       pointer-events: none;
       z-index: 0;
     }
-    .auth-left-orb.orb-1 {
-      width: 320px; height: 320px;
-      background: rgba(0, 174, 239, 0.18);
-      top: -80px; right: -60px;
-    }
-    .auth-left-orb.orb-2 {
-      width: 240px; height: 240px;
-      background: rgba(79, 70, 229, 0.18);
-      bottom: 60px; left: -80px;
-    }
-    .auth-left-orb.orb-3 {
-      width: 160px; height: 160px;
-      background: rgba(255, 255, 255, 0.06);
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-    }
+    .auth-left-orb.orb-1 { width: 380px; height: 380px; background: rgba(37,99,235,.22); top: -100px; right: -80px; }
+    .auth-left-orb.orb-2 { width: 260px; height: 260px; background: rgba(14,165,233,.16); bottom: 40px; left: -80px; }
+    .auth-left-orb.orb-3 { width: 180px; height: 180px; background: rgba(99,102,241,.14); top: 50%; left: 50%; transform: translate(-50%,-50%); }
 
-    /* ── Brand top ── */
+    .left-visual { position: absolute; inset: 0; z-index: 0; }
+    #network-canvas { width: 100%; height: 100%; }
+
+    /* Brand */
     .left-brand {
-      position: relative;
-      z-index: 1;
-      display: flex;
-      align-items: center;
-      gap: 14px;
+      position: relative; z-index: 1;
+      display: flex; align-items: center; gap: 14px;
       animation: fadeSlideDown .5s ease both;
     }
-
     .left-brand-logo {
-      width: 52px;
-      height: 52px;
-      border-radius: 16px;
-      background: rgba(255, 255, 255, 0.15);
-      border: 1px solid rgba(255, 255, 255, 0.25);
-      backdrop-filter: blur(8px);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #fff;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255,255,255,.2);
+      width: 52px; height: 52px; border-radius: 16px;
+      background: rgba(255,255,255,.1);
+      border: 1px solid rgba(255,255,255,.2);
+      backdrop-filter: blur(10px);
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 24px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.15);
     }
-
-    .left-brand-logo .material-symbols-outlined { font-size: 28px; }
-
-    .left-brand-text .brand-name {
-      font-size: 22px;
-      font-weight: 800;
-      font-family: var(--heading);
-      color: #fff;
-      letter-spacing: -.04em;
-      line-height: 1;
+    .brand-name {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 22px; font-weight: 800; color: #fff;
+      letter-spacing: -.04em; line-height: 1;
     }
+    .brand-tagline { font-size: 12px; color: rgba(255,255,255,.5); margin-top: 3px; font-weight: 500; }
 
-    .left-brand-text .brand-tagline {
-      font-size: 12px;
-      color: rgba(255, 255, 255, 0.6);
-      margin-top: 3px;
-      font-weight: 500;
-      letter-spacing: .01em;
-    }
-
-    /* ── Network Canvas ── */
-    .left-visual {
-      position: absolute;
-      inset: 0;
-      z-index: 0;
-    }
-
-    #network-canvas {
-      width: 100%;
-      height: 100%;
-    }
-
-    /* ── Center copy ── */
+    /* Copy */
     .left-copy {
-      position: relative;
-      z-index: 1;
+      position: relative; z-index: 1;
       animation: fadeSlideUp .6s .2s ease both;
     }
-
     .left-copy-headline {
-      font-size: 30px;
-      font-weight: 800;
-      font-family: var(--heading);
-      color: #fff;
-      letter-spacing: -.04em;
-      line-height: 1.25;
-      margin-bottom: 14px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 32px; font-weight: 800; color: #fff;
+      letter-spacing: -.04em; line-height: 1.22; margin-bottom: 14px;
     }
+    .left-copy-headline em { font-style: normal; color: #38bdf8; }
+    .left-copy-body { font-size: 14px; color: rgba(255,255,255,.55); line-height: 1.75; max-width: 300px; }
 
-    .left-copy-headline em {
-      font-style: normal;
-      color: #00aeef;
-    }
-
-    .left-copy-body {
-      font-size: 14px;
-      color: rgba(255, 255, 255, 0.65);
-      line-height: 1.7;
-      max-width: 300px;
-    }
-
-    /* ── Feature pills ── */
-    .left-pills {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      margin-top: 28px;
-    }
-
+    /* Feature pills */
+    .left-pills { display: flex; flex-direction: column; gap: 10px; margin-top: 28px; }
     .left-pill {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.14);
-      border-radius: 10px;
-      padding: 10px 14px;
-      backdrop-filter: blur(4px);
+      display: flex; align-items: center; gap: 12px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 12px; padding: 11px 16px;
+      backdrop-filter: blur(6px);
       animation: fadeSlideUp .5s ease both;
+      transition: background .2s, border-color .2s;
     }
-
+    .left-pill:hover { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.2); }
     .left-pill:nth-child(1) { animation-delay: .35s; }
     .left-pill:nth-child(2) { animation-delay: .45s; }
     .left-pill:nth-child(3) { animation-delay: .55s; }
+    .left-pill .material-symbols-outlined { font-size: 18px; color: #38bdf8; flex-shrink: 0; }
+    .left-pill-text { font-size: 13px; color: rgba(255,255,255,.8); font-weight: 500; }
 
-    .left-pill .material-symbols-outlined {
-      font-size: 18px;
-      color: #00aeef;
-      flex-shrink: 0;
+    /* Trust badges */
+    .left-trust {
+      display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap;
     }
-
-    .left-pill-text {
-      font-size: 13px;
-      color: rgba(255, 255, 255, 0.82);
-      font-weight: 500;
-      font-family: var(--sans);
+    .trust-badge {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 11.5px; color: rgba(255,255,255,.5);
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 20px; padding: 5px 11px;
     }
+    .trust-badge .material-symbols-outlined { font-size: 13px; color: #4ade80; }
 
-    /* ── Footer left ── */
     .left-footer {
-      position: relative;
-      z-index: 1;
-      font-size: 11px;
-      color: rgba(255, 255, 255, 0.35);
+      position: relative; z-index: 1;
+      font-size: 11px; color: rgba(255,255,255,.25);
       animation: fadeIn .8s .6s ease both;
     }
 
-    /* ── PANEL KANAN: Form ── */
+    /* ── PANEL KANAN ────────────────────────────────────────── */
     .auth-right {
       flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 40px 40px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 40px 48px;
       overflow-y: auto;
-      background: #fff;
+      background: #ffffff;
       position: relative;
     }
 
+    /* Subtle radial glow corners */
     .auth-right::before {
       content: '';
-      position: absolute;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
+      position: absolute; inset: 0;
       background:
-        radial-gradient(circle at 90% 10%, rgba(0, 64, 161, .04) 0%, transparent 50%),
-        radial-gradient(circle at 10% 90%, rgba(0, 174, 239, .04) 0%, transparent 50%);
+        radial-gradient(circle at 90% 10%, rgba(37,99,235,.05) 0%, transparent 50%),
+        radial-gradient(circle at 10% 90%, rgba(14,165,233,.04) 0%, transparent 50%);
       pointer-events: none;
     }
 
     .auth-form-wrap {
-      width: 100%;
-      max-width: 400px;
-      position: relative;
-      z-index: 1;
+      width: 100%; max-width: 420px;
+      position: relative; z-index: 1;
     }
 
-    /* ── Form header ── */
-    .auth-form-header {
-      margin-bottom: 32px;
-      animation: fadeSlideDown .4s ease both;
+    /* Form card — clean white elevated */
+    .auth-card {
+      background: #ffffff;
+      border: 1px solid #e8edf5;
+      border-radius: 24px;
+      padding: 36px 36px 32px;
+      box-shadow: 0 8px 40px rgba(37,99,235,.08), 0 2px 12px rgba(0,0,0,.06);
+      animation: cardIn .45s cubic-bezier(.22,1,.36,1) both;
     }
+
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(20px) scale(.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* Form header */
+    .auth-form-header { margin-bottom: 28px; }
 
     .auth-form-greeting {
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: .1em;
-      text-transform: uppercase;
-      color: var(--primary);
-      margin-bottom: 6px;
-      font-family: var(--sans);
+      font-size: 11px; font-weight: 700;
+      letter-spacing: .12em; text-transform: uppercase;
+      color: #2563eb; margin-bottom: 8px;
     }
-
     .auth-form-title {
-      font-size: 26px;
-      font-weight: 800;
-      font-family: var(--heading);
+      font-family: 'Montserrat', sans-serif;
+      font-size: 26px; font-weight: 800;
       color: #0f1e3d;
-      letter-spacing: -.04em;
-      line-height: 1.2;
-      margin-bottom: 8px;
+      letter-spacing: -.04em; line-height: 1.2; margin-bottom: 8px;
     }
+    .auth-form-sub { font-size: 13.5px; color: #64748b; line-height: 1.65; }
 
-    .auth-form-sub {
-      font-size: 13.5px;
-      color: var(--text-dim);
-      line-height: 1.6;
-    }
-
-    /* ── Tab toggle ── */
+    /* Tabs */
     .auth-tabs {
-      display: flex;
-      gap: 4px;
-      padding: 4px;
-      background: var(--surface);
-      border-radius: var(--r-md);
-      margin-bottom: 28px;
-      animation: fadeSlideDown .4s .05s ease both;
+      display: flex; gap: 4px; padding: 4px;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px; margin-bottom: 28px;
     }
-
     .auth-tab {
-      flex: 1;
-      padding: 10px 14px;
-      font-size: 13px;
-      font-weight: 600;
-      font-family: var(--sans);
-      color: var(--text-dim);
-      background: none;
-      border: none;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 7px;
+      flex: 1; padding: 10px 14px;
+      font-size: 13px; font-weight: 600;
+      font-family: 'Poppins', sans-serif;
+      color: #64748b;
+      background: none; border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 7px;
       transition: color .2s, background .2s, box-shadow .2s;
-      border-radius: calc(var(--r-md) - 2px);
+      border-radius: 10px;
     }
-
     .auth-tab .material-symbols-outlined { font-size: 17px; }
-
     .auth-tab.active {
-      color: var(--primary);
-      background: #fff;
-      box-shadow: 0 1px 6px rgba(0, 64, 161, .14), 0 0 0 1px rgba(0, 64, 161, .08);
+      color: #1d4ed8;
+      background: #ffffff;
+      box-shadow: 0 1px 6px rgba(37,99,235,.14), 0 0 0 1px rgba(37,99,235,.08);
     }
+    .auth-tab:hover:not(.active) { color: #475569; background: #e9eef5; }
 
-    .auth-tab:hover:not(.active) {
-      color: var(--text-muted);
-    }
-
-    /* ── Panel visibility ── */
+    /* Panel visibility */
     .auth-panel { display: none; }
-    .auth-panel.active {
-      display: block;
-      animation: panelIn .25s ease both;
-    }
+    .auth-panel.active { display: block; animation: panelIn .25s ease both; }
+    @keyframes panelIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
 
-    @keyframes panelIn {
-      from { opacity: 0; transform: translateY(6px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
+    /* Fields */
+    .auth-fields { display: flex; flex-direction: column; gap: 16px; }
 
-    /* ── Form fields ── */
-    .auth-fields {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
+    /* Form field overrides — light theme */
+    .auth-card .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .auth-card .form-label {
+      font-size: 12px; font-weight: 600;
+      color: #475569; letter-spacing: .03em;
     }
-
-    /* ── Submit button ── */
-    .btn-auth {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      width: 100%;
-      padding: 13px 20px;
-      background: linear-gradient(135deg, #0040a1 0%, #0059d6 100%);
-      color: #fff;
-      border: none;
-      border-radius: var(--r-md);
+    .auth-card .form-label .req { color: #ef4444; }
+    .auth-card .form-input {
+      background: #f8fafc;
+      border: 1px solid #dde3ed;
+      border-radius: 12px;
+      color: #1e293b;
+      font-family: 'Poppins', sans-serif;
       font-size: 14px;
-      font-weight: 700;
-      font-family: var(--sans);
+      padding: 12px 16px;
+      outline: none;
+      transition: border-color .2s, background .2s, box-shadow .2s;
+      width: 100%;
+    }
+    .auth-card .form-input::placeholder { color: #94a3b8; }
+    .auth-card .form-input:focus {
+      border-color: #3b82f6;
+      background: #ffffff;
+      box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+    }
+    .auth-card .form-pwd-wrap { position: relative; }
+    .auth-card .form-pwd-wrap .form-input { padding-right: 46px; }
+    .auth-card .form-pwd-toggle {
+      position: absolute; right: 12px; top: 50%;
+      transform: translateY(-50%);
+      background: none; border: none; cursor: pointer;
+      color: #94a3b8; padding: 4px;
+      transition: color .15s;
+    }
+    .auth-card .form-pwd-toggle:hover { color: #2563eb; }
+    .auth-card .form-pwd-toggle .material-symbols-outlined { font-size: 18px; }
+    .auth-card .form-hint { font-size: 11.5px; color: #94a3b8; margin-top: 4px; }
+
+    /* Submit button */
+    .btn-auth {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%; padding: 14px 20px;
+      background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 50%, #3b82f6 100%);
+      color: #fff; border: none; border-radius: 14px;
+      font-size: 14px; font-weight: 700;
+      font-family: 'Poppins', sans-serif;
       cursor: pointer;
-      box-shadow: 0 2px 12px rgba(0, 64, 161, .35), 0 1px 3px rgba(0, 64, 161, .2);
-      transition: transform .15s, box-shadow .15s, background .15s;
+      box-shadow: 0 4px 20px rgba(37,99,235,.4), 0 0 0 1px rgba(255,255,255,.06);
+      transition: transform .15s, box-shadow .15s, filter .15s;
       margin-top: 22px;
       letter-spacing: .01em;
-      position: relative;
-      overflow: hidden;
+      position: relative; overflow: hidden;
     }
-
     .btn-auth::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(to bottom, rgba(255,255,255,.12) 0%, transparent 100%);
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(to bottom, rgba(255,255,255,.1) 0%, transparent 100%);
       pointer-events: none;
     }
-
     .btn-auth .material-symbols-outlined { font-size: 18px; }
+    .btn-auth:hover { filter: brightness(1.12); transform: translateY(-1px); box-shadow: 0 8px 28px rgba(37,99,235,.55); }
+    .btn-auth:active { transform: scale(.98); }
+    .btn-auth:disabled { opacity: .5; cursor: not-allowed; transform: none; }
 
-    .btn-auth:hover {
-      background: linear-gradient(135deg, #003080 0%, #0040a1 100%);
-      box-shadow: 0 6px 20px rgba(0, 64, 161, .45), 0 2px 6px rgba(0, 64, 161, .25);
-      transform: translateY(-1px);
-    }
-
-    .btn-auth:active {
-      transform: scale(.98) translateY(0);
-      box-shadow: 0 2px 8px rgba(0, 64, 161, .30);
-    }
-
-    .btn-auth:disabled {
-      opacity: .65;
-      cursor: not-allowed;
-      transform: none;
-    }
-
-    /* Loading state */
     .btn-spinner {
-      width: 16px;
-      height: 16px;
-      border: 2px solid rgba(255, 255, 255, .35);
-      border-top-color: #fff;
-      border-radius: 50%;
-      animation: spin .7s linear infinite;
-      display: none;
-      flex-shrink: 0;
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,.3); border-top-color: #fff;
+      border-radius: 50%; animation: spin .7s linear infinite;
+      display: none; flex-shrink: 0;
     }
-
     .btn-auth.loading .btn-spinner { display: block; }
     .btn-auth.loading .btn-label { display: none; }
 
-    /* ── Alert ── */
+    /* Alert */
     .auth-alert {
-      display: none;
-      padding: 11px 14px;
-      border-radius: var(--r-sm);
-      font-size: 13px;
-      font-weight: 500;
-      margin-bottom: 18px;
-      border: 1px solid;
-      gap: 9px;
-      align-items: flex-start;
-      line-height: 1.5;
+      display: none; padding: 11px 14px; border-radius: 10px;
+      font-size: 13px; font-weight: 500; margin-bottom: 18px;
+      border: 1px solid; gap: 9px; align-items: flex-start; line-height: 1.5;
     }
-
     .auth-alert.show { display: flex; }
-
-    .auth-alert .material-symbols-outlined {
-      font-size: 17px;
-      flex-shrink: 0;
-      margin-top: 1px;
-    }
-
-    /* auth.js memanggil class 'error' maupun 'danger' — dukung keduanya */
+    .auth-alert .material-symbols-outlined { font-size: 17px; flex-shrink: 0; margin-top: 1px; }
     .auth-alert.error,
-    .auth-alert.danger {
-      background: var(--red-bg);
-      color: var(--red);
-      border-color: var(--red-border);
-    }
+    .auth-alert.danger  { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
+    .auth-alert.success { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
+    .auth-alert.info    { background: #eff6ff; color: #2563eb; border-color: #bfdbfe; }
 
-    .auth-alert.success {
-      background: var(--green-bg);
-      color: var(--green);
-      border-color: var(--green-border);
-    }
-
-    .auth-alert.info {
-      background: var(--blue-bg);
-      color: var(--blue);
-      border-color: var(--blue-border);
-    }
-
-    /* ── Info box (register) ── */
+    /* Info box */
     .role-info-box {
-      background: var(--primary-light);
-      border: 1px solid rgba(0, 64, 161, .15);
-      border-radius: var(--r-md);
-      padding: 12px 14px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 12px; padding: 12px 14px;
       margin-bottom: 18px;
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
+      display: flex; align-items: flex-start; gap: 10px;
     }
+    .role-info-box .material-symbols-outlined { font-size: 17px; color: #2563eb; flex-shrink: 0; margin-top: 2px; }
+    .role-info-box p { font-size: 12.5px; color: #475569; line-height: 1.6; }
+    .role-info-box strong { color: #1e40af; }
+    .role-info-box em { color: #2563eb; font-style: normal; }
 
-    .role-info-box .material-symbols-outlined {
-      font-size: 17px;
-      color: var(--primary);
-      flex-shrink: 0;
-      margin-top: 2px;
-    }
+    /* Divider */
+    .auth-divider { display: flex; align-items: center; gap: 12px; margin: 18px 0 0; }
+    .auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: #e2e8f0; }
+    .auth-divider span { font-size: 11.5px; color: #94a3b8; font-weight: 600; white-space: nowrap; }
 
-    .role-info-box p {
-      font-size: 12.5px;
-      color: var(--text-muted);
-      line-height: 1.6;
-    }
-
-    .role-info-box strong { color: var(--text); }
-
-    /* ── Divider ── */
-    .auth-divider {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin: 20px 0 0;
-    }
-
-    .auth-divider::before,
-    .auth-divider::after {
-      content: '';
-      flex: 1;
-      height: 1px;
-      background: var(--border);
-    }
-
-    .auth-divider span {
-      font-size: 11.5px;
-      color: var(--text-dim);
-      font-weight: 600;
-      white-space: nowrap;
-    }
-
-    /* ── Note / link ── */
-    .auth-note {
-      text-align: center;
-      margin-top: 14px;
-      font-size: 12.5px;
-      color: var(--text-dim);
-      line-height: 1.7;
-    }
-
-    .auth-note a {
-      color: var(--primary);
-      font-weight: 600;
-      text-decoration: none;
-    }
-
+    /* Note */
+    .auth-note { text-align: center; margin-top: 14px; font-size: 12.5px; color: #64748b; line-height: 1.7; }
+    .auth-note a { color: #2563eb; font-weight: 600; text-decoration: none; }
     .auth-note a:hover { text-decoration: underline; }
 
-    /* ── Versi footer ── */
-    .auth-ver {
-      margin-top: 32px;
-      font-size: 11px;
-      color: #b0bed4;
-      text-align: center;
-    }
+    /* Version */
+    .auth-ver { margin-top: 20px; font-size: 11px; color: #94a3b8; text-align: center; }
 
-    /* ── Animasi global ── */
-    @keyframes fadeSlideDown {
-      from { opacity: 0; transform: translateY(-12px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
+    /* ── Animasi ── */
+    @keyframes fadeSlideDown { from { opacity:0; transform:translateY(-12px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes fadeSlideUp   { from { opacity:0; transform:translateY(14px); }  to { opacity:1; transform:translateY(0); } }
+    @keyframes fadeIn        { from { opacity:0; } to { opacity:1; } }
+    @keyframes spin          { to { transform:rotate(360deg); } }
 
-    @keyframes fadeSlideUp {
-      from { opacity: 0; transform: translateY(14px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to   { opacity: 1; }
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    /* ══════════════════════════════════════════════════════
-       RESPONSIVE
-    ══════════════════════════════════════════════════════ */
-
-    /* Tablet: sembunyikan panel kiri sebagian */
+    /* ── Responsive ────────────────────────────────────────── */
     @media (max-width: 900px) {
-      .auth-left {
-        flex: 0 0 38%;
-        padding: 32px 32px;
-      }
-
-      .left-copy-headline { font-size: 24px; }
+      .auth-left { flex: 0 0 38%; padding: 32px 32px; }
+      .left-copy-headline { font-size: 26px; }
       .left-pills { display: none; }
+      .left-trust { display: none; }
     }
 
-    /* Mobile: layout stacked */
     @media (max-width: 640px) {
-      body {
-        overflow-x: hidden;
-        overflow-y: auto;
-      }
-
-      .auth-layout {
-        flex-direction: column;
-        min-height: 100vh;
-        width: 100%;
-        overflow-x: hidden;
-      }
-
-      .auth-left {
-        flex: none;
-        width: 100%;
-        padding: 28px 24px 32px;
-        min-height: auto;
-        overflow: hidden;
-      }
-
+      .auth-layout { flex-direction: column; }
+      .auth-left { flex: none; width: 100%; padding: 28px 24px 32px; min-height: auto; }
       .left-copy { display: none; }
-
-      .auth-left-orb.orb-1 {
-        width: 160px; height: 160px;
-        top: -40px; right: -20px;
-        filter: blur(50px);
-      }
+      .auth-left-orb.orb-1 { width: 180px; height: 180px; top: -50px; right: -30px; filter: blur(50px); }
       .auth-left-orb.orb-2 { display: none; }
       .auth-left-orb.orb-3 { display: none; }
-
-      .auth-right {
-        flex: 1;
-        width: 100%;
-        padding: 32px 24px;
-        justify-content: flex-start;
-        overflow-x: hidden;
-      }
-
-      .auth-form-wrap {
-        width: 100%;
-        max-width: 100%;
-      }
-
+      .auth-right { flex: 1; width: 100%; padding: 28px 20px; justify-content: flex-start; background: #ffffff; }
+      .auth-form-wrap { max-width: 100%; }
+      .auth-card { padding: 28px 24px 24px; border-radius: 20px; }
       .auth-form-title { font-size: 22px; }
-
       .left-footer { display: none; }
     }
+    /* Dark mode — right panel */
+    @media (prefers-color-scheme: dark) {
+      html:not([data-theme="light"]) .auth-right  { background: #0d1117 !important; }
+      html:not([data-theme="light"]) .auth-card   { background: #161b22 !important; border-color: #30363d !important; box-shadow: 0 8px 40px rgba(0,0,0,.5) !important; }
+      html:not([data-theme="light"]) .auth-form-greeting { color: #b1bac4 !important; }
+      html:not([data-theme="light"]) .auth-form-title    { color: #e6edf3 !important; }
+      html:not([data-theme="light"]) .auth-form-sub      { color: #6e7681 !important; }
+      html:not([data-theme="light"]) .auth-tabs          { background: #1c2128 !important; }
+      html:not([data-theme="light"]) .auth-tab           { color: #6e7681 !important; }
+      html:not([data-theme="light"]) .auth-tab.active    { background: #161b22 !important; color: #4d8ef7 !important; }
+      html:not([data-theme="light"]) .auth-form-group label { color: #b1bac4 !important; }
+      html:not([data-theme="light"]) .auth-input { background: #1c2128 !important; border-color: #30363d !important; color: #e6edf3 !important; }
+      html:not([data-theme="light"]) .auth-input::placeholder { color: #6e7681 !important; }
+    }
+    [data-theme="dark"] .auth-right  { background: #0d1117 !important; }
+    [data-theme="dark"] .auth-card   { background: #161b22 !important; border-color: #30363d !important; box-shadow: 0 8px 40px rgba(0,0,0,.5) !important; }
+    [data-theme="dark"] .auth-form-greeting { color: #b1bac4 !important; }
+    [data-theme="dark"] .auth-form-title    { color: #e6edf3 !important; }
+    [data-theme="dark"] .auth-form-sub      { color: #6e7681 !important; }
+    [data-theme="dark"] .auth-tabs          { background: #1c2128 !important; }
+    [data-theme="dark"] .auth-tab           { color: #6e7681 !important; }
+    [data-theme="dark"] .auth-tab.active    { background: #161b22 !important; color: #4d8ef7 !important; }
+    [data-theme="dark"] .auth-form-group label { color: #b1bac4 !important; }
+    [data-theme="dark"] .auth-input { background: #1c2128 !important; border-color: #30363d !important; color: #e6edf3 !important; }
+    [data-theme="dark"] .auth-input::placeholder { color: #6e7681 !important; }
   </style>
+  <script>(function(){ var t=localStorage.getItem('tf_theme'); if(t) document.documentElement.dataset.theme=t; else if(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme='dark'; })();</script>
 </head>
 
 <body>
 
-  <!-- ══ TOAST ══ -->
   <div id="toast"></div>
 
   <div class="auth-layout">
@@ -631,25 +431,26 @@
       <div class="auth-left-orb orb-2"></div>
       <div class="auth-left-orb orb-3"></div>
 
-      <!-- Animated network canvas -->
       <div class="left-visual">
         <canvas id="network-canvas"></canvas>
       </div>
 
       <!-- Brand -->
       <div class="left-brand">
-        <div class="left-brand-logo"><img src="/app/frontend/statis/technofixlogo.png" alt="TechnoFix" style="width:36px;height:36px;object-fit:contain;border-radius:8px"></div>
-        <div class="left-brand-text">
+        <div class="left-brand-logo">
+          <img src="/app/frontend/statis/technofixlogo.png" alt="TechnoFix" style="width:36px;height:36px;object-fit:contain;border-radius:8px">
+        </div>
+        <div>
           <div class="brand-name">TechnoFix</div>
-          <div class="brand-tagline">Billing & Monitoring ISP</div>
+          <div class="brand-tagline">Billing &amp; Monitoring ISP</div>
         </div>
       </div>
 
       <!-- Copy -->
       <div class="left-copy">
-        <div class="left-copy-headline">Kelola jaringan ISP<br />lebih <em>cerdas</em> &amp; efisien</div>
+        <div class="left-copy-headline">Kelola ISP lebih<br /><em>cerdas</em> &amp; efisien</div>
         <div class="left-copy-body">
-          Platform terintegrasi untuk monitoring pelanggan, penagihan, dan manajemen tim teknisi Anda.
+          Platform terintegrasi untuk monitoring pelanggan, penagihan otomatis, dan manajemen tim teknisi Anda.
         </div>
 
         <div class="left-pills">
@@ -662,9 +463,15 @@
             <span class="left-pill-text">Tagihan otomatis &amp; laporan keuangan</span>
           </div>
           <div class="left-pill">
-            <span class="material-symbols-outlined">groups</span>
-            <span class="left-pill-text">Manajemen tim Owner &amp; Teknisi</span>
+            <span class="material-symbols-outlined">map</span>
+            <span class="left-pill-text">Peta topologi jaringan interaktif</span>
           </div>
+        </div>
+
+        <div class="left-trust">
+          <span class="trust-badge"><span class="material-symbols-outlined">verified</span>Multi-ISP</span>
+          <span class="trust-badge"><span class="material-symbols-outlined">lock</span>Data Terisolasi</span>
+          <span class="trust-badge"><span class="material-symbols-outlined">schedule</span>Trial 7 Hari</span>
         </div>
       </div>
 
@@ -675,158 +482,152 @@
     <!-- ══ PANEL KANAN ══ -->
     <div class="auth-right">
       <div class="auth-form-wrap">
+        <div class="auth-card">
 
-        <!-- Header -->
-        <div class="auth-form-header">
-          <div class="auth-form-greeting">Portal Masuk</div>
-          <div class="auth-form-title" id="form-title">Selamat Datang Kembali</div>
-          <div class="auth-form-sub" id="form-sub">Login untuk Owner maupun Teknisi yang sudah memiliki akun.</div>
-        </div>
-
-        <!-- Tabs -->
-        <div class="auth-tabs">
-          <button class="auth-tab active" id="tab-login" onclick="switchTab('login')" aria-selected="true">
-            <span class="material-symbols-outlined">login</span>
-            Masuk
-          </button>
-          <button class="auth-tab" id="tab-register" onclick="switchTab('register')" aria-selected="false">
-            <span class="material-symbols-outlined">add_business</span>
-            Daftarkan ISP
-          </button>
-        </div>
-
-        <!-- ── PANEL LOGIN ── -->
-        <div class="auth-panel active" id="panel-login">
-          <div class="auth-alert" id="alert-login">
-            <span class="material-symbols-outlined">error</span>
-            <span id="alert-login-msg"></span>
+          <!-- Header -->
+          <div class="auth-form-header">
+            <div class="auth-form-greeting">Portal Masuk</div>
+            <div class="auth-form-title" id="form-title">Selamat Datang Kembali</div>
+            <div class="auth-form-sub" id="form-sub">Login untuk Owner maupun Teknisi yang sudah memiliki akun.</div>
           </div>
 
-          <div class="auth-fields">
-            <div class="form-group">
-              <label class="form-label" for="login-username">Username <span class="req">*</span></label>
-              <input type="text" class="form-input" id="login-username" placeholder="Masukkan username Anda"
-                autocomplete="username" autocapitalize="none" />
+          <!-- Tabs -->
+          <div class="auth-tabs">
+            <button class="auth-tab active" id="tab-login" onclick="switchTab('login')" aria-selected="true">
+              <span class="material-symbols-outlined">login</span>
+              Masuk
+            </button>
+            <button class="auth-tab" id="tab-register" onclick="switchTab('register')" aria-selected="false">
+              <span class="material-symbols-outlined">add_business</span>
+              Daftarkan ISP
+            </button>
+          </div>
+
+          <!-- ── PANEL LOGIN ── -->
+          <div class="auth-panel active" id="panel-login">
+            <div class="auth-alert" id="alert-login">
+              <span class="material-symbols-outlined">error</span>
+              <span id="alert-login-msg"></span>
             </div>
 
-            <div class="form-group">
-              <label class="form-label" for="login-password">Password <span class="req">*</span></label>
-              <div class="form-pwd-wrap">
-                <input type="password" class="form-input" id="login-password" placeholder="Masukkan password Anda"
-                  autocomplete="current-password" />
-                <button type="button" class="form-pwd-toggle" onclick="togglePwdField('login-password', this)"
-                  title="Tampilkan/sembunyikan password">
-                  <span class="material-symbols-outlined">visibility</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <button class="btn-auth" id="btn-login" onclick="submitLogin()">
-            <span class="btn-spinner"></span>
-            <span class="btn-label" style="display:flex;align-items:center;gap:7px;">
-              <span class="material-symbols-outlined">login</span>Masuk ke Sistem
-            </span>
-          </button>
-
-          <div class="auth-divider"><span>Belum punya akun?</span></div>
-          <div class="auth-note">
-            ISP baru? <a href="#" onclick="switchTab('register');return false;">Daftarkan ISP Anda</a> terlebih dahulu.<br />
-            Teknisi dapat meminta akun kepada Owner melalui menu <strong>Manajemen Tim</strong>.
-          </div>
-        </div>
-
-        <!-- ── PANEL DAFTAR ISP ── -->
-        <div class="auth-panel" id="panel-register">
-          <div class="role-info-box">
-            <span class="material-symbols-outlined">info</span>
-            <p><strong>Khusus Owner ISP.</strong> Registrasi ini membuat akun <em>Owner</em> dan workspace jaringan baru.
-              Akun Teknisi hanya bisa ditambahkan Owner melalui <strong>Manajemen Tim</strong>.</p>
-          </div>
-
-          <div class="auth-alert" id="alert-register">
-            <span class="material-symbols-outlined">error</span>
-            <span id="alert-register-msg"></span>
-          </div>
-
-          <!-- form tag agar auth.js bisa memanggil .reset() -->
-          <form id="form-register" onsubmit="submitRegister(); return false;">
             <div class="auth-fields">
               <div class="form-group">
-                <label class="form-label" for="reg-isp-name">Nama ISP / Jaringan <span class="req">*</span></label>
-                <input type="text" class="form-input" id="reg-isp-name" placeholder="Contoh: ISP Maju Jaya" />
+                <label class="form-label" for="login-username">Username <span class="req">*</span></label>
+                <input type="text" class="form-input" id="login-username" placeholder="Masukkan username Anda"
+                  autocomplete="username" autocapitalize="none" />
               </div>
 
               <div class="form-group">
-                <label class="form-label" for="reg-username">Username Owner <span class="req">*</span></label>
-                <input type="text" class="form-input" id="reg-username" placeholder="Huruf kecil, tanpa spasi"
-                  autocapitalize="none" autocomplete="new-username" />
-                <div class="form-hint">Dipakai untuk login. Tidak bisa diubah setelah terdaftar.</div>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" for="reg-password">Password <span class="req">*</span></label>
+                <label class="form-label" for="login-password">Password <span class="req">*</span></label>
                 <div class="form-pwd-wrap">
-                  <input type="password" class="form-input" id="reg-password" placeholder="Min. 8 karakter"
-                    autocomplete="new-password" />
-                  <button type="button" class="form-pwd-toggle" onclick="togglePwdField('reg-password', this)"
+                  <input type="password" class="form-input" id="login-password" placeholder="Masukkan password Anda"
+                    autocomplete="current-password" />
+                  <button type="button" class="form-pwd-toggle" onclick="togglePwdField('login-password', this)"
                     title="Tampilkan/sembunyikan password">
                     <span class="material-symbols-outlined">visibility</span>
                   </button>
                 </div>
               </div>
-
-              <div class="form-group">
-                <label class="form-label" for="reg-password-confirm">Konfirmasi Password <span class="req">*</span></label>
-                <div class="form-pwd-wrap">
-                  <input type="password" class="form-input" id="reg-password-confirm" placeholder="Ulangi password"
-                    autocomplete="new-password" />
-                  <button type="button" class="form-pwd-toggle"
-                    onclick="togglePwdField('reg-password-confirm', this)" title="Tampilkan/sembunyikan password">
-                    <span class="material-symbols-outlined">visibility</span>
-                  </button>
-                </div>
-              </div>
             </div>
 
-            <button type="submit" class="btn-auth" id="btn-register">
+            <button class="btn-auth" id="btn-login" onclick="submitLogin()">
               <span class="btn-spinner"></span>
               <span class="btn-label" style="display:flex;align-items:center;gap:7px;">
-                <span class="material-symbols-outlined">add_business</span>Daftarkan ISP Saya
+                <span class="material-symbols-outlined">login</span>Masuk ke Sistem
               </span>
             </button>
-          </form>
 
-          <div class="auth-note" style="margin-top:16px;">
-            Sudah punya akun? <a href="#" onclick="switchTab('login');return false;">Masuk di sini</a>
+            <div class="auth-divider"><span>Belum punya akun?</span></div>
+            <div class="auth-note">
+              ISP baru? <a href="#" onclick="switchTab('register');return false;">Daftarkan ISP Anda</a> terlebih dahulu.<br />
+              Teknisi dapat meminta akun kepada Owner melalui menu <strong style="color:#475569">Manajemen Tim</strong>.
+            </div>
           </div>
-        </div>
 
-        <div class="auth-ver">© 2025 TechnoFix &nbsp;·&nbsp; Billing & Monitoring ISP</div>
+          <!-- ── PANEL DAFTAR ISP ── -->
+          <div class="auth-panel" id="panel-register">
+            <div class="role-info-box">
+              <span class="material-symbols-outlined">info</span>
+              <p><strong>Khusus Owner ISP.</strong> Registrasi ini membuat akun <em>Owner</em> dan workspace jaringan baru.
+                Akun Teknisi hanya bisa ditambahkan Owner melalui <strong>Manajemen Tim</strong>.</p>
+            </div>
+
+            <div class="auth-alert" id="alert-register">
+              <span class="material-symbols-outlined">error</span>
+              <span id="alert-register-msg"></span>
+            </div>
+
+            <form id="form-register" onsubmit="submitRegister(); return false;">
+              <div class="auth-fields">
+                <div class="form-group">
+                  <label class="form-label" for="reg-isp-name">Nama ISP / Jaringan <span class="req">*</span></label>
+                  <input type="text" class="form-input" id="reg-isp-name" placeholder="Contoh: ISP Maju Jaya" />
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="reg-username">Username Owner <span class="req">*</span></label>
+                  <input type="text" class="form-input" id="reg-username" placeholder="Huruf kecil, tanpa spasi"
+                    autocapitalize="none" autocomplete="new-username" />
+                  <div class="form-hint">Dipakai untuk login. Tidak bisa diubah setelah terdaftar.</div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="reg-password">Password <span class="req">*</span></label>
+                  <div class="form-pwd-wrap">
+                    <input type="password" class="form-input" id="reg-password" placeholder="Min. 6 karakter"
+                      autocomplete="new-password" />
+                    <button type="button" class="form-pwd-toggle" onclick="togglePwdField('reg-password', this)"
+                      title="Tampilkan/sembunyikan password">
+                      <span class="material-symbols-outlined">visibility</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="reg-password-confirm">Konfirmasi Password <span class="req">*</span></label>
+                  <div class="form-pwd-wrap">
+                    <input type="password" class="form-input" id="reg-password-confirm" placeholder="Ulangi password"
+                      autocomplete="new-password" />
+                    <button type="button" class="form-pwd-toggle"
+                      onclick="togglePwdField('reg-password-confirm', this)" title="Tampilkan/sembunyikan password">
+                      <span class="material-symbols-outlined">visibility</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <button type="submit" class="btn-auth" id="btn-register">
+                <span class="btn-spinner"></span>
+                <span class="btn-label" style="display:flex;align-items:center;gap:7px;">
+                  <span class="material-symbols-outlined">add_business</span>Daftarkan ISP Saya
+                </span>
+              </button>
+            </form>
+
+            <div class="auth-note" style="margin-top:16px;">
+              Sudah punya akun? <a href="#" onclick="switchTab('login');return false;">Masuk di sini</a>
+            </div>
+          </div>
+
+        </div><!-- /.auth-card -->
+
+        <div class="auth-ver">© 2025 TechnoFix &nbsp;·&nbsp; Billing &amp; Monitoring ISP</div>
       </div>
     </div>
   </div>
 
-  <!-- Scripts -->
-  <script src="/app/frontend/statis/global.js?v=26"></script>
+  <script src="/app/frontend/statis/global.js?v=43"></script>
   <script src="/app/frontend/statis/auth.js?v=2"></script>
 
   <script>
-    /* ── Toggle password helper ── */
     function togglePwdField(inputId, btn) {
       const input = document.getElementById(inputId);
       const icon  = btn ? btn.querySelector('.material-symbols-outlined') : null;
       if (!input) return;
-      if (input.type === 'password') {
-        input.type = 'text';
-        if (icon) icon.textContent = 'visibility_off';
-      } else {
-        input.type = 'password';
-        if (icon) icon.textContent = 'visibility';
-      }
+      input.type = input.type === 'password' ? 'text' : 'password';
+      if (icon) icon.textContent = input.type === 'password' ? 'visibility' : 'visibility_off';
     }
 
-    /* ── Enter key → submit aktif ── */
     document.addEventListener('keydown', function(e) {
       if (e.key !== 'Enter') return;
       const activePanel = document.querySelector('.auth-panel.active');
@@ -835,7 +636,6 @@
       if (activePanel.id === 'panel-register') submitRegister();
     });
 
-    /* ── Tab switch: update header text (aman meski auth.js belum load) ── */
     document.addEventListener('DOMContentLoaded', function() {
       const _origSwitch = window.switchTab;
       window.switchTab = function(tab) {
@@ -847,23 +647,26 @@
           if (sub)   sub.textContent   = 'Login untuk Owner maupun Teknisi yang sudah memiliki akun.';
         } else {
           if (title) title.textContent = 'Daftarkan ISP Anda';
-          if (sub)   sub.textContent   = 'Buat workspace jaringan baru untuk ISP Anda.';
+          if (sub)   sub.textContent   = 'Buat workspace jaringan baru. Trial 7 hari gratis, tanpa kartu kredit.';
         }
       };
 
-      /* ── Dari landing page: ?register=1&paket=xxx ── */
       const qp    = new URLSearchParams(location.search);
       const paket = (qp.get('paket') || '').toLowerCase();
       const PKG   = {
-        starter:    { label: 'Starter',    desc: 'Hingga 150 pelanggan' },
-        pro:        { label: 'Pro',        desc: 'Hingga 1.000 pelanggan' },
-        enterprise: { label: 'Enterprise', desc: 'Pelanggan tanpa batas' },
+        trial:      { label: 'Trial',      desc: 'Eksplorasi seluruh fitur, hingga 50 pelanggan' },
+        starter:    { label: 'Pemula',     desc: 'Hingga 500 pelanggan' },
+        essential:  { label: 'Esensial',   desc: 'Hingga 750 pelanggan' },
+        standar:    { label: 'Standar',    desc: 'Hingga 1.000 pelanggan' },
+        pro:        { label: 'Pro',        desc: 'Hingga 2.500 pelanggan' },
+        advanced:   { label: 'Lanjutan',   desc: 'Hingga 4.000 pelanggan' },
+        business:   { label: 'Bisnis',     desc: 'Hingga 7.000 pelanggan' },
+        enterprise: { label: 'Enterprise', desc: 'Hingga 15.000 pelanggan' },
       };
       if (PKG[paket]) window._selectedPaket = paket;
 
       if (qp.get('register') === '1' || PKG[paket]) {
         window.switchTab('register');
-        /* Banner paket terpilih di atas form register */
         if (PKG[paket]) {
           const box = document.querySelector('#panel-register .role-info-box');
           if (box) {
@@ -876,100 +679,55 @@
       }
     });
 
-    /* ── Animated network canvas ── */
-    (function initNetworkCanvas() {
+    /* Animated network canvas */
+    (function() {
       const canvas = document.getElementById('network-canvas');
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
-
       let W, H, nodes, RAF;
-      const NODE_COUNT = 28;
-      const CONN_DIST  = 130;
+      const NC = 30, CD = 140;
 
       function isMobile() { return window.innerWidth <= 640; }
-
-      function resize() {
-        W = canvas.width  = canvas.offsetWidth;
-        H = canvas.height = canvas.offsetHeight;
-      }
-
+      function resize() { W = canvas.width = canvas.offsetWidth; H = canvas.height = canvas.offsetHeight; }
       function initNodes() {
-        nodes = Array.from({ length: NODE_COUNT }, () => ({
-          x:  Math.random() * W,
-          y:  Math.random() * H,
-          vx: (Math.random() - .5) * .45,
-          vy: (Math.random() - .5) * .45,
-          r:  Math.random() * 2.5 + 1.5,
-          pulse: Math.random() * Math.PI * 2,
+        nodes = Array.from({ length: NC }, () => ({
+          x: Math.random() * W, y: Math.random() * H,
+          vx: (Math.random() - .5) * .4, vy: (Math.random() - .5) * .4,
+          r: Math.random() * 2.5 + 1.5, pulse: Math.random() * Math.PI * 2,
         }));
       }
-
       function draw() {
-        // Hentikan animasi di mobile untuk hemat baterai
-        if (isMobile()) {
-          cancelAnimationFrame(RAF);
-          ctx.clearRect(0, 0, W, H);
-          return;
-        }
-
-        ctx.clearRect(0, 0, W, H);
-
+        if (isMobile()) { cancelAnimationFrame(RAF); ctx.clearRect(0,0,W,H); return; }
+        ctx.clearRect(0,0,W,H);
         nodes.forEach(n => {
-          n.x += n.vx;
-          n.y += n.vy;
-          n.pulse += 0.025;
+          n.x += n.vx; n.y += n.vy; n.pulse += 0.02;
           if (n.x < 0 || n.x > W) n.vx *= -1;
           if (n.y < 0 || n.y > H) n.vy *= -1;
         });
-
         for (let i = 0; i < nodes.length; i++) {
-          for (let j = i + 1; j < nodes.length; j++) {
-            const dx   = nodes[i].x - nodes[j].x;
-            const dy   = nodes[i].y - nodes[j].y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < CONN_DIST) {
-              const alpha = (1 - dist / CONN_DIST) * 0.22;
+          for (let j = i+1; j < nodes.length; j++) {
+            const dx = nodes[i].x - nodes[j].x, dy = nodes[i].y - nodes[j].y;
+            const d  = Math.sqrt(dx*dx + dy*dy);
+            if (d < CD) {
               ctx.beginPath();
               ctx.moveTo(nodes[i].x, nodes[i].y);
               ctx.lineTo(nodes[j].x, nodes[j].y);
-              ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
-              ctx.lineWidth = 1;
-              ctx.stroke();
+              ctx.strokeStyle = `rgba(56,189,248,${(1 - d/CD) * 0.18})`;
+              ctx.lineWidth = .8; ctx.stroke();
             }
           }
         }
-
         nodes.forEach(n => {
-          const glow = 0.55 + Math.sin(n.pulse) * 0.3;
-          ctx.beginPath();
-          ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(255,255,255,${glow * 0.7})`;
-          ctx.fill();
-
-          const ringR = n.r + 3 + Math.sin(n.pulse) * 2;
-          ctx.beginPath();
-          ctx.arc(n.x, n.y, ringR, 0, Math.PI * 2);
-          ctx.strokeStyle = `rgba(0, 174, 239, ${(1 - ringR / (n.r + 7)) * 0.4})`;
-          ctx.lineWidth = .8;
-          ctx.stroke();
+          const g = .5 + Math.sin(n.pulse) * .3;
+          ctx.beginPath(); ctx.arc(n.x, n.y, n.r, 0, Math.PI*2);
+          ctx.fillStyle = `rgba(255,255,255,${g * .65})`; ctx.fill();
+          ctx.beginPath(); ctx.arc(n.x, n.y, n.r + 3 + Math.sin(n.pulse)*2, 0, Math.PI*2);
+          ctx.strokeStyle = `rgba(56,189,248,.28)`; ctx.lineWidth = .7; ctx.stroke();
         });
-
         RAF = requestAnimationFrame(draw);
       }
-
-      window.addEventListener('resize', () => {
-        resize();
-        initNodes();
-        // Restart animasi jika resize dari mobile → desktop
-        if (!isMobile()) {
-          cancelAnimationFrame(RAF);
-          draw();
-        }
-      });
-
-      resize();
-      initNodes();
-      draw();
+      window.addEventListener('resize', () => { resize(); initNodes(); if (!isMobile()) { cancelAnimationFrame(RAF); draw(); } });
+      resize(); initNodes(); draw();
     })();
   </script>
 

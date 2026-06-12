@@ -1,8 +1,8 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="id">
 
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8" /><script>(function(){var t=localStorage.getItem("tf_theme");if(t)document.documentElement.dataset.theme=t;else if(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)document.documentElement.dataset.theme="dark";})();</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Keuangan — TechnoFix Billing</title>
 
@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
-    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Poppins:wght@400;500;600&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Poppins:wght@300;400;500;600;700&display=swap"
     rel="stylesheet" />
 
   <!-- Material Icons -->
@@ -18,13 +18,16 @@
     rel="stylesheet" />
 
   <!-- global.css WAJIB pertama -->
-  <link rel="stylesheet" href="/app/frontend/statis/global.css?v=33" />
-  <link rel="stylesheet" href="/app/frontend/keuangan/keuangan.css?v=3" />
+  <link rel="stylesheet" href="/app/frontend/statis/global.css?v=48" />
+  <link rel="stylesheet" href="/app/frontend/keuangan/keuangan.css?v=5" />
+
+  <!-- Chart.js untuk grafik tren keuangan -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 
 <body>
 
-  <!-- ══ HEADER ══ -->
+  <!-- â•â• HEADER â•â• -->
   <header class="header">
     <canvas class="header-canvas" id="header-canvas"></canvas>
     <div class="header-inner">
@@ -46,7 +49,7 @@
         <a href="#" onclick="openPerangkatSheet(event)" data-perm="perangkat">
           <span class="material-symbols-outlined">router</span>Perangkat
         </a>
-        <a href="#" onclick="openKeuanganSheet(event)" data-perm="keuangan"><span class="material-symbols-outlined">payments</span>Keuangan</a>
+        <a href="#" onclick="openKeuanganSheet(event)" data-perm="keuangan"><span class="material-symbols-outlined">payments</span>Layanan</a>
 
         <a href="/app/frontend/maps/maps.html" data-perm="maps">
           <span class="material-symbols-outlined">map</span>Maps
@@ -75,7 +78,7 @@
           <a href="/app/frontend/profile/profile.html" class="profile-menu-item">
             <span class="material-symbols-outlined">person</span>Profil saya
           </a>
-          <a href="/app/frontend/setting/setting.html" class="profile-menu-item">
+          <a href="/app/frontend/setting/setting.html" class="profile-menu-item btn-owner-only">
             <span class="material-symbols-outlined">settings</span>Setting
           </a>
           <a href="/app/frontend/langganan/langganan.html" class="profile-menu-item btn-owner-only">
@@ -95,7 +98,7 @@
   </header>
 
 
-    <!-- ══ BOTTOM NAVBAR — MOBILE ONLY ══ -->
+    <!-- â•â• BOTTOM NAVBAR — MOBILE ONLY â•â• -->
   <nav class="bottom-nav">
     <div class="bottom-nav-inner">
       <div class="bottom-nav-indicator" id="bottom-nav-indicator"></div>
@@ -111,9 +114,9 @@
         <div class="bottom-nav-icon"><span class="material-symbols-outlined">router</span></div>
         <span class="bottom-nav-label">Perangkat</span>
       </a>
-      <a href="#" onclick="openKeuanganSheet(event)" class="bottom-nav-item" data-perm="keuangan">
+      <a href="#" onclick="openKeuanganSheet(event)" class="bottom-nav-item active" data-perm="keuangan">
         <div class="bottom-nav-icon"><span class="material-symbols-outlined">payments</span></div>
-        <span class="bottom-nav-label">Keuangan</span>
+        <span class="bottom-nav-label">Layanan</span>
       </a>
       <a href="/app/frontend/maps/maps.html" class="bottom-nav-item " data-perm="maps">
         <div class="bottom-nav-icon"><span class="material-symbols-outlined">map</span></div>
@@ -123,7 +126,7 @@
   </nav>
 
 
-  <!-- ══ PAGE ══ -->
+  <!-- â•â• PAGE â•â• -->
   <main class="page">
 
     <!-- PAGE TITLE -->
@@ -156,10 +159,6 @@
         <div class="stat-body">
           <div class="stat-num" id="stat-pemasukan">—</div>
           <div class="stat-label">Total Pemasukan (Lunas)</div>
-          <div class="stat-trend up" id="trend-pemasukan" style="display:none">
-            <span class="material-symbols-outlined">arrow_upward</span>
-            <span id="trend-pemasukan-text"></span>
-          </div>
         </div>
       </div>
 
@@ -206,6 +205,29 @@
       </div>
     </div>
 
+    <!-- GRAFIK TREN KEUANGAN -->
+    <div class="trend-card">
+      <div class="trend-card-head">
+        <div>
+          <h2 class="trend-card-title">Tren Keuangan</h2>
+          <p class="trend-card-sub" id="trend-card-sub">Pemasukan, pengeluaran & saldo bersih per bulan</p>
+        </div>
+        <div class="trend-period-tabs" id="trend-period-tabs">
+          <button class="tpt-btn" data-n="3" onclick="setTrendPeriod(3)">3 Bln</button>
+          <button class="tpt-btn active" data-n="6" onclick="setTrendPeriod(6)">6 Bln</button>
+          <button class="tpt-btn" data-n="12" onclick="setTrendPeriod(12)">12 Bln</button>
+        </div>
+      </div>
+      <div class="trend-chart-wrap">
+        <canvas id="chart-keuangan-trend" role="img" aria-label="Grafik tren pemasukan, pengeluaran, dan saldo bulanan"></canvas>
+      </div>
+      <div class="trend-legend" id="trend-legend">
+        <span class="tl-item"><span class="tl-dot" style="background:#22c55e"></span>Pemasukan</span>
+        <span class="tl-item"><span class="tl-dot" style="background:#f87171"></span>Pengeluaran</span>
+        <span class="tl-item"><span class="tl-dot tl-dash" style="background:#3b82f6"></span>Saldo Bersih</span>
+      </div>
+    </div>
+
 
     <!-- TOOLBAR -->
     <div class="toolbar">
@@ -238,6 +260,10 @@
 
       <button class="btn btn-secondary" id="btn-ekspor" onclick="eksporKeuangan()">
         <span class="material-symbols-outlined">download</span> Ekspor CSV
+      </button>
+
+      <button class="btn btn-secondary" id="btn-ekspor-pdf" onclick="eksporKeuanganPdf()">
+        <span class="material-symbols-outlined">picture_as_pdf</span> Ekspor PDF
       </button>
 
     </div><!-- /.toolbar -->
@@ -313,7 +339,7 @@
   </main>
 
 
-  <!-- ══ MODAL HAPUS ══ -->
+  <!-- â•â• MODAL HAPUS â•â• -->
   <div class="modal-overlay" id="modal-hapus" onclick="closeModalHapus(event)">
     <div class="modal small" onclick="event.stopPropagation()">
       <div class="hapus-icon-wrap">
@@ -332,7 +358,7 @@
     </div>
   </div>
 
-  <!-- ══ MODAL: KONFIRMASI LOGOUT ══ -->
+  <!-- â•â• MODAL: KONFIRMASI LOGOUT â•â• -->
   <div class="modal-overlay" id="modal-logout" onclick="closeModalLogout(event)">
     <div class="modal-sheet small" onclick="event.stopPropagation()">
       <div class="modal-handle"></div>
@@ -351,59 +377,11 @@
     </div>
   </div>
 
-  <!-- ══ MODAL: GANTI PASSWORD ══ -->
-  <div class="modal-overlay" id="modal-ganti-password" onclick="closeModalGantiPassword(event)">
-    <div class="modal-sheet" style="max-width:400px" onclick="event.stopPropagation()">
-      <div class="modal-handle"></div>
-      <div style="padding:20px 24px 0">
-        <h2 style="font-family:var(--heading);font-size:16px;font-weight:800;color:var(--text);margin-bottom:4px">
-          Ganti Password
-        </h2>
-        <p style="font-size:12px;color:var(--text-dim);margin-bottom:20px">
-          Gunakan minimal 8 karakter dengan kombinasi huruf dan angka.
-        </p>
-        <div class="form-group" style="margin-bottom:14px">
-          <label class="form-label">Password saat ini <span class="req">*</span></label>
-          <div class="form-pwd-wrap">
-            <input type="password" class="form-input" id="pwd-lama" placeholder="Masukkan password lama" />
-            <button class="form-pwd-toggle" onclick="togglePwd('pwd-lama','eye-lama')" tabindex="-1">
-              <span class="material-symbols-outlined" id="eye-lama">visibility</span>
-            </button>
-          </div>
-        </div>
-        <div class="form-group" style="margin-bottom:14px">
-          <label class="form-label">Password baru <span class="req">*</span></label>
-          <div class="form-pwd-wrap">
-            <input type="password" class="form-input" id="pwd-baru" placeholder="Minimal 8 karakter" />
-            <button class="form-pwd-toggle" onclick="togglePwd('pwd-baru','eye-baru')" tabindex="-1">
-              <span class="material-symbols-outlined" id="eye-baru">visibility</span>
-            </button>
-          </div>
-        </div>
-        <div class="form-group" style="margin-bottom:4px">
-          <label class="form-label">Konfirmasi password baru <span class="req">*</span></label>
-          <div class="form-pwd-wrap">
-            <input type="password" class="form-input" id="pwd-konfirm" placeholder="Ulangi password baru" />
-            <button class="form-pwd-toggle" onclick="togglePwd('pwd-konfirm','eye-konfirm')" tabindex="-1">
-              <span class="material-symbols-outlined" id="eye-konfirm">visibility</span>
-            </button>
-          </div>
-        </div>
-        <p class="form-hint" id="pwd-hint" style="min-height:16px;color:var(--red);display:none"></p>
-      </div>
-      <div class="form-actions" style="padding:16px 24px;margin-top:0">
-        <button class="btn btn-cancel" onclick="closeModalGantiPassword()">Batal</button>
-        <button class="btn-primary" onclick="submitGantiPassword()">
-          <span class="material-symbols-outlined">lock_reset</span>Simpan password
-        </button>
-      </div>
-    </div>
-  </div>
 
-  <!-- ══ TOAST ══ -->
+  <!-- â•â• TOAST â•â• -->
   <div id="toast"></div>
 
-  <!-- ══ PERANGKAT SHEET ══ -->
+  <!-- â•â• PERANGKAT SHEET â•â• -->
   <div class="psheet-overlay" id="psheet-overlay" onclick="closePerangkatSheet()"></div>
   <div class="psheet" id="psheet" role="dialog" aria-modal="true" aria-label="Pilih Perangkat">
     <div class="psheet-handle"></div>
@@ -453,8 +431,7 @@
         <div class="psheet-item-badge">Distribusi</div>
         <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
       </a>
-      <a href="/app/frontend/genieacs/onu.html" class="psheet-item psheet-onu" data-perm="perangkat"><div class="psheet-item-icon"><span class="material-symbols-outlined">wifi</span></div><div class="psheet-item-body"><div class="psheet-item-name">ONU / GenieACS</div><div class="psheet-item-desc">Monitoring & remote TR-069</div></div><div class="psheet-item-badge">TR-069</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
-    </div>
+   </div>
   </div>
 
   <!-- Scripts -->
@@ -471,12 +448,13 @@
       <a href="/app/frontend/keuangan/keuangan.html" class="psheet-item psheet-keuangan"><div class="psheet-item-icon"><span class="material-symbols-outlined">payments</span></div><div class="psheet-item-body"><div class="psheet-item-name">Keuangan</div><div class="psheet-item-desc">Pemasukan & pengeluaran</div></div><div class="psheet-item-badge">Kas</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
       <a href="/app/frontend/tagihan/tagihan.html" class="psheet-item psheet-tagihan" data-perm="keuangan"><div class="psheet-item-icon"><span class="material-symbols-outlined">receipt_long</span></div><div class="psheet-item-body"><div class="psheet-item-name">Tagihan</div><div class="psheet-item-desc">Tagihan bulanan pelanggan</div></div><div class="psheet-item-badge">Invoice</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
       <a href="/app/frontend/loket/loket.html" class="psheet-item psheet-loket" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">point_of_sale</span></div><div class="psheet-item-body"><div class="psheet-item-name">Loket / Kasir</div><div class="psheet-item-desc">Terima bayar + komisi</div></div><div class="psheet-item-badge">Kasir</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
-      <a href="/app/frontend/notifikasi/wa.html" class="psheet-item psheet-wa" data-perm="pelanggan"><div class="psheet-item-icon"><span class="material-symbols-outlined">chat</span></div><div class="psheet-item-body"><div class="psheet-item-name">Notifikasi WA</div><div class="psheet-item-desc">Pengingat tagihan WhatsApp</div></div><div class="psheet-item-badge">Reminder</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/notifikasi/wa.html" class="psheet-item psheet-wa" data-perm="pelanggan_manage"><div class="psheet-item-icon"><span class="material-symbols-outlined">chat</span></div><div class="psheet-item-body"><div class="psheet-item-name">Notifikasi WA</div><div class="psheet-item-desc">Pengingat tagihan WhatsApp</div></div><div class="psheet-item-badge">Reminder</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
       <a href="/app/frontend/pembayaran/payment.html" class="psheet-item psheet-payment" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">credit_card</span></div><div class="psheet-item-body"><div class="psheet-item-name">Bayar Online</div><div class="psheet-item-desc">Midtrans / Xendit</div></div><div class="psheet-item-badge">Gateway</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/tiket/tiket.html" class="psheet-item psheet-tiket" data-perm="pelanggan"><div class="psheet-item-icon"><span class="material-symbols-outlined">support_agent</span></div><div class="psheet-item-body"><div class="psheet-item-name">Tiket Laporan <span id="tiket-badge-nav" style="display:none;background:#dc2626;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:6px;vertical-align:1px"></span></div><div class="psheet-item-desc">Laporan gangguan pelanggan</div></div><div class="psheet-item-badge">Support</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
     </div>
   </div>
-  <script src="/app/frontend/statis/global.js?v=26"></script>
-  <script src="/app/frontend/keuangan/keuangan.js?v=3"></script>
+  <script src="/app/frontend/statis/global.js?v=43"></script>
+  <script src="/app/frontend/keuangan/keuangan.js?v=7"></script>
 
 </body>
 </html> 

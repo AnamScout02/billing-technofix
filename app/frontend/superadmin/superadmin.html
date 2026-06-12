@@ -6,108 +6,382 @@
   <title>Panel Super Admin — TechnoFix</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
-  <link rel="stylesheet" href="/app/frontend/superadmin/superadmin.css?v=3" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="/app/frontend/superadmin/superadmin.css?v=8" />
 </head>
 <body>
 
-  <!-- ══ TOPBAR ══ -->
-  <header class="sa-top">
-    <div class="sa-top-inner">
-      <div class="sa-brand">
-        <div class="sa-logo"><span class="material-symbols-outlined">shield_person</span></div>
-        <div>
-          <div class="sa-brand-name">TechnoFix · Super Admin</div>
-          <div class="sa-brand-sub">Kelola seluruh owner &amp; langganan</div>
+  <!-- ══ LAYOUT WRAPPER ══ -->
+  <div class="sa-layout">
+
+    <!-- ══ SIDEBAR ══ -->
+    <aside class="sa-sidebar" id="sa-sidebar">
+      <div class="sa-sidebar-inner">
+        <!-- Brand -->
+        <div class="sa-brand">
+          <div class="sa-logo">
+            <span class="material-symbols-outlined">shield_person</span>
+          </div>
+          <div class="sa-brand-text">
+            <div class="sa-brand-name">TechnoFix</div>
+            <div class="sa-brand-sub">Super Admin</div>
+          </div>
         </div>
-      </div>
-      <div class="sa-top-actions">
-        <span class="sa-admin-name" id="sa-admin-name">admin</span>
-        <button class="sa-btn sa-btn-ghost" onclick="adminLogout()"><span class="material-symbols-outlined">logout</span>Keluar</button>
-      </div>
-    </div>
-  </header>
 
-  <main class="sa-main">
+        <!-- Nav -->
+        <nav class="sa-nav">
+          <a class="sa-nav-item active" data-tab="owners" onclick="switchTab('owners')">
+            <span class="material-symbols-outlined">corporate_fare</span>
+            <span>Owners / ISP</span>
+          </a>
+          <a class="sa-nav-item" data-tab="requests" onclick="switchTab('requests')">
+            <span class="material-symbols-outlined">pending_actions</span>
+            <span>Permintaan Upgrade</span>
+            <span class="sa-nav-badge" id="nav-req-count" style="display:none">0</span>
+          </a>
+          <a class="sa-nav-item" data-tab="revenue" onclick="switchTab('revenue')">
+            <span class="material-symbols-outlined">payments</span>
+            <span>Pendapatan</span>
+          </a>
+          <a class="sa-nav-item" data-tab="admins" onclick="switchTab('admins')">
+            <span class="material-symbols-outlined">manage_accounts</span>
+            <span>Akun Admin</span>
+          </a>
+          <a class="sa-nav-item" data-tab="logs" onclick="switchTab('logs')">
+            <span class="material-symbols-outlined">history</span>
+            <span>Log Aktivitas</span>
+          </a>
+        </nav>
 
-    <!-- STATS -->
-    <div class="sa-stats" id="sa-stats">
-      <div class="sa-stat"><div class="sa-stat-num" id="st-total">–</div><div class="sa-stat-lbl">Total Owner</div></div>
-      <div class="sa-stat"><div class="sa-stat-num" id="st-active">–</div><div class="sa-stat-lbl">Aktif</div></div>
-      <div class="sa-stat"><div class="sa-stat-num" id="st-trial">–</div><div class="sa-stat-lbl">Trial</div></div>
-      <div class="sa-stat"><div class="sa-stat-num" id="st-locked">–</div><div class="sa-stat-lbl">Terkunci</div></div>
-    </div>
-
-    <!-- PERMINTAAN UPGRADE (pending) -->
-    <div id="sa-requests-wrap" style="display:none;margin-bottom:26px">
-      <div class="sa-head"><h1>Permintaan Upgrade <span id="sa-req-badge" class="sa-pkg" style="background:rgba(245,158,11,.18);color:#fcd34d;border-color:rgba(245,158,11,.3)">0</span></h1></div>
-      <div id="sa-requests" class="sa-req-list"></div>
-    </div>
-
-    <div class="sa-head">
-      <h1>Daftar Owner / ISP</h1>
-      <div class="sa-search">
-        <span class="material-symbols-outlined">search</span>
-        <input type="text" id="sa-search" placeholder="Cari nama ISP…" oninput="filterOwners()" />
-      </div>
-    </div>
-
-    <!-- KONFIGURASI GENIEACS -->
-    <div class="sa-head" style="margin-top:32px">
-      <h1>Konfigurasi GenieACS (TR-069)</h1>
-    </div>
-    <div class="sa-card" id="sa-genieacs-card">
-      <div class="sa-form-row">
-        <div class="sa-form-group">
-          <label class="sa-label">URL NBI GenieACS</label>
-          <input type="text" id="gac-url" class="sa-input" placeholder="http://server:7557" />
-        </div>
-        <div class="sa-form-group">
-          <label class="sa-label">Username (opsional)</label>
-          <input type="text" id="gac-user" class="sa-input" placeholder="admin" />
-        </div>
-        <div class="sa-form-group">
-          <label class="sa-label">Password (opsional)</label>
-          <input type="password" id="gac-pass" class="sa-input" placeholder="••••••••" />
-        </div>
-      </div>
-      <div class="sa-form-row" style="align-items:center;gap:12px;margin-top:12px">
-        <label class="sa-label" style="margin:0">Status</label>
-        <label class="sa-toggle">
-          <input type="checkbox" id="gac-enabled" />
-          <span class="sa-toggle-track"></span>
-          <span class="sa-toggle-lbl" id="gac-enabled-lbl">Nonaktif</span>
-        </label>
+        <!-- Spacer -->
         <div style="flex:1"></div>
-        <button class="sa-btn sa-btn-primary" onclick="saveGenieACS()"><span class="material-symbols-outlined">save</span>Simpan Konfigurasi</button>
-        <button class="sa-btn sa-btn-ghost" onclick="testGenieACS()" id="gac-test-btn"><span class="material-symbols-outlined">wifi_tethering</span>Test Koneksi</button>
+
+        <!-- User info -->
+        <div class="sa-sidebar-user">
+          <div class="sa-sidebar-avatar">
+            <span class="material-symbols-outlined">admin_panel_settings</span>
+          </div>
+          <div class="sa-sidebar-user-info">
+            <div class="sa-sidebar-username" id="sa-admin-name">admin</div>
+            <div class="sa-sidebar-role">Super Admin</div>
+          </div>
+          <button class="sa-logout-btn" onclick="adminLogout()" title="Keluar">
+            <span class="material-symbols-outlined">logout</span>
+          </button>
+        </div>
       </div>
-      <div id="gac-status" style="margin-top:10px;font-size:13px;color:var(--muted)"></div>
-    </div>
+    </aside>
 
-    <!-- TABEL OWNER -->
-    <div class="sa-table-wrap" style="margin-top:32px">
-      <table class="sa-table">
-        <thead>
-          <tr>
-            <th>ISP / Owner</th><th>Paket</th><th>Status</th><th>Tim</th>
-            <th>Berlaku s/d</th><th>Daftar</th><th class="ta-right">Aksi</th>
-          </tr>
-        </thead>
-        <tbody id="sa-tbody">
-          <tr><td colspan="7" class="sa-loading"><span class="material-symbols-outlined spin">progress_activity</span> Memuat…</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </main>
+    <!-- ══ MAIN CONTENT ══ -->
+    <div class="sa-content">
 
-  <!-- ══ MODAL AKTIVASI ══ -->
+      <!-- Mobile topbar -->
+      <header class="sa-mobile-top">
+        <button class="sa-mobile-menu-btn" onclick="toggleSidebar()">
+          <span class="material-symbols-outlined">menu</span>
+        </button>
+        <div class="sa-brand-name" style="font-size:15px">TechnoFix · Super Admin</div>
+        <button class="sa-btn sa-btn-ghost sa-btn-sm" onclick="adminLogout()">
+          <span class="material-symbols-outlined">logout</span>
+        </button>
+      </header>
+
+      <main class="sa-main">
+
+        <!-- ══ WELCOME BAR ══ -->
+        <div class="sa-welcome-bar">
+          <div>
+            <div class="sa-welcome-title">Selamat datang, <span id="sa-admin-greet" style="color:var(--primary-lite)">Admin</span></div>
+            <div class="sa-welcome-sub">Panel kontrol platform TechnoFix — semua owner &amp; langganan di sini</div>
+          </div>
+          <div class="sa-welcome-actions">
+            <div class="sa-time-badge" id="sa-clock">
+              <span class="material-symbols-outlined">schedule</span>
+              <span id="sa-clock-text">--:--</span>
+            </div>
+            <button class="sa-btn sa-btn-refresh sa-btn-sm" id="sa-refresh-btn" onclick="saRefreshAll()" title="Refresh data">
+              <span class="material-symbols-outlined">refresh</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- ══ STAT CARDS (always visible) ══ -->
+        <div class="sa-stat-row" id="sa-stats">
+          <div class="sa-stat-card sa-stat-total">
+            <div class="sa-stat-icon"><span class="material-symbols-outlined">groups</span></div>
+            <div class="sa-stat-body">
+              <div class="sa-stat-num" id="st-total">–</div>
+              <div class="sa-stat-lbl">Total Owner</div>
+            </div>
+          </div>
+          <div class="sa-stat-card sa-stat-active">
+            <div class="sa-stat-icon"><span class="material-symbols-outlined">verified</span></div>
+            <div class="sa-stat-body">
+              <div class="sa-stat-num" id="st-active">–</div>
+              <div class="sa-stat-lbl">Aktif</div>
+            </div>
+          </div>
+          <div class="sa-stat-card sa-stat-trial">
+            <div class="sa-stat-icon"><span class="material-symbols-outlined">hourglass_top</span></div>
+            <div class="sa-stat-body">
+              <div class="sa-stat-num" id="st-trial">–</div>
+              <div class="sa-stat-lbl">Trial</div>
+            </div>
+          </div>
+          <div class="sa-stat-card sa-stat-locked">
+            <div class="sa-stat-icon"><span class="material-symbols-outlined">lock</span></div>
+            <div class="sa-stat-body">
+              <div class="sa-stat-num" id="st-locked">–</div>
+              <div class="sa-stat-lbl">Terkunci</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══ TAB: OWNERS ══ -->
+        <div class="sa-tab-panel active" id="tab-owners">
+          <div class="sa-panel-header">
+            <div>
+              <h2 class="sa-panel-title">Daftar Owner / ISP</h2>
+              <p class="sa-panel-desc">Kelola seluruh owner yang terdaftar di platform</p>
+            </div>
+            <div class="sa-search-wrap">
+              <span class="material-symbols-outlined sa-search-icon">search</span>
+              <input type="text" id="sa-search" class="sa-search-input" placeholder="Cari nama ISP…" oninput="filterOwners()" />
+            </div>
+          </div>
+
+          <div class="sa-table-wrap">
+            <table class="sa-table">
+              <thead>
+                <tr>
+                  <th>ISP / Owner</th>
+                  <th>Paket</th>
+                  <th>Status</th>
+                  <th>Tim</th>
+                  <th>User Aktif</th>
+                  <th>Pelanggan</th>
+                  <th>Berlaku s/d</th>
+                  <th>Daftar</th>
+                  <th class="ta-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="sa-tbody">
+                <tr>
+                  <td colspan="9" class="sa-loading">
+                    <span class="material-symbols-outlined spin">progress_activity</span> Memuat…
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ══ TAB: REQUESTS ══ -->
+        <div class="sa-tab-panel" id="tab-requests">
+          <div class="sa-panel-header">
+            <div>
+              <h2 class="sa-panel-title">
+                Permintaan Upgrade
+                <span class="sa-badge-count" id="sa-req-badge" style="display:none">0</span>
+              </h2>
+              <p class="sa-panel-desc">Tinjau dan setujui permintaan upgrade paket dari owner</p>
+            </div>
+          </div>
+
+          <div id="sa-requests-wrap" style="display:none">
+            <div id="sa-requests" class="sa-req-list"></div>
+          </div>
+          <div id="sa-no-requests" class="sa-empty-state">
+            <span class="material-symbols-outlined">inbox</span>
+            <p>Tidak ada permintaan upgrade yang menunggu</p>
+          </div>
+        </div>
+
+        <!-- ══ TAB: REVENUE ══ -->
+        <div class="sa-tab-panel" id="tab-revenue">
+          <div class="sa-panel-header">
+            <div>
+              <h2 class="sa-panel-title">Pendapatan Langganan</h2>
+              <p class="sa-panel-desc">Estimasi pendapatan berdasarkan paket aktif</p>
+            </div>
+          </div>
+
+          <div class="sa-stat-row" id="sa-revenue-stats" style="margin-bottom:24px">
+            <div class="sa-stat-card sa-stat-revenue">
+              <div class="sa-stat-icon"><span class="material-symbols-outlined">trending_up</span></div>
+              <div class="sa-stat-body">
+                <div class="sa-stat-num" id="rv-mrr">–</div>
+                <div class="sa-stat-lbl">Estimasi MRR</div>
+              </div>
+            </div>
+            <div class="sa-stat-card sa-stat-paid">
+              <div class="sa-stat-icon"><span class="material-symbols-outlined">workspace_premium</span></div>
+              <div class="sa-stat-body">
+                <div class="sa-stat-num" id="rv-paid">–</div>
+                <div class="sa-stat-lbl">Owner Berbayar</div>
+              </div>
+            </div>
+            <div class="sa-stat-card sa-stat-arpu">
+              <div class="sa-stat-icon"><span class="material-symbols-outlined">person_raised_hand</span></div>
+              <div class="sa-stat-body">
+                <div class="sa-stat-num" id="rv-arpu">–</div>
+                <div class="sa-stat-lbl">Rata-rata / Owner</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sa-card" id="sa-pkg-distribusi">
+            <div class="sa-card-title">Distribusi Paket Aktif</div>
+            <div id="sa-pkg-chips" class="sa-req-list"></div>
+          <div id="sa-pkg-chart" class="pkg-chart-row" style="margin-top:16px">
+            <div class="pkg-donut-wrap">
+              <canvas id="sa-donut-chart" height="220"></canvas>
+            </div>
+          </div>
+          </div>
+        </div>
+
+        <!-- ══ TAB: ADMINS ══ -->
+        <div class="sa-tab-panel" id="tab-admins">
+          <div class="sa-panel-header">
+            <div>
+              <h2 class="sa-panel-title">Akun Super Admin</h2>
+              <p class="sa-panel-desc">Kelola akun super admin yang dapat mengakses panel ini</p>
+            </div>
+            <button class="sa-btn sa-btn-primary" onclick="openAddSuperadmin()">
+              <span class="material-symbols-outlined">person_add</span>Tambah Admin
+            </button>
+          </div>
+
+          <div class="sa-table-wrap">
+            <table class="sa-table">
+              <thead>
+                <tr>
+                  <th>Username</th>
+                  <th>Dibuat</th>
+                  <th>Login Terakhir</th>
+                  <th class="ta-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="sa-admin-tbody">
+                <tr><td colspan="4" class="sa-loading">Memuat…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ══ TAB: LOGS ══ -->
+        <div class="sa-tab-panel" id="tab-logs">
+          <div class="sa-panel-header">
+            <div>
+              <h2 class="sa-panel-title">Log Aktivitas Super Admin</h2>
+              <p class="sa-panel-desc">Rekam jejak semua tindakan yang dilakukan oleh super admin</p>
+            </div>
+          </div>
+
+          <div class="sa-table-wrap">
+            <table class="sa-table">
+              <thead>
+                <tr>
+                  <th>Waktu</th>
+                  <th>Admin</th>
+                  <th>Aksi</th>
+                  <th>Target</th>
+                  <th>Detail</th>
+                </tr>
+              </thead>
+              <tbody id="sa-log-tbody">
+                <tr><td colspan="5" class="sa-loading">Memuat…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </main>
+    </div><!-- /.sa-content -->
+  </div><!-- /.sa-layout -->
+
+  <!-- ══ MOBILE BOTTOM NAV ══ -->
+  <nav class="sa-bottom-nav">
+    <button class="sa-bottom-btn active" data-tab="owners" onclick="switchTab('owners')">
+      <span class="material-symbols-outlined">corporate_fare</span>
+      <span>Owners</span>
+    </button>
+    <button class="sa-bottom-btn" data-tab="requests" onclick="switchTab('requests')">
+      <span class="material-symbols-outlined">pending_actions</span>
+      <span>Requests</span>
+    </button>
+    <button class="sa-bottom-btn" data-tab="revenue" onclick="switchTab('revenue')">
+      <span class="material-symbols-outlined">payments</span>
+      <span>Revenue</span>
+    </button>
+    <button class="sa-bottom-btn" data-tab="admins" onclick="switchTab('admins')">
+      <span class="material-symbols-outlined">manage_accounts</span>
+      <span>Admin</span>
+    </button>
+    <button class="sa-bottom-btn" data-tab="logs" onclick="switchTab('logs')">
+      <span class="material-symbols-outlined">history</span>
+      <span>Log</span>
+    </button>
+  </nav>
+
+  <!-- Sidebar overlay (mobile) -->
+  <div class="sa-sidebar-overlay" id="sa-sidebar-overlay" onclick="toggleSidebar()"></div>
+
+  <!-- ══ MODAL: DETAIL OWNER ══ -->
+  <div class="sa-modal-overlay" id="sa-detail-modal" onclick="closeDetailModal(event)">
+    <div class="sa-modal" onclick="event.stopPropagation()">
+      <div class="sa-modal-head">
+        <h3>Detail Owner</h3>
+        <button class="sa-x" onclick="closeDetailModal()">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <div class="sa-modal-body" id="sa-detail-body">
+        <div class="sa-loading">
+          <span class="material-symbols-outlined spin">progress_activity</span> Memuat…
+        </div>
+      </div>
+      <div class="sa-modal-foot">
+        <button class="sa-btn sa-btn-ghost" onclick="closeDetailModal()">Tutup</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ MODAL: TAMBAH SUPER ADMIN ══ -->
+  <div class="sa-modal-overlay" id="sa-admin-modal" onclick="closeAdminModal(event)">
+    <div class="sa-modal" onclick="event.stopPropagation()">
+      <div class="sa-modal-head">
+        <h3>Tambah Akun Super Admin</h3>
+        <button class="sa-x" onclick="closeAdminModal()">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <div class="sa-modal-body">
+        <label class="sa-label">Username</label>
+        <input type="text" id="sa-admin-username" class="sa-input" placeholder="username" autocomplete="off" />
+        <label class="sa-label">Password</label>
+        <input type="password" id="sa-admin-password" class="sa-input" placeholder="Min. 6 karakter" autocomplete="new-password" />
+      </div>
+      <div class="sa-modal-foot">
+        <button class="sa-btn sa-btn-ghost" onclick="closeAdminModal()">Batal</button>
+        <button class="sa-btn sa-btn-primary" id="sa-admin-confirm" onclick="doAddSuperadmin()">
+          <span class="material-symbols-outlined">check</span>Simpan
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ MODAL: AKTIVASI PAKET ══ -->
   <div class="sa-modal-overlay" id="sa-modal" onclick="closeModal(event)">
     <div class="sa-modal" onclick="event.stopPropagation()">
       <div class="sa-modal-head">
         <h3 id="sa-modal-title">Aktifkan Paket</h3>
-        <button class="sa-x" onclick="closeModal()"><span class="material-symbols-outlined">close</span></button>
+        <button class="sa-x" onclick="closeModal()">
+          <span class="material-symbols-outlined">close</span>
+        </button>
       </div>
       <div class="sa-modal-body">
         <div class="sa-owner-chip" id="sa-modal-owner">—</div>
@@ -115,19 +389,233 @@
         <select id="sa-modal-paket" class="sa-input"></select>
         <label class="sa-label">Durasi (bulan)</label>
         <select id="sa-modal-bulan" class="sa-input">
-          <option value="1">1 bulan</option><option value="3">3 bulan</option>
-          <option value="6">6 bulan</option><option value="12">12 bulan</option>
+          <option value="1">1 bulan</option>
+          <option value="3">3 bulan</option>
+          <option value="6">6 bulan</option>
+          <option value="12">12 bulan</option>
         </select>
       </div>
       <div class="sa-modal-foot">
         <button class="sa-btn sa-btn-ghost" onclick="closeModal()">Batal</button>
-        <button class="sa-btn sa-btn-primary" id="sa-modal-confirm"><span class="material-symbols-outlined">check</span>Aktifkan</button>
+        <button class="sa-btn sa-btn-primary" id="sa-modal-confirm">
+          <span class="material-symbols-outlined">bolt</span>Aktifkan
+        </button>
       </div>
     </div>
   </div>
 
   <div id="toast"></div>
-  <script src="/app/frontend/statis/global.js?v=26"></script>
-  <script src="/app/frontend/superadmin/superadmin.js?v=3"></script>
+
+  <script src="/app/frontend/statis/global.js?v=43"></script>
+  <script src="/app/frontend/superadmin/superadmin.js?v=7"></script>
+  <script>
+    /* ── Tab switching ── */
+    function switchTab(tab) {
+      document.querySelectorAll('.sa-tab-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.sa-nav-item').forEach(n => n.classList.remove('active'));
+      document.querySelectorAll('.sa-bottom-btn').forEach(b => b.classList.remove('active'));
+      const panel = document.getElementById('tab-' + tab);
+      if (panel) panel.classList.add('active');
+      document.querySelectorAll('[data-tab="' + tab + '"]').forEach(el => el.classList.add('active'));
+      /* close sidebar on mobile */
+      if (window.innerWidth < 1024) closeSidebar();
+    }
+    function toggleSidebar() {
+      const sb = document.getElementById('sa-sidebar');
+      const ov = document.getElementById('sa-sidebar-overlay');
+      sb.classList.toggle('open');
+      ov.classList.toggle('show');
+    }
+    function closeSidebar() {
+      document.getElementById('sa-sidebar').classList.remove('open');
+      document.getElementById('sa-sidebar-overlay').classList.remove('show');
+    }
+    /* Sync request badge to nav + show/hide empty state */
+    document.addEventListener('DOMContentLoaded', () => {
+      const badge = document.getElementById('sa-req-badge');
+      if (!badge) return;
+      function syncBadge() {
+        const count = parseInt(badge.textContent) || 0;
+        /* own visibility */
+        badge.style.display = count > 0 ? '' : 'none';
+        /* sidebar nav badge */
+        const navBadge = document.getElementById('nav-req-count');
+        if (navBadge) { navBadge.textContent = count; navBadge.style.display = count > 0 ? '' : 'none'; }
+        /* empty-state placeholder in requests tab */
+        const noReq  = document.getElementById('sa-no-requests');
+        const reqWrap = document.getElementById('sa-requests-wrap');
+        if (noReq)  noReq.style.display  = count === 0 ? '' : 'none';
+        if (reqWrap && count === 0) reqWrap.style.display = 'none';
+      }
+      new MutationObserver(syncBadge).observe(badge, { childList: true, characterData: true, subtree: true });
+    });
+  
+    /* ── Live clock ── */
+    function updateClock() {
+      const el = document.getElementById('sa-clock-text');
+      if (!el) return;
+      const now = new Date();
+      el.textContent = now.toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    /* ── Admin greeting ── */
+    document.addEventListener('DOMContentLoaded', () => {
+      const name = document.getElementById('sa-admin-name');
+      const greet = document.getElementById('sa-admin-greet');
+      if (name && greet) {
+        new MutationObserver(() => { greet.textContent = name.textContent || 'Admin'; })
+          .observe(name, {childList:true, characterData:true, subtree:true});
+      }
+    });
+
+    /* ── Animated counter for stat cards ── */
+    function saAnimateNum(el, finalVal) {
+      const isRp = finalVal.includes('Rp') || finalVal.includes('jt') || finalVal.includes('rb');
+      if (isRp) { el.textContent = finalVal; return; }
+      const num = parseInt(finalVal.replace(/\D/g,''), 10);
+      if (isNaN(num)) { el.textContent = finalVal; return; }
+      const dur = 900, fps = 60, steps = Math.round(dur/(1000/fps));
+      let cur = 0;
+      const inc = num / steps;
+      const tick = () => {
+        cur = Math.min(cur + inc, num);
+        el.textContent = Math.round(cur);
+        if (cur < num) requestAnimationFrame(tick);
+        else el.textContent = finalVal;
+      };
+      requestAnimationFrame(tick);
+    }
+
+    /* ── Package bar chart renderer ── */
+    function renderPkgBarChart(pkgData) {
+      const wrap = document.getElementById('sa-pkg-chart');
+      if (!wrap) return;
+      /* Hapus item bar lama tapi jangan hapus donut canvas */
+      wrap.querySelectorAll('.pkg-bar-item').forEach(el => el.remove());
+      if (!pkgData || !pkgData.length) return;
+      /* Render donut chart */
+      if (typeof renderDonutChart === 'function') renderDonutChart(pkgData);
+      const maxVal = Math.max(...pkgData.map(p => p.count));
+      const colors = [
+        'linear-gradient(90deg,#2563eb,#7c3aed)',
+        'linear-gradient(90deg,#059669,#0891b2)',
+        'linear-gradient(90deg,#f59e0b,#ef4444)',
+        'linear-gradient(90deg,#8b5cf6,#ec4899)',
+        'linear-gradient(90deg,#14b8a6,#2563eb)',
+        'linear-gradient(90deg,#f97316,#ef4444)',
+        'linear-gradient(90deg,#6366f1,#8b5cf6)',
+        'linear-gradient(90deg,#22c55e,#14b8a6)',
+      ];
+      const barHTML = pkgData.map((p, i) => {
+        const pct = maxVal ? (p.count / maxVal * 100).toFixed(1) : 0;
+        return `<div class="pkg-bar-item">
+          <span class="pkg-bar-name">${p.paket || p.name || 'Paket ' + (i+1)}</span>
+          <div class="pkg-bar-track">
+            <div class="pkg-bar-fill" style="width:0%;background:${colors[i % colors.length]}" data-target="${pct}%"></div>
+          </div>
+          <span class="pkg-bar-count">${p.count}</span>
+        </div>`;
+      }).join('');
+      wrap.insertAdjacentHTML('beforeend', barHTML);
+      /* animate fills */
+      requestAnimationFrame(() => {
+        wrap.querySelectorAll('.pkg-bar-fill').forEach(bar => {
+          bar.style.width = bar.dataset.target;
+        });
+      });
+    }
+
+    /* ── Donut chart (Chart.js) ── */
+    let _donutInstance = null;
+    function renderDonutChart(pkgData) {
+      const canvas = document.getElementById('sa-donut-chart');
+      if (!canvas || !pkgData || !pkgData.length) return;
+      const labels  = pkgData.map(p => p.paket || p.name || 'Paket');
+      const values  = pkgData.map(p => p.count || 0);
+      const colors  = [
+        '#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6',
+        '#14b8a6', '#ef4444', '#6366f1', '#f97316',
+      ];
+      if (_donutInstance) { _donutInstance.destroy(); _donutInstance = null; }
+      _donutInstance = new Chart(canvas, {
+        type: 'doughnut',
+        data: {
+          labels,
+          datasets: [{
+            data: values,
+            backgroundColor: colors.slice(0, labels.length),
+            borderColor: '#161b27',
+            borderWidth: 3,
+            hoverBorderColor: '#1c2333',
+            hoverOffset: 6,
+          }],
+        },
+        options: {
+          cutout: '68%',
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: {
+            legend: {
+              position: 'right',
+              labels: {
+                font: { family: 'Poppins', size: 11 },
+                color: '#94a3b8',
+                padding: 14,
+                boxWidth: 12,
+                boxHeight: 12,
+                borderRadius: 4,
+              },
+            },
+            tooltip: {
+              backgroundColor: '#1c2333',
+              titleColor: '#e2e8f0',
+              bodyColor: '#94a3b8',
+              borderColor: '#253047',
+              borderWidth: 1,
+              padding: 10,
+              callbacks: {
+                label: function(ctx) {
+                  const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                  const pct   = total ? ((ctx.parsed / total) * 100).toFixed(1) : 0;
+                  return ` ${ctx.parsed} owner (${pct}%)`;
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    /* Override/hook into existing pkg chips: also render chart */
+    const _origRenderPkg = window.renderPkgChips;
+    document.addEventListener('sa-pkg-ready', e => {
+      if (e && e.detail) {
+        renderPkgBarChart(e.detail);
+        renderDonutChart(e.detail);
+      }
+    });
+
+    /* ── Refresh all ── */
+    function saRefreshAll() {
+      const btn = document.getElementById('sa-refresh-btn');
+      if (btn) { btn.classList.add('spinning'); setTimeout(() => btn.classList.remove('spinning'), 1200); }
+      if (typeof loadOwners === 'function') loadOwners();
+      if (typeof loadStats === 'function') loadStats();
+    }
+
+    /* ── Animate stat numbers when updated ── */
+    const _numIds = ['st-total','st-active','st-trial','st-locked','rv-mrr','rv-paid','rv-arpu'];
+    _numIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      new MutationObserver(() => {
+        const val = el.textContent.trim();
+        if (val && val !== '–') { el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
+      }).observe(el, {childList:true, characterData:true, subtree:true});
+    });
+
+  </script>
 </body>
 </html>

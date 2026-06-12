@@ -1,8 +1,8 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="id">
 
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8" /><script>(function(){var t=localStorage.getItem("tf_theme");if(t)document.documentElement.dataset.theme=t;else if(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)document.documentElement.dataset.theme="dark";})();</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pelanggan — TechnoFix Billing</title>
 
@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
-    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Poppins:wght@400;500;600&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Poppins:wght@300;400;500;600;700&display=swap"
     rel="stylesheet" />
 
   <!-- Material Icons -->
@@ -18,13 +18,13 @@
     rel="stylesheet" />
 
   <!-- global.css wajib di-load PERTAMA -->
-  <link rel="stylesheet" href="/app/frontend/statis/global.css?v=33" />
-  <link rel="stylesheet" href="/app/frontend/statis/pelanggan.css?v=3" />
+  <link rel="stylesheet" href="/app/frontend/statis/global.css?v=48" />
+  <link rel="stylesheet" href="/app/frontend/statis/pelanggan.css?v=7" />
 </head>
 
 <body>
 
-  <!-- ══ HEADER ══ -->
+  <!-- â•â• HEADER â•â• -->
   <header class="header">
     <canvas class="header-canvas" id="header-canvas"></canvas>
     <div class="header-inner">
@@ -46,7 +46,7 @@
         <a href="#" onclick="openPerangkatSheet(event)" data-perm="perangkat">
           <span class="material-symbols-outlined">router</span>Perangkat
         </a>
-        <a href="#" onclick="openKeuanganSheet(event)" data-perm="keuangan"><span class="material-symbols-outlined">payments</span>Keuangan</a>
+        <a href="#" onclick="openKeuanganSheet(event)" data-perm="keuangan"><span class="material-symbols-outlined">payments</span>Layanan</a>
         <a href="/app/frontend/maps/maps.html" data-perm="maps">
           <span class="material-symbols-outlined">map</span>Maps
         </a>
@@ -79,7 +79,7 @@
           <a href="/app/frontend/profile/profile.html" class="profile-menu-item">
             <span class="material-symbols-outlined">person</span>Profil saya
           </a>
-          <a href="/app/frontend/setting/setting.html" class="profile-menu-item">
+          <a href="/app/frontend/setting/setting.html" class="profile-menu-item btn-owner-only">
             <span class="material-symbols-outlined">settings</span>Setting
           </a>
           <a href="/app/frontend/langganan/langganan.html" class="profile-menu-item btn-owner-only">
@@ -99,7 +99,7 @@
   </header>
 
 
-    <!-- ══ BOTTOM NAVBAR — MOBILE ONLY ══ -->
+    <!-- â•â• BOTTOM NAVBAR — MOBILE ONLY â•â• -->
   <nav class="bottom-nav">
     <div class="bottom-nav-inner">
       <div class="bottom-nav-indicator" id="bottom-nav-indicator"></div>
@@ -117,7 +117,7 @@
       </a>
       <a href="#" onclick="openKeuanganSheet(event)" class="bottom-nav-item" data-perm="keuangan">
         <div class="bottom-nav-icon"><span class="material-symbols-outlined">payments</span></div>
-        <span class="bottom-nav-label">Keuangan</span>
+        <span class="bottom-nav-label">Layanan</span>
       </a>
       <a href="/app/frontend/maps/maps.html" class="bottom-nav-item " data-perm="maps">
         <div class="bottom-nav-icon"><span class="material-symbols-outlined">map</span></div>
@@ -127,7 +127,7 @@
   </nav>
 
 
-  <!-- ══ PAGE ══ -->
+  <!-- â•â• PAGE â•â• -->
   <main class="page">
 
     <!-- PAGE TITLE -->
@@ -141,7 +141,7 @@
           <span class="material-symbols-outlined">calendar_today</span>
           <span id="today-date">—</span>
         </span>
-        <button class="btn-primary" id="btn-tambah-pelanggan" onclick="showFormPelanggan()">
+        <button class="btn-primary" id="btn-tambah-pelanggan" data-perm="pelanggan_manage" onclick="showFormPelanggan()">
           <span class="material-symbols-outlined">person_add</span>
           Tambah Pelanggan
         </button>
@@ -243,7 +243,7 @@
         <span class="material-symbols-outlined state-icon">inbox</span>
         <p class="state-title">Belum ada data</p>
         <p class="state-sub">Pilih perangkat atau tambahkan pelanggan baru</p>
-        <button class="btn-primary" style="margin-top:12px" onclick="showFormPelanggan()">
+        <button class="btn-primary" style="margin-top:12px" data-perm="pelanggan_manage" onclick="showFormPelanggan()">
           <span class="material-symbols-outlined">person_add</span> Tambah Pelanggan
         </button>
       </div>
@@ -263,6 +263,9 @@
         <table class="pelanggan-table" id="table-pelanggan">
           <thead>
             <tr>
+              <th class="sticky-col-0 col-cb">
+                <input type="checkbox" id="cb-all" title="Pilih semua" onchange="_cbAllChange(this)">
+              </th>
               <th class="sticky-col-1">#</th>
               <th class="sticky-col-2">Username</th>
               <th>No HP</th>
@@ -300,32 +303,32 @@
   </main>
 
 
-  <!-- ══ MODAL: KONFIRMASI HAPUS ══
+  <!-- â•â• MODAL: KONFIRMASI HAPUS â•â•
        Modal detail sekarang dibuat secara dinamis oleh pelanggan.js
        via openModalForm() — tidak perlu HTML statis lagi.
        Modal hapus tetap statis karena strukturnya sederhana & tidak berubah.
-  ══ -->
-  <div class="modal-overlay" id="modal-hapus" onclick="closeModalHapus(event)">
-    <div class="modal-sheet small" onclick="event.stopPropagation()">
-      <div class="modal-handle"></div>
-      <div class="hapus-icon-wrap">
-        <span class="material-symbols-outlined hapus-icon">delete</span>
-      </div>
-      <div class="hapus-title">Hapus Pelanggan?</div>
-      <div class="hapus-sub">
-        Data pelanggan <strong id="hapus-username"></strong> akan dihapus
-        dari sistem secara permanen dan tidak dapat dikembalikan.
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-cancel" onclick="tutupModalHapus()">Batal</button>
-        <button class="btn btn-hapus" onclick="konfirmasiHapus()">
-          <span class="material-symbols-outlined">delete</span>Ya, Hapus
-        </button>
-      </div>
+  â•â• -->
+  <!-- ╔═ FLOATING ACTION BAR — PILIHAN MASSAL ═╗ -->
+  <div id="bulk-action-bar" class="bulk-action-bar" style="display:none">
+    <span class="bulk-count" id="bulk-count-label">0 dipilih</span>
+    <div class="bulk-actions">
+      <button class="btn btn-bulk-isolir" onclick="_isolirMassal()">
+        <span class="material-symbols-outlined">block</span>
+        Isolir Semua
+      </button>
+      <button class="btn btn-bulk-aktif" onclick="_aktifMassal()">
+        <span class="material-symbols-outlined">wifi</span>
+        Aktifkan Semua
+      </button>
+      <button class="btn btn-bulk-batal" onclick="_batalPilihan()">
+        <span class="material-symbols-outlined">close</span>
+        Batal
+      </button>
     </div>
   </div>
 
-  <!-- ══ MODAL: KONFIRMASI LOGOUT ══ -->
+
+  <!-- â•â• MODAL: KONFIRMASI LOGOUT â•â• -->
   <div class="modal-overlay" id="modal-logout" onclick="closeModalLogout(event)">
     <div class="modal-sheet small" onclick="event.stopPropagation()">
       <div class="modal-handle"></div>
@@ -344,60 +347,12 @@
     </div>
   </div>
 
-  <!-- ══ MODAL: GANTI PASSWORD ══ -->
-  <div class="modal-overlay" id="modal-ganti-password" onclick="closeModalGantiPassword(event)">
-    <div class="modal-sheet" style="max-width:400px" onclick="event.stopPropagation()">
-      <div class="modal-handle"></div>
-      <div style="padding:20px 24px 0">
-        <h2 style="font-family:var(--heading);font-size:16px;font-weight:800;color:var(--text);margin-bottom:4px">
-          Ganti Password
-        </h2>
-        <p style="font-size:12px;color:var(--text-dim);margin-bottom:20px">
-          Gunakan minimal 8 karakter dengan kombinasi huruf dan angka.
-        </p>
-        <div class="form-group" style="margin-bottom:14px">
-          <label class="form-label">Password saat ini <span class="req">*</span></label>
-          <div class="form-pwd-wrap">
-            <input type="password" class="form-input" id="pwd-lama" placeholder="Masukkan password lama" />
-            <button class="form-pwd-toggle" onclick="togglePwd('pwd-lama','eye-lama')" tabindex="-1">
-              <span class="material-symbols-outlined" id="eye-lama">visibility</span>
-            </button>
-          </div>
-        </div>
-        <div class="form-group" style="margin-bottom:14px">
-          <label class="form-label">Password baru <span class="req">*</span></label>
-          <div class="form-pwd-wrap">
-            <input type="password" class="form-input" id="pwd-baru" placeholder="Minimal 8 karakter" />
-            <button class="form-pwd-toggle" onclick="togglePwd('pwd-baru','eye-baru')" tabindex="-1">
-              <span class="material-symbols-outlined" id="eye-baru">visibility</span>
-            </button>
-          </div>
-        </div>
-        <div class="form-group" style="margin-bottom:4px">
-          <label class="form-label">Konfirmasi password baru <span class="req">*</span></label>
-          <div class="form-pwd-wrap">
-            <input type="password" class="form-input" id="pwd-konfirm" placeholder="Ulangi password baru" />
-            <button class="form-pwd-toggle" onclick="togglePwd('pwd-konfirm','eye-konfirm')" tabindex="-1">
-              <span class="material-symbols-outlined" id="eye-konfirm">visibility</span>
-            </button>
-          </div>
-        </div>
-        <p class="form-hint" id="pwd-hint" style="min-height:16px;color:var(--red);display:none"></p>
-      </div>
-      <div class="form-actions" style="padding:16px 24px;margin-top:0">
-        <button class="btn btn-cancel" onclick="closeModalGantiPassword()">Batal</button>
-        <button class="btn-primary" onclick="submitGantiPassword()">
-          <span class="material-symbols-outlined">lock_reset</span>Simpan password
-        </button>
-      </div>
-    </div>
-  </div>
 
-  <!-- ══ TOAST ══ -->
+  <!-- â•â• TOAST â•â• -->
   <div id="toast"></div>
 
   <script>
-    /* ── Deteksi scroll tabel → shadow freeze ── */
+    /* â”€â”€ Deteksi scroll tabel â†’ shadow freeze â”€â”€ */
     (function () {
       const wrap = document.getElementById('table-wrap');
       const scroll = document.getElementById('table-scroll');
@@ -419,7 +374,7 @@
       checkScroll();
     })();
   </script>
-  <!-- ══ PERANGKAT SHEET ══ -->
+  <!-- â•â• PERANGKAT SHEET â•â• -->
   <div class="psheet-overlay" id="psheet-overlay" onclick="closePerangkatSheet()"></div>
   <div class="psheet" id="psheet" role="dialog" aria-modal="true" aria-label="Pilih Perangkat">
     <div class="psheet-handle"></div>
@@ -469,8 +424,7 @@
         <div class="psheet-item-badge">Distribusi</div>
         <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
       </a>
-      <a href="/app/frontend/genieacs/onu.html" class="psheet-item psheet-onu" data-perm="perangkat"><div class="psheet-item-icon"><span class="material-symbols-outlined">wifi</span></div><div class="psheet-item-body"><div class="psheet-item-name">ONU / GenieACS</div><div class="psheet-item-desc">Monitoring & remote TR-069</div></div><div class="psheet-item-badge">TR-069</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
-    </div>
+   </div>
   </div>
 
   <!-- Scripts -->
@@ -480,19 +434,20 @@
   <div class="psheet ksheet" id="ksheet" role="dialog" aria-modal="true">
     <div class="psheet-handle"></div>
     <div class="psheet-head">
-      <div><p class="psheet-eyebrow">Keuangan & Tagihan</p><h2 class="psheet-title">Pilih Fitur</h2></div>
+      <div><p class="psheet-eyebrow">Fitur & Layanan</p><h2 class="psheet-title">Pilih Halaman</h2></div>
       <button class="psheet-close" onclick="closeKeuanganSheet()"><span class="material-symbols-outlined">close</span></button>
     </div>
     <div class="psheet-list">
       <a href="/app/frontend/keuangan/keuangan.html" class="psheet-item psheet-keuangan"><div class="psheet-item-icon"><span class="material-symbols-outlined">payments</span></div><div class="psheet-item-body"><div class="psheet-item-name">Keuangan</div><div class="psheet-item-desc">Pemasukan & pengeluaran</div></div><div class="psheet-item-badge">Kas</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
       <a href="/app/frontend/tagihan/tagihan.html" class="psheet-item psheet-tagihan" data-perm="keuangan"><div class="psheet-item-icon"><span class="material-symbols-outlined">receipt_long</span></div><div class="psheet-item-body"><div class="psheet-item-name">Tagihan</div><div class="psheet-item-desc">Tagihan bulanan pelanggan</div></div><div class="psheet-item-badge">Invoice</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
       <a href="/app/frontend/loket/loket.html" class="psheet-item psheet-loket" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">point_of_sale</span></div><div class="psheet-item-body"><div class="psheet-item-name">Loket / Kasir</div><div class="psheet-item-desc">Terima bayar + komisi</div></div><div class="psheet-item-badge">Kasir</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
-      <a href="/app/frontend/notifikasi/wa.html" class="psheet-item psheet-wa" data-perm="pelanggan"><div class="psheet-item-icon"><span class="material-symbols-outlined">chat</span></div><div class="psheet-item-body"><div class="psheet-item-name">Notifikasi WA</div><div class="psheet-item-desc">Pengingat tagihan WhatsApp</div></div><div class="psheet-item-badge">Reminder</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/notifikasi/wa.html" class="psheet-item psheet-wa" data-perm="pelanggan_manage"><div class="psheet-item-icon"><span class="material-symbols-outlined">chat</span></div><div class="psheet-item-body"><div class="psheet-item-name">Notifikasi WA</div><div class="psheet-item-desc">Pengingat tagihan WhatsApp</div></div><div class="psheet-item-badge">Reminder</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
       <a href="/app/frontend/pembayaran/payment.html" class="psheet-item psheet-payment" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">credit_card</span></div><div class="psheet-item-body"><div class="psheet-item-name">Bayar Online</div><div class="psheet-item-desc">Midtrans / Xendit</div></div><div class="psheet-item-badge">Gateway</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/tiket/tiket.html" class="psheet-item psheet-tiket" data-perm="pelanggan"><div class="psheet-item-icon"><span class="material-symbols-outlined">support_agent</span></div><div class="psheet-item-body"><div class="psheet-item-name">Tiket Laporan</div><div class="psheet-item-desc">Laporan gangguan pelanggan</div></div><div class="psheet-item-badge">Support</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
     </div>
   </div>
-  <script src="/app/frontend/statis/global.js?v=26"></script>
-  <script src="/app/frontend/pelanggan/pelanggan.js?v=17"></script>
+  <script src="/app/frontend/statis/global.js?v=43"></script>
+  <script src="/app/frontend/pelanggan/pelanggan.js?v=32"></script>
 
 </body>
 </html>

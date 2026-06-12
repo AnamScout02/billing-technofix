@@ -9,7 +9,35 @@
       "Bash(powershell -Command ' *)",
       "Bash(python -c ' *)",
       "Bash(cd \"/c/xampp/htdocs/billing/app/frontend\" && grep -rn \"input_mikrotik.js?v\\\\|input_mikrotik.js\\\\\"\" input_perangkat/input_mikrotik.html 2>/dev/null | head -5; echo \"---olt---\"; grep -n \"?v=\" input_perangkat/input_olt.html | head; echo \"---maps---\"; grep -n \"?v=\" maps/maps.html | head -2)",
-      "Read(//c/c/xampp/htdocs/billing/app/frontend/input_perangkat/**)"
+      "Read(//c/c/xampp/htdocs/billing/app/frontend/input_perangkat/**)",
+      "Bash(node --check maps/maps.js)",
+      "Bash(xargs sed -i 's/global\\\\.js?v=27/global.js?v=28/g')",
+      "Bash(xargs sed -i 's/global\\\\.css?v=37/global.css?v=38/g')",
+      "Bash(node --check superadmin/superadmin.js)",
+      "Bash(curl -s http://localhost:5000/api/auth/admin/networks -H \"Content-Type: application/json\" -o /tmp/resp.json -w \"%{http_code}\\\\n\")",
+      "Bash(xargs sed -i 's/global\\\\.js?v=28/global.js?v=29/g')",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('olt_sync.py', encoding='utf-8'\\).read\\(\\)\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('utils.py', encoding='utf-8'\\).read\\(\\)\\)\")",
+      "Bash(ls -la *.db-*)",
+      "Bash(find /c/xampp/htdocs/billing -iname \"devices.db*\")",
+      "Bash(ls -la *.log)",
+      "Bash(find . -maxdepth 2 -iname \"*.log\")",
+      "Bash(grep -n \"fetch.*api/pelanggan/.*method.*PUT\\\\|method:\\\\s*'PUT'\\\\|/pelanggan/\\\\${\" app/frontend/pelanggan/pelanggan.js)",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('app/backend/api.py', encoding='utf-8'\\).read\\(\\)\\)\")",
+      "Bash(python -c \"import ast; [ast.parse\\(open\\(f, encoding='utf-8'\\).read\\(\\)\\) for f in ['api.py','olt.py','input.py','utils.py']]; print\\('OK syntax valid semua'\\)\")",
+      "Bash(grep -n \"_pelanggan\\\\s*=\\\\s*\\\\|_pelanggan = data\\\\|async function.*[Ll]oad\\\\|function _load\\\\|fetch\\(\\\\`\" /c/xampp/htdocs/billing/app/frontend/pelanggan/detail_pelanggan.js)",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('olt_sync.py', encoding='utf-8'\\).read\\(\\)\\); print\\('OK syntax valid'\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('api.py', encoding='utf-8'\\).read\\(\\)\\); print\\('OK syntax valid api.py'\\)\")",
+      "Bash(git show *)",
+      "Bash(where python *)",
+      "Bash(where python3 *)",
+      "Bash(where py *)",
+      "Bash(/c/xampp/htdocs/billing/.venv/Scripts/python.exe -c ' *)",
+      "Bash(where sqlite3 *)",
+      "Bash(\"/c/xampp/htdocs/billing/.venv/Scripts/python.exe\" -c \"import sqlite3; print\\(sqlite3.sqlite_version\\)\")"
+    ],
+    "additionalDirectories": [
+      "\\tmp"
     ]
   }
 }
