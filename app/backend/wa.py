@@ -11,7 +11,16 @@ Config (app_settings KV, per-owner):
   wa_url       = base URL gateway (wablas) / kosong (fonnte default)
   wa_token     = token API
   wa_enabled   = '1' | '0'
+  wa_auto_enabled = '1' | '0'  → pengingat tagihan otomatis (worker background)
   wa_tpl_reminder = template pesan (placeholder {nama}{nominal}{periode}{jatuh_tempo}{isp})
+
+Pengingat otomatis (lihat run_auto_reminders / _run_owner_auto_reminder):
+  Dijalankan dari worker background (pola _start_olt_sync_worker di input.py).
+  Untuk tiap tagihan belum_bayar dengan jatuh_tempo H-3, H (hari-H), atau H+3
+  (telat), kirim 1x pengingat — dicatat di wa_reminder_log (UNIQUE tagihan_id+
+  tipe) supaya tidak dobel walau worker jalan berkali-kali. Hanya aktif kalau
+  paket owner punya fitur 'broadcast', gateway live (enabled+token terisi),
+  DAN wa_auto_enabled='1'.
 
 Daftarkan di input.py:
   from wa import wa_bp
@@ -27,9 +36,10 @@ Endpoint (prefix /api/wa):
 
 import json
 import logging
+import sqlite3
 import urllib.request
 import urllib.parse
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from flask import Blueprint, request, jsonify, g
 from utils import get_db, get_network_row
 
@@ -48,12 +58,15 @@ def _wa_guard():
         return
     from auth import guard_request
     p = request.path.rstrip('/')
-    perm = 'keuangan' if p.endswith('/config') else 'pelanggan'
+    # Kirim pesan/blast WA pakai gateway & kuota milik ISP — jangan biarkan
+    # peran terbatas (mis. kolektor, yang cuma butuh 'pelanggan'+'bayar')
+    # memakainya untuk kirim pesan bebas. Minimal 'pelanggan_manage'.
+    perm = 'keuangan' if p.endswith('/config') else 'pelanggan_manage'
     return guard_request(perm=perm)
 
 
 # ── Config ─────────────────────────────────────────────────────
-_KEYS = ('wa_provider', 'wa_url', 'wa_token', 'wa_enabled', 'wa_tpl_reminder')
+_KEYS = ('wa_provider', 'wa_url', 'wa_token', 'wa_enabled', 'wa_auto_enabled', 'wa_tpl_reminder')
 
 
 def _load_config(conn):
@@ -63,11 +76,12 @@ def _load_config(conn):
     ).fetchall()
     d = {r['key']: r['value'] for r in rows}
     return {
-        'provider': d.get('wa_provider') or 'fonnte',
-        'url':      (d.get('wa_url') or '').rstrip('/'),
-        'token':    d.get('wa_token') or '',
-        'enabled':  (d.get('wa_enabled') or '0') == '1',
-        'template': d.get('wa_tpl_reminder') or DEFAULT_TPL,
+        'provider':     d.get('wa_provider') or 'fonnte',
+        'url':          (d.get('wa_url') or '').rstrip('/'),
+        'token':        d.get('wa_token') or '',
+        'enabled':      (d.get('wa_enabled') or '0') == '1',
+        'auto_enabled': (d.get('wa_auto_enabled') or '0') == '1',
+        'template':     d.get('wa_tpl_reminder') or DEFAULT_TPL,
     }
 
 
@@ -85,6 +99,7 @@ def get_config():
     return jsonify({'status': 'success', 'config': {
         'provider': cfg['provider'], 'url': cfg['url'],
         'enabled': cfg['enabled'], 'has_token': bool(cfg['token']),
+        'auto_enabled': cfg['auto_enabled'],
         'template': cfg['template'],
     }}), 200
 
@@ -101,6 +116,8 @@ def save_config():
     if 'token' in data and data.get('token') is not None and data.get('token') != '':
         _save_setting(conn, 'wa_token', str(data.get('token')))
     _save_setting(conn, 'wa_enabled', '1' if data.get('enabled') else '0')
+    if 'auto_enabled' in data:
+        _save_setting(conn, 'wa_auto_enabled', '1' if data.get('auto_enabled') else '0')
     if data.get('template'):
         _save_setting(conn, 'wa_tpl_reminder', str(data.get('template')))
     conn.commit(); conn.close()
@@ -198,13 +215,14 @@ def blast_reminder():
         isp = 'TechnoFix'
 
     conn = get_db(); cfg = _load_config(conn)
-    # gabung tagihan belum bayar dengan hp pelanggan
+    # gabung tagihan belum lunas (termasuk piutang yg sudah disetujui tapi
+    # belum dibayar) dengan hp pelanggan
     rows = conn.execute(
         '''SELECT t.nama, t.username, t.nominal, t.periode, t.jatuh_tempo,
                   COALESCE(p.hp,'') AS hp
            FROM tagihan t
            LEFT JOIN pelanggan p ON p.username = t.username
-           WHERE t.status='belum_bayar' AND t.periode=?''',
+           WHERE t.status IN ('belum_bayar','piutang') AND t.periode=?''',
         (periode,)
     ).fetchall()
 
@@ -251,3 +269,85 @@ def get_log():
         'keterangan': r['keterangan'], 'created_at': r['created_at'],
     } for r in rows]
     return jsonify({'status': 'success', 'log': items}), 200
+
+
+# ── Pengingat otomatis (worker background) ─────────────────────
+# Selisih hari (jatuh_tempo - hari ini) → tipe pengingat. Tiap kombinasi
+# tagihan_id+tipe hanya dikirim sekali (dijaga UNIQUE di wa_reminder_log).
+_AUTO_TIPE = {3: 'h3', 0: 'jatuh_tempo', -3: 'telat'}
+
+
+def _run_owner_auto_reminder(network_id):
+    """Kirim pengingat otomatis untuk satu owner. Aman dipanggil berulang —
+    wa_reminder_log mencegah pengingat dobel untuk tagihan+tipe yang sama."""
+    from packages import package_has_feature
+
+    net = get_network_row(network_id)
+    if not net or not package_has_feature(net['paket'], 'broadcast'):
+        return
+
+    from utils import get_owner_db, get_master_db
+
+    conn = get_owner_db(network_id)
+    try:
+        cfg = _load_config(conn)
+        if not (cfg['enabled'] and cfg['token'] and cfg['auto_enabled']):
+            return
+
+        isp = 'TechnoFix'
+        try:
+            master = get_master_db()
+            r = master.execute('SELECT isp_name FROM networks WHERE network_id=?', (network_id,)).fetchone()
+            master.close()
+            isp = (r['isp_name'] if r else '') or 'TechnoFix'
+        except Exception:
+            pass
+
+        today = date.today()
+        rows = conn.execute(
+            '''SELECT t.id, t.nama, t.username, t.nominal, t.periode, t.jatuh_tempo,
+                      COALESCE(p.hp,'') AS hp
+               FROM tagihan t
+               LEFT JOIN pelanggan p ON p.username = t.username
+               WHERE t.status IN ('belum_bayar','piutang') AND t.jatuh_tempo <> ''''',
+        ).fetchall()
+
+        for r in rows:
+            try:
+                jatuh = datetime.strptime(r['jatuh_tempo'][:10], '%Y-%m-%d').date()
+            except (ValueError, TypeError):
+                continue
+            tipe = _AUTO_TIPE.get((jatuh - today).days)
+            if not tipe or not (r['hp'] or '').strip():
+                continue
+            try:
+                conn.execute(
+                    'INSERT INTO wa_reminder_log (tagihan_id, tipe) VALUES (?, ?)',
+                    (r['id'], tipe))
+            except sqlite3.IntegrityError:
+                continue  # sudah pernah dikirim untuk tagihan+tipe ini
+
+            msg = _render_tpl(cfg['template'], isp, r['nama'] or r['username'],
+                              r['nominal'], r['periode'], r['jatuh_tempo'])
+            _do_send(conn, cfg, r['hp'], msg, r['nama'] or r['username'])
+            conn.commit()
+    finally:
+        conn.close()
+
+
+def run_auto_reminders():
+    """Iterasi semua owner & kirim pengingat otomatis yang jatuh hari ini.
+    Dipanggil dari worker background (lihat _start_wa_reminder_worker di input.py)."""
+    from utils import get_master_db
+    master = get_master_db()
+    try:
+        owners = master.execute('SELECT network_id FROM networks').fetchall()
+    finally:
+        master.close()
+
+    for row in owners:
+        nid = row['network_id']
+        try:
+            _run_owner_auto_reminder(nid)
+        except Exception as e:
+            log.error('[WA Auto Reminder] %s: %s', nid[:8], e)

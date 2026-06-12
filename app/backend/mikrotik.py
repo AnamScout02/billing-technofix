@@ -181,11 +181,29 @@ class MikroTikClient:
             raise MikroTikError(f'Gagal membaca koneksi aktif: {e}')
 
     def tambah_secret(self, data: dict):
-        """Menambahkan PPP Secret baru ke MikroTik."""
+        """
+        Menambahkan PPP Secret baru ke MikroTik.
+
+        RouterOS TIDAK mencegah nama PPP Secret duplikat (yang unik adalah
+        '.id', bukan 'name') — kalau dipanggil dua kali dengan username yang
+        sama, hasilnya dua baris secret dengan nama identik di router (terlihat
+        seperti "secret lama muncul lagi"). Maka sebelum menambah, cek dulu
+        apakah username sudah punya secret di router — kalau sudah, update
+        secret yang ada itu saja, jangan buat baris baru.
+        """
+        name = data.get('name')
         try:
-            api = self._get_api()
-            api.path('/ppp/secret').add(**data)
-            logger.info(f"PPP Secret '{data.get('name')}' berhasil ditambahkan ke MikroTik {self.ip}")
+            api    = self._get_api()
+            path   = api.path('/ppp/secret')
+            target = next((r for r in path.select(Key('.id'), Key('name'))
+                           if r.get('name') == name), None)
+            if target:
+                update = {k: v for k, v in data.items() if k != 'name' and v not in (None, '')}
+                path.update(**{'.id': target['.id'], **update})
+                logger.info(f"PPP Secret '{name}' sudah ada di MikroTik {self.ip} — diperbarui, bukan dibuat baru")
+            else:
+                path.add(**data)
+                logger.info(f"PPP Secret '{name}' berhasil ditambahkan ke MikroTik {self.ip}")
         except librouteros.exceptions.TrapError as e:
             raise MikroTikError(f'MikroTik error: {e}')
         except Exception as e:
@@ -412,10 +430,127 @@ class MikroTikClient:
 
     def get_all_vlan_by_secret(self) -> dict:
         """
-        Versi lengkap: join /ppp/secret → /ppp/active → /interface/vlan.
-        Berguna untuk mendapat VLAN semua pelanggan (tidak hanya online).
+        Resolve VLAN untuk SEMUA pelanggan (online maupun offline).
+
+        Strategi (berurutan):
+          1. Bangun peta subnet → VLAN dari /ip/address + /interface/vlan
+          2. User ONLINE  (/ppp/active)  : IP aktif → cari di subnet_vlan → VLAN
+          3. User OFFLINE (/ppp/secret)  : profile → local-address → cari di subnet_vlan → VLAN
 
         Return:
-          { username: vlan_id_str }  ← hanya yang berhasil di-resolve
+          { username: vlan_id_str }
         """
-        return self.get_active_vlan()
+        import ipaddress as _ip
+
+        api    = self._get_api()
+        result = {}
+
+        # ── 1. Peta interface → vlan_id ──────────────────────────
+        vlan_by_iface = {}
+        try:
+            for r in api.path('/interface/vlan').select(
+                Key('name'), Key('vlan-id'), Key('disabled')
+            ):
+                row = dict(r)
+                if row.get('disabled') in ('true', 'yes', True):
+                    continue
+                name = str(row.get('name', '') or '').strip()
+                vid  = str(row.get('vlan-id', '') or '').strip()
+                if name and vid:
+                    vlan_by_iface[name] = vid
+        except Exception as e:
+            logger.warning(f'[VLAN] /interface/vlan error: {e}')
+
+        # ── 2. Peta subnet CIDR → vlan_id ────────────────────────
+        # Contoh: vlan100 interface punya IP 192.168.100.1/24
+        #   → subnet 192.168.100.0/24 → VLAN 100
+        subnet_vlan = []  # list of (_ip.IPv4Network, vlan_id_str)
+        try:
+            for r in api.path('/ip/address').select(
+                Key('address'), Key('interface'), Key('disabled')
+            ):
+                row = dict(r)
+                if row.get('disabled') in ('true', 'yes', True):
+                    continue
+                iface = str(row.get('interface', '') or '').strip()
+                addr  = str(row.get('address', '') or '').strip()
+                if iface in vlan_by_iface and addr:
+                    try:
+                        net = _ip.ip_interface(addr).network
+                        subnet_vlan.append((net, vlan_by_iface[iface]))
+                    except ValueError:
+                        pass
+        except Exception as e:
+            logger.warning(f'[VLAN] /ip/address error: {e}')
+
+        def _ip_to_vlan(ip_str: str) -> str:
+            """Cocokkan IP ke subnet → kembalikan VLAN ID."""
+            if not ip_str:
+                return ''
+            try:
+                addr = _ip.ip_address(ip_str.split('/')[0])
+                for net, vid in subnet_vlan:
+                    if addr in net:
+                        return vid
+            except ValueError:
+                pass
+            return ''
+
+        # ── 3. User ONLINE: IP aktif dari /ppp/active ─────────────
+        try:
+            for r in api.path('/ppp/active').select(
+                Key('name'), Key('address'), Key('caller-id')
+            ):
+                row      = dict(r)
+                username = str(row.get('name', '') or '').strip()
+                address  = str(row.get('address', '') or '').strip()
+                if not username:
+                    continue
+                vlan = _ip_to_vlan(address)
+                if vlan:
+                    result[username] = vlan
+        except Exception as e:
+            logger.warning(f'[VLAN] /ppp/active error: {e}')
+
+        logger.info(f'[VLAN] Online users resolved: {len(result)}')
+
+        # ── 4. User OFFLINE: /ppp/secret → profile → local-address ─
+        # Setiap PPP profile punya local-address (IP sisi MikroTik)
+        # yang biasanya berada di subnet VLAN tertentu.
+        try:
+            profile_addr = {}
+            for r in api.path('/ppp/profile').select(
+                Key('name'), Key('local-address')
+            ):
+                row   = dict(r)
+                pname = str(row.get('name', '') or '').strip()
+                laddr = str(row.get('local-address', '') or '').strip()
+                if pname and laddr and laddr not in ('0.0.0.0', ''):
+                    profile_addr[pname] = laddr
+
+            offline_resolved = 0
+            for r in api.path('/ppp/secret').select(
+                Key('name'), Key('profile'), Key('disabled')
+            ):
+                row      = dict(r)
+                if row.get('disabled') in ('true', 'yes', True):
+                    continue
+                username = str(row.get('name', '') or '').strip()
+                if not username or username in result:
+                    continue
+                profile   = str(row.get('profile', '') or '').strip()
+                local_ip  = profile_addr.get(profile, '')
+                vlan      = _ip_to_vlan(local_ip)
+                if vlan:
+                    result[username] = vlan
+                    offline_resolved += 1
+
+            logger.info(f'[VLAN] Offline users resolved via profile: {offline_resolved}')
+
+        except Exception as e:
+            logger.warning(f'[VLAN] /ppp/secret resolve error: {e}')
+
+        logger.info(
+            f'[VLAN] Total resolved: {len(result)} dari MikroTik {self.ip}'
+        )
+        return result

@@ -52,9 +52,14 @@ auth_bp = Blueprint('auth', __name__)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 logger = logging.getLogger(__name__)
 
-# Batas durasi sesi sejak login pertama (bukan sejak request terakhir).
-# Lewat batas ini user harus login ulang meski masih aktif.
-SESSION_LEASE_HOURS = 1
+# Batas waktu IDLE (sliding session): timer direset tiap kali user melakukan
+# request terautentikasi. User yang terus aktif tidak akan ter-logout paksa;
+# hanya yang diam/idle melebihi batas ini yang harus login ulang.
+SESSION_IDLE_HOURS = 2
+
+# Maksimal jumlah perangkat/browser yang boleh login bersamaan per akun.
+# Login ke-(N+1) akan menggeser keluar sesi paling lama (FIFO).
+MAX_DEVICE_SESSIONS = 2
 
 
 # ══════════════════════════════════════════════════════════════
@@ -114,6 +119,54 @@ def init_auth_tables():
         conn.execute("ALTER TABLE users ADD COLUMN session_token TEXT DEFAULT ''")
     except Exception:
         pass
+    # Migrasi: daftar token sesi aktif (JSON array, maks MAX_DEVICE_SESSIONS)
+    # — menggantikan session_token tunggal agar bisa login di beberapa
+    # perangkat sekaligus. Kolom lama dibiarkan apa adanya (tidak dipakai lagi).
+    try:
+        conn.execute("ALTER TABLE users ADD COLUMN session_tokens TEXT DEFAULT '[]'")
+    except Exception:
+        pass
+    # Migrasi: batas perangkat per akun (NULL = pakai default MAX_DEVICE_SESSIONS).
+    # Diatur Owner lewat halaman Manajemen User.
+    try:
+        conn.execute("ALTER TABLE users ADD COLUMN max_devices INTEGER DEFAULT NULL")
+    except Exception:
+        pass
+    # Owner default-nya 3 (lebih besar dari anggota tim yang fallback ke
+    # MAX_DEVICE_SESSIONS=2) — tetap dibatasi jatah paket via min(...) saat
+    # login. Backfill sekali untuk akun owner lama yang masih NULL; idempotent.
+    try:
+        conn.execute("UPDATE users SET max_devices = 3 WHERE role = 'owner' AND max_devices IS NULL")
+    except Exception:
+        pass
+    # Migrasi: profil & RBAC user (nama, permissions per-user, status aktif, no HP)
+    # — wajib ada agar /me, /team, /invite tidak error "no such column" pada
+    # instance baru (sebelumnya hanya ditambahkan via skrip migrate_users.py).
+    for sql in (
+        "ALTER TABLE users ADD COLUMN nama TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE users ADD COLUMN permissions TEXT NOT NULL DEFAULT '[]'",
+        "ALTER TABLE users ADD COLUMN aktif INTEGER NOT NULL DEFAULT 1",
+        "ALTER TABLE users ADD COLUMN hp TEXT DEFAULT ''",
+    ):
+        try:
+            conn.execute(sql)
+        except Exception:
+            pass
+
+    # Audit log aksi manajemen user (invite, nonaktifkan, hapus, dst) per
+    # workspace — ditampilkan di halaman Manajemen User agar Owner bisa
+    # melacak siapa melakukan apa.
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS audit_log (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            network_id  TEXT    NOT NULL,
+            actor       TEXT    NOT NULL DEFAULT '',
+            action      TEXT    NOT NULL,
+            target      TEXT    DEFAULT '',
+            detail      TEXT    DEFAULT '',
+            created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
 
     # Tabel permintaan upgrade paket (owner → superadmin approve)
     conn.execute('''
@@ -162,45 +215,50 @@ def init_superadmin_table():
 init_superadmin_table()
 
 
-def init_platform_tables():
-    """Tabel platform-level di master DB: platform_settings, genieacs_devices."""
-    conn = get_db()
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS platform_settings (
-            key        TEXT PRIMARY KEY,
-            value      TEXT DEFAULT '',
-            updated_at TEXT DEFAULT ''
-        )
-    ''')
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS genieacs_devices (
-            id         INTEGER PRIMARY KEY AUTOINCREMENT,
-            device_id  TEXT NOT NULL UNIQUE,
-            serial     TEXT DEFAULT '',
-            network_id TEXT NOT NULL,
-            linked_at  TEXT DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    conn.commit()
-    conn.close()
-
-
-init_platform_tables()
 
 
 # ══════════════════════════════════════════════════════════════
 # HELPER — Ambil user dari session
 # ══════════════════════════════════════════════════════════════
 
+def _parse_session_tokens(raw: str) -> list:
+    """Parse kolom session_tokens (JSON array) — toleran terhadap nilai kosong/rusak."""
+    import json as _json
+    try:
+        tokens = _json.loads(raw or '[]')
+        return tokens if isinstance(tokens, list) else []
+    except Exception:
+        return []
+
+
+def log_audit(network_id: str, actor: str, action: str, target: str = '', detail: str = ''):
+    """
+    Catat satu baris audit log untuk aksi manajemen user (invite, nonaktifkan,
+    ubah batas perangkat, hapus anggota, dll). Gagal-aman — error apa pun
+    di sini tidak boleh menggagalkan aksi utamanya.
+    """
+    try:
+        conn = get_db()
+        conn.execute(
+            'INSERT INTO audit_log (network_id, actor, action, target, detail) VALUES (?, ?, ?, ?, ?)',
+            (network_id, actor, action, target, detail)
+        )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logger.warning(f'[Auth] Gagal mencatat audit log: {e}')
+
+
 def get_current_user() -> dict | None:
     """
     Baca session aktif dan kembalikan data user dari database.
     Return None jika tidak ada session valid.
 
-    Termasuk cek single-device login: token sesi yang tersimpan di
-    cookie harus cocok dengan token aktif di DB (`users.session_token`).
-    Token beda berarti akun sudah login ulang di perangkat/browser lain
-    — sesi ini otomatis dianggap habis (lihat g._session_replaced).
+    Termasuk cek multi-device login (maks MAX_DEVICE_SESSIONS): token sesi
+    yang tersimpan di cookie harus ada di daftar token aktif di DB
+    (`users.session_tokens`, JSON array berisi token tiap perangkat yang
+    masih login). Token tidak ditemukan berarti sesi ini sudah digeser
+    keluar oleh login baru (FIFO) — dianggap habis (lihat g._session_replaced).
     """
     user_id    = session.get('user_id')
     network_id = session.get('network_id')
@@ -210,7 +268,7 @@ def get_current_user() -> dict | None:
 
     conn = get_db()
     row  = conn.execute(
-        '''SELECT u.id, u.username, u.role, u.network_id, u.session_token, n.isp_name
+        '''SELECT u.id, u.username, u.role, u.network_id, u.session_tokens, n.isp_name
            FROM users u
            JOIN networks n ON n.network_id = u.network_id
            WHERE u.id = ? AND u.network_id = ?''',
@@ -221,7 +279,8 @@ def get_current_user() -> dict | None:
     if not row:
         return None
 
-    if row['session_token'] and session.get('session_token') != row['session_token']:
+    active_tokens = _parse_session_tokens(row['session_tokens'])
+    if active_tokens and session.get('session_token') not in active_tokens:
         session.clear()
         g._session_replaced = True
         return None
@@ -281,7 +340,9 @@ def guard_request(allow_locked: bool = False, perm: str = None):
     """
     Guard terpusat untuk before_request blueprint data.
       - Wajib login (set g.current_user, g.network_id)
-      - Tolak jika sesi melebihi SESSION_LEASE_HOURS sejak login (paksa login ulang)
+      - Sliding/idle timeout: tolak jika TIDAK ADA aktivitas selama lebih dari
+        SESSION_IDLE_HOURS (paksa login ulang). Selama user terus aktif,
+        timer 'last_seen' direset tiap request — tidak akan ter-logout paksa.
       - Tolak jika langganan terkunci (trial habis / expired), kecuali
         allow_locked=True.
       - Jika `perm` diberikan: tolak bila peran user tidak punya permission
@@ -293,16 +354,20 @@ def guard_request(allow_locked: bool = False, perm: str = None):
     if not user:
         return _sesi_habis_response()
 
-    login_at = session.get('login_at')
-    if login_at:
+    now      = datetime.now()
+    last_seen = session.get('last_seen') or session.get('login_at')
+    if last_seen:
         try:
-            if datetime.now() - datetime.fromisoformat(login_at) > timedelta(hours=SESSION_LEASE_HOURS):
+            if now - datetime.fromisoformat(last_seen) > timedelta(hours=SESSION_IDLE_HOURS):
                 session.clear()
                 return jsonify({'status': 'error', 'code': 'session_expired',
-                                'message': 'Sesi login telah berakhir, silakan login kembali'}), 401
+                                'message': 'Sesi login telah berakhir karena tidak ada aktivitas, silakan login kembali'}), 401
         except (ValueError, TypeError):
             session.clear()
             return jsonify({'status': 'error', 'message': 'Sesi tidak valid, silakan login kembali'}), 401
+
+    # Aktif → reset timer idle (sliding session)
+    session['last_seen'] = now.isoformat()
     g.current_user = user
     g.network_id   = user['network_id']
 
@@ -346,6 +411,30 @@ def owner_required(f):
             return _sesi_habis_response()
         if user['role'] != 'owner':
             return jsonify({'status': 'error', 'message': 'Akses ditolak. Hanya Owner yang diizinkan'}), 403
+        g.current_user = user
+        g.network_id   = user['network_id']   # → dipakai get_db() owner-aware
+        return f(*args, **kwargs)
+    return decorated
+
+
+def manajemen_user_required(f):
+    """
+    Decorator: Owner atau Admin (peran dengan permission 'manajemen_user')
+    yang boleh akses. Otomatis mencakup @login_required.
+
+    Selaras dengan roles.py — admin = "operasional penuh" termasuk kelola
+    tim, jadi endpoint manajemen tim tidak boleh dikunci ke Owner saja
+    (sebelumnya pakai @owner_required, membuat halaman Manajemen User
+    selalu 403 untuk Admin meski menu & PAGE_PERM_MAP sudah mengizinkannya).
+    """
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        user = get_current_user()
+        if not user:
+            return _sesi_habis_response()
+        from roles import role_has
+        if not role_has(user['role'], 'manajemen_user'):
+            return jsonify({'status': 'error', 'message': 'Akses ditolak. Anda tidak punya izin kelola tim'}), 403
         g.current_user = user
         g.network_id   = user['network_id']   # → dipakai get_db() owner-aware
         return f(*args, **kwargs)
@@ -401,11 +490,13 @@ def register():
 
     conn = get_db()
 
-    # Cek apakah username sudah dipakai di seluruh sistem (opsional, bisa per-ISP)
+    # Cek apakah username sudah dipakai di seluruh sistem (termasuk akun superadmin)
     existing = conn.execute(
         'SELECT id FROM users WHERE username = ?', (username,)
     ).fetchone()
-    if existing:
+    if existing or conn.execute(
+        'SELECT id FROM superadmins WHERE username = ?', (username,)
+    ).fetchone():
         conn.close()
         return jsonify({'status': 'error', 'message': 'Username sudah digunakan'}), 409
 
@@ -422,8 +513,8 @@ def register():
             (network_id, isp_name, paket, trial_end)
         )
         conn.execute(
-            '''INSERT INTO users (network_id, username, password_hash, role)
-               VALUES (?, ?, ?, 'owner')''',
+            '''INSERT INTO users (network_id, username, password_hash, role, max_devices)
+               VALUES (?, ?, ?, 'owner', 3)''',
             (network_id, username, password_hash)
         )
         conn.commit()
@@ -521,12 +612,23 @@ def login():
     except Exception:
         permissions = []
 
-    # Single-device login: buat token sesi baru & simpan ke DB.
-    # Sesi lama (di perangkat/browser lain) otomatis ditolak pada
-    # request berikutnya karena token-nya sudah tidak cocok lagi.
+    # Multi-device login (maks sesuai jatah paket & pengaturan owner): tambahkan
+    # token baru ke daftar token aktif. Kalau sudah penuh, token paling lama
+    # digeser keluar (FIFO) — sesi di perangkat itu otomatis ditolak pada
+    # request berikutnya. Batas akhir = min(setting per-akun, jatah paket).
+    from utils import get_network_package
+    from packages import package_limit
     new_token = secrets.token_hex(32)
     conn = get_db()
-    conn.execute('UPDATE users SET session_token = ? WHERE id = ?', (new_token, row['id']))
+    existing_row = conn.execute('SELECT session_tokens, max_devices FROM users WHERE id = ?', (row['id'],)).fetchone()
+    active_tokens = _parse_session_tokens(existing_row['session_tokens'] if existing_row else None)
+    pkg_limit    = package_limit(get_network_package(row['network_id']), 'max_devices')
+    user_limit   = (existing_row['max_devices'] if existing_row else None) or MAX_DEVICE_SESSIONS
+    device_limit = min(user_limit, pkg_limit) if pkg_limit is not None else user_limit
+    active_tokens.append(new_token)
+    active_tokens = active_tokens[-device_limit:]
+    conn.execute('UPDATE users SET session_tokens = ?, session_token = ? WHERE id = ?',
+                 (_json.dumps(active_tokens), new_token, row['id']))
     conn.commit()
     conn.close()
 
@@ -536,7 +638,9 @@ def login():
     session['network_id']    = row['network_id']
     session['session_token'] = new_token
     from datetime import datetime as _dt
-    session['login_at']      = _dt.now().isoformat()
+    _now_iso = _dt.now().isoformat()
+    session['login_at']      = _now_iso
+    session['last_seen']     = _now_iso
     session.permanent        = True   # Durasi diatur di app.py via PERMANENT_SESSION_LIFETIME
 
     user_data = {
@@ -563,12 +667,19 @@ def login():
 
 @auth_bp.route('/logout', methods=['POST'])
 def logout():
-    """Hapus session, kosongkan token sesi di DB, lalu kembalikan response sukses."""
-    user_id = session.get('user_id', 'unknown')
+    """Hapus session, buang token perangkat ini dari daftar token aktif di DB."""
+    user_id        = session.get('user_id', 'unknown')
+    current_token  = session.get('session_token')
     if isinstance(user_id, int):
         try:
             conn = get_db()
-            conn.execute("UPDATE users SET session_token = '' WHERE id = ?", (user_id,))
+            import json as _json
+            row = conn.execute('SELECT session_tokens FROM users WHERE id = ?', (user_id,)).fetchone()
+            active_tokens = _parse_session_tokens(row['session_tokens'] if row else None)
+            if current_token in active_tokens:
+                active_tokens.remove(current_token)
+            conn.execute('UPDATE users SET session_tokens = ? WHERE id = ?',
+                         (_json.dumps(active_tokens), user_id))
             conn.commit()
             conn.close()
         except Exception:
@@ -654,11 +765,11 @@ def update_me():
 
 # ══════════════════════════════════════════════════════════════
 # ENDPOINT 5 — POST /api/auth/invite
-# Owner mengundang Teknisi (invite-only)
+# Owner/Admin mengundang anggota tim baru (invite-only)
 # ══════════════════════════════════════════════════════════════
 
 @auth_bp.route('/invite', methods=['POST'])
-@owner_required
+@manajemen_user_required
 def invite_teknisi():
     """
     Owner membuat akun Teknisi baru dalam jaringannya.
@@ -694,7 +805,8 @@ def invite_teknisi():
     from utils import get_network_package
     from packages import package_limit
     conn = get_db()
-    team_limit = package_limit(get_network_package(network_id), 'team')
+    paket = get_network_package(network_id)
+    team_limit = package_limit(paket, 'team')
     if team_limit is not None:
         jml = conn.execute(
             'SELECT COUNT(*) FROM users WHERE network_id = ?', (network_id,)
@@ -704,10 +816,24 @@ def invite_teknisi():
             return jsonify({'status': 'error',
                             'message': f'Batas anggota tim paket tercapai ({jml}/{team_limit}). Upgrade paket.'}), 403
 
+    # ── Batas akun kolektor (loket) sesuai paket ──
+    if role == 'kolektor':
+        loket_limit = package_limit(paket, 'loket')
+        if loket_limit is not None:
+            jml_kolektor = conn.execute(
+                "SELECT COUNT(*) FROM users WHERE network_id = ? AND role = 'kolektor'", (network_id,)
+            ).fetchone()[0]
+            if jml_kolektor >= loket_limit:
+                conn.close()
+                return jsonify({'status': 'error',
+                                'message': f'Batas akun kolektor paket tercapai ({jml_kolektor}/{loket_limit}). Upgrade paket.'}), 403
+
     existing = conn.execute(
         'SELECT id FROM users WHERE username = ?', (username,)
     ).fetchone()
-    if existing:
+    if existing or conn.execute(
+        'SELECT id FROM superadmins WHERE username = ?', (username,)
+    ).fetchone():
         conn.close()
         return jsonify({'status': 'error', 'message': 'Username sudah digunakan'}), 409
 
@@ -721,6 +847,7 @@ def invite_teknisi():
         )
         conn.commit()
         logger.info(f'[Auth] {role} baru: {username} @ {network_id} (oleh {g.current_user["username"]})')
+        log_audit(network_id, g.current_user['username'], 'invite', username, f'role={role}')
     except Exception as e:
         conn.rollback()
         conn.close()
@@ -737,21 +864,21 @@ def invite_teknisi():
 
 # ══════════════════════════════════════════════════════════════
 # ENDPOINT 6 — GET /api/auth/team
-# Daftar anggota tim dalam satu network (Owner only)
+# Daftar anggota tim dalam satu network (Owner & Admin)
 # ══════════════════════════════════════════════════════════════
 
 @auth_bp.route('/team', methods=['GET'])
-@owner_required
+@manajemen_user_required
 def get_team():
-    """
-    Kembalikan daftar semua user dalam jaringan milik Owner.
-    Hanya Owner yang bisa melihat daftar ini.
-    """
+    """Kembalikan daftar semua user dalam jaringan ini (Owner & Admin)."""
     import json as _json
+    from utils import get_network_package
+    from packages import package_limit
     network_id = g.current_user['network_id']
+    pkg_limit  = package_limit(get_network_package(network_id), 'max_devices')
     conn = get_db()
     rows = conn.execute(
-        '''SELECT id, username, role, nama, permissions, aktif, created_at
+        '''SELECT id, username, role, nama, permissions, aktif, created_at, max_devices
            FROM users
            WHERE network_id = ?
            ORDER BY role DESC, username''',
@@ -775,22 +902,58 @@ def get_team():
             'permissions': perms,
             'aktif':       1 if (r['aktif'] is None or r['aktif'] == 1) else 0,
             'created_at':  r['created_at'],
+            'max_devices': r['max_devices'] if r['max_devices'] else MAX_DEVICE_SESSIONS,
         })
 
-    return jsonify({'status': 'success', 'members': members}), 200
+    return jsonify({'status': 'success', 'members': members,
+                    'max_devices_pkg_limit': pkg_limit}), 200
+
+
+# ── GET /api/auth/audit-log — riwayat aksi manajemen user ───────
+@auth_bp.route('/audit-log', methods=['GET'])
+@manajemen_user_required
+def get_audit_log():
+    """Kembalikan riwayat aksi manajemen user terbaru (Owner & Admin)."""
+    network_id = g.current_user['network_id']
+    try:
+        limit = int(request.args.get('limit', 50))
+    except (TypeError, ValueError):
+        limit = 50
+    limit = max(1, min(limit, 200))
+
+    conn = get_db()
+    rows = conn.execute(
+        '''SELECT actor, action, target, detail, created_at
+           FROM audit_log
+           WHERE network_id = ?
+           ORDER BY id DESC
+           LIMIT ?''',
+        (network_id, limit)
+    ).fetchall()
+    conn.close()
+
+    logs = [{
+        'actor':      r['actor'],
+        'action':     r['action'],
+        'target':     r['target'],
+        'detail':     r['detail'],
+        'created_at': r['created_at'],
+    } for r in rows]
+
+    return jsonify({'status': 'success', 'logs': logs}), 200
 
 
 # ── POST /api/auth/team/<id>/toggle — aktif/nonaktif anggota ────
 @auth_bp.route('/team/<int:target_id>/toggle', methods=['POST'])
-@owner_required
+@manajemen_user_required
 def toggle_team_member(target_id):
-    """Aktifkan / nonaktifkan anggota tim (Owner only, bukan diri sendiri)."""
+    """Aktifkan / nonaktifkan anggota tim (Owner & Admin, bukan diri sendiri)."""
     network_id = g.current_user['network_id']
     if target_id == g.current_user['id']:
         return jsonify({'status': 'error', 'message': 'Tidak bisa menonaktifkan akun sendiri'}), 400
     conn = get_db()
     row = conn.execute(
-        'SELECT aktif, role FROM users WHERE id = ? AND network_id = ?',
+        'SELECT username, aktif, role FROM users WHERE id = ? AND network_id = ?',
         (target_id, network_id)
     ).fetchone()
     if not row:
@@ -802,21 +965,65 @@ def toggle_team_member(target_id):
     baru = 0 if (row['aktif'] is None or row['aktif'] == 1) else 1
     conn.execute('UPDATE users SET aktif = ? WHERE id = ?', (baru, target_id))
     conn.commit(); conn.close()
+    log_audit(network_id, g.current_user['username'],
+              'aktifkan_user' if baru else 'nonaktifkan_user', row['username'])
     return jsonify({'status': 'success', 'aktif': baru,
                     'message': 'User diaktifkan' if baru else 'User dinonaktifkan'}), 200
 
 
+# ── POST /api/auth/team/<id>/max-devices — atur batas perangkat ─
+@auth_bp.route('/team/<int:target_id>/max-devices', methods=['POST'])
+@manajemen_user_required
+def set_max_devices(target_id):
+    """
+    Atur batas jumlah perangkat login bersamaan untuk satu akun (Owner & Admin).
+    Batas atas mengikuti jatah 'max_devices' pada paket langganan owner —
+    upgrade paket untuk menaikkan jatah ini.
+    """
+    from utils import get_network_package
+    from packages import package_limit
+
+    network_id = g.current_user['network_id']
+    data = request.get_json(silent=True) or {}
+    try:
+        nilai = int(data.get('max_devices'))
+    except (TypeError, ValueError):
+        return jsonify({'status': 'error', 'message': 'Jumlah perangkat tidak valid'}), 400
+
+    pkg_limit = package_limit(get_network_package(network_id), 'max_devices')
+    batas_atas = pkg_limit if pkg_limit is not None else 10
+    if nilai < 1 or nilai > batas_atas:
+        return jsonify({'status': 'error',
+                        'message': f'Jumlah perangkat harus antara 1-{batas_atas} sesuai jatah paket langganan. Upgrade paket untuk jatah lebih besar.'}), 403
+
+    conn = get_db()
+    row = conn.execute(
+        'SELECT id, username FROM users WHERE id = ? AND network_id = ?',
+        (target_id, network_id)
+    ).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({'status': 'error', 'message': 'User tidak ditemukan'}), 404
+
+    conn.execute('UPDATE users SET max_devices = ? WHERE id = ?', (nilai, target_id))
+    conn.commit()
+    conn.close()
+    logger.info(f'[Auth] Batas perangkat user #{target_id} diubah ke {nilai} oleh {g.current_user["username"]}')
+    log_audit(network_id, g.current_user['username'], 'ubah_max_devices', row['username'], f'max_devices={nilai}')
+    return jsonify({'status': 'success', 'message': f'Batas perangkat diubah ke {nilai}', 'max_devices': nilai}), 200
+
+
 # ══════════════════════════════════════════════════════════════
 # ENDPOINT 7 — DELETE /api/auth/team/<user_id>
-# Hapus anggota tim (Owner only, tidak bisa hapus diri sendiri)
+# Hapus anggota tim (Owner & Admin, tidak bisa hapus diri sendiri)
 # ══════════════════════════════════════════════════════════════
 
 @auth_bp.route('/team/<int:target_id>', methods=['DELETE'])
-@owner_required
+@manajemen_user_required
 def remove_team_member(target_id):
     """
-    Hapus akun Teknisi dari jaringan.
-    Owner tidak bisa menghapus akunnya sendiri.
+    Hapus akun anggota tim dari jaringan.
+    Tidak bisa menghapus akun sendiri atau akun Owner lain.
     """
     owner = g.current_user
 
@@ -848,6 +1055,7 @@ def remove_team_member(target_id):
     conn.close()
 
     logger.info(f'[Auth] Hapus user: {target["username"]} oleh {owner["username"]}')
+    log_audit(owner['network_id'], owner['username'], 'hapus_user', target['username'], f'role={target["role"]}')
     return jsonify({'status': 'success', 'message': f'Akun {target["username"]} berhasil dihapus'}), 200
 
 
@@ -867,7 +1075,10 @@ def upgrade_request():
     from packages import PACKAGES
     data  = request.get_json(silent=True) or {}
     paket = (data.get('paket', '') or '').strip().lower()
-    bulan = int(data.get('bulan', 1) or 1)
+    try:
+        bulan = int(data.get('bulan', 1) or 1)
+    except (TypeError, ValueError):
+        bulan = 1
     if paket not in PACKAGES or paket == 'trial':
         return jsonify({'status': 'error', 'message': 'Paket tidak valid'}), 400
 
@@ -1001,7 +1212,8 @@ def admin_list_networks():
     rows  = conn.execute(
         '''SELECT n.network_id, n.isp_name, n.created_at,
                   n.paket, n.status, n.trial_end, n.expired_at,
-                  COUNT(u.id) AS jumlah_user
+                  COUNT(u.id) AS jumlah_user,
+                  SUM(CASE WHEN u.aktif IS NULL OR u.aktif = 1 THEN 1 ELSE 0 END) AS jumlah_user_aktif
            FROM networks n
            LEFT JOIN users u ON u.network_id = n.network_id
            GROUP BY n.network_id
@@ -1012,11 +1224,20 @@ def admin_list_networks():
     out = []
     for r in rows:
         paket = r['paket'] or 'trial'
+        jumlah_pelanggan = 0
+        try:
+            odb = get_owner_db(r['network_id'])
+            jumlah_pelanggan = odb.execute('SELECT COUNT(*) AS c FROM pelanggan').fetchone()['c']
+            odb.close()
+        except Exception as e:
+            logger.warning(f'[SuperAdmin] Gagal baca jumlah pelanggan owner {r["network_id"]}: {e}')
         out.append({
             'network_id':  r['network_id'],
             'isp_name':    r['isp_name'],
             'created_at':  r['created_at'],
             'jumlah_user': r['jumlah_user'],
+            'jumlah_user_aktif': r['jumlah_user_aktif'] or 0,
+            'jumlah_pelanggan': jumlah_pelanggan,
             'paket':       paket,
             'paket_nama':  get_package(paket)['name'],
             'status':      r['status'] or 'trial',
@@ -1040,7 +1261,10 @@ def admin_activate(network_id):
     from datetime import datetime, timedelta
     data  = request.get_json(silent=True) or {}
     paket = (data.get('paket', '') or '').strip().lower()
-    bulan = int(data.get('bulan', 1) or 1)
+    try:
+        bulan = int(data.get('bulan', 1) or 1)
+    except (TypeError, ValueError):
+        bulan = 1
     if paket not in PACKAGES or paket == 'trial':
         return jsonify({'status': 'error', 'message': 'Paket tidak valid'}), 400
 
@@ -1056,6 +1280,7 @@ def admin_activate(network_id):
         (paket, expired, network_id)
     )
     conn.commit(); conn.close()
+    log_admin_action('Aktivasi paket', target=net['isp_name'], detail=f'{paket} ({bulan} bulan)')
     logger.info(f'[SuperAdmin] Aktivasi {net["isp_name"]} → {paket} ({bulan} bln)')
     return jsonify({'status': 'success', 'message': f'{net["isp_name"]} aktif paket {paket} ({bulan} bulan)',
                     'expired_at': expired}), 200
@@ -1066,10 +1291,12 @@ def admin_activate(network_id):
 @superadmin_required
 def admin_suspend(network_id):
     conn = get_db()
-    if not conn.execute('SELECT 1 FROM networks WHERE network_id=?', (network_id,)).fetchone():
+    net = conn.execute('SELECT isp_name FROM networks WHERE network_id=?', (network_id,)).fetchone()
+    if not net:
         conn.close(); return jsonify({'status': 'error', 'message': 'Tidak ditemukan'}), 404
     conn.execute("UPDATE networks SET status='suspended' WHERE network_id=?", (network_id,))
     conn.commit(); conn.close()
+    log_admin_action('Suspend owner', target=net['isp_name'])
     return jsonify({'status': 'success', 'message': 'Owner disuspend'}), 200
 
 
@@ -1078,12 +1305,13 @@ def admin_suspend(network_id):
 def admin_unsuspend(network_id):
     """Kembalikan dari suspend → active (jika punya expired valid) / locked."""
     conn = get_db()
-    row = conn.execute('SELECT expired_at FROM networks WHERE network_id=?', (network_id,)).fetchone()
+    row = conn.execute('SELECT isp_name, expired_at FROM networks WHERE network_id=?', (network_id,)).fetchone()
     if not row:
         conn.close(); return jsonify({'status': 'error', 'message': 'Tidak ditemukan'}), 404
     new_status = 'active' if (row['expired_at'] or '') else 'locked'
     conn.execute("UPDATE networks SET status=? WHERE network_id=?", (new_status, network_id))
     conn.commit(); conn.close()
+    log_admin_action('Cabut suspend owner', target=row['isp_name'], detail=f'status -> {new_status}')
     return jsonify({'status': 'success', 'message': 'Suspend dicabut', 'status_baru': new_status}), 200
 
 
@@ -1094,11 +1322,20 @@ def admin_extend_trial(network_id):
     """Body: { "hari": 7 } → perpanjang trial_end + N hari, status trial."""
     from datetime import datetime, timedelta
     data = request.get_json(silent=True) or {}
-    hari = int(data.get('hari', 7) or 7)
+    try:
+        hari = int(data.get('hari', 7) or 7)
+    except (TypeError, ValueError):
+        hari = 7
     conn = get_db()
-    row = conn.execute('SELECT trial_end FROM networks WHERE network_id=?', (network_id,)).fetchone()
+    row = conn.execute('SELECT isp_name, status, trial_end FROM networks WHERE network_id=?', (network_id,)).fetchone()
     if not row:
         conn.close(); return jsonify({'status': 'error', 'message': 'Tidak ditemukan'}), 404
+    if row['status'] == 'active':
+        conn.close()
+        return jsonify({'status': 'error',
+                         'message': 'Owner ini sudah punya langganan berbayar aktif. '
+                                     'Gunakan "Aktifkan Paket" untuk mengubah masa berlaku, '
+                                     'jangan "Perpanjang Trial" (akan menurunkan status menjadi trial).'}), 400
     base = datetime.now()
     try:
         if row['trial_end']:
@@ -1110,6 +1347,7 @@ def admin_extend_trial(network_id):
     new_end = (base + timedelta(days=hari)).isoformat()
     conn.execute("UPDATE networks SET status='trial', trial_end=? WHERE network_id=?", (new_end, network_id))
     conn.commit(); conn.close()
+    log_admin_action('Perpanjang trial', target=row['isp_name'], detail=f'+{hari} hari')
     return jsonify({'status': 'success', 'message': f'Trial diperpanjang {hari} hari', 'trial_end': new_end}), 200
 
 
@@ -1143,12 +1381,15 @@ def admin_approve_request(req_id):
     r = conn.execute('SELECT * FROM upgrade_requests WHERE id=?', (req_id,)).fetchone()
     if not r:
         conn.close(); return jsonify({'status': 'error', 'message': 'Permintaan tidak ditemukan'}), 404
+    if r['status'] != 'pending':
+        conn.close(); return jsonify({'status': 'error', 'message': f'Permintaan ini sudah diproses ({r["status"]})'}), 409
     expired = (datetime.now() + timedelta(days=30 * int(r['bulan'] or 1))).isoformat()
     conn.execute("UPDATE networks SET paket=?, status='active', expired_at=? WHERE network_id=?",
                  (r['paket'], expired, r['network_id']))
     conn.execute("UPDATE upgrade_requests SET status='approved', handled_at=? WHERE id=?",
                  (datetime.now().isoformat(), req_id))
     conn.commit(); conn.close()
+    log_admin_action('Setujui permintaan upgrade', target=r['isp_name'], detail=f'{r["paket"]} ({r["bulan"]} bulan)')
     logger.info(f'[Upgrade] APPROVE {r["isp_name"]} -> {r["paket"]}')
     return jsonify({'status': 'success', 'message': f'{r["isp_name"]} diaktifkan paket {r["paket"]}'}), 200
 
@@ -1158,11 +1399,15 @@ def admin_approve_request(req_id):
 def admin_reject_request(req_id):
     from datetime import datetime
     conn = get_db()
-    if not conn.execute('SELECT 1 FROM upgrade_requests WHERE id=?', (req_id,)).fetchone():
+    r = conn.execute('SELECT isp_name, status FROM upgrade_requests WHERE id=?', (req_id,)).fetchone()
+    if not r:
         conn.close(); return jsonify({'status': 'error', 'message': 'Tidak ditemukan'}), 404
+    if r['status'] != 'pending':
+        conn.close(); return jsonify({'status': 'error', 'message': f'Permintaan ini sudah diproses ({r["status"]})'}), 409
     conn.execute("UPDATE upgrade_requests SET status='rejected', handled_at=? WHERE id=?",
                  (datetime.now().isoformat(), req_id))
     conn.commit(); conn.close()
+    log_admin_action('Tolak permintaan upgrade', target=r['isp_name'])
     return jsonify({'status': 'success', 'message': 'Permintaan ditolak'}), 200
 
 
@@ -1180,22 +1425,48 @@ def admin_delete_network(network_id):
         conn.close()
         return jsonify({'status': 'error', 'message': 'Jaringan tidak ditemukan'}), 404
 
-    conn.execute('DELETE FROM users    WHERE network_id = ?', (network_id,))
-    conn.execute('DELETE FROM networks WHERE network_id = ?', (network_id,))
+    conn.execute('DELETE FROM users            WHERE network_id = ?', (network_id,))
+    conn.execute('DELETE FROM upgrade_requests WHERE network_id = ?', (network_id,))
+    conn.execute('DELETE FROM audit_log        WHERE network_id = ?', (network_id,))
+    conn.execute('DELETE FROM networks         WHERE network_id = ?', (network_id,))
     conn.commit()
     conn.close()
 
-    # Hapus file DB owner (data operasional) juga
-    try:
-        import os
-        from utils import _owner_db_path
-        f = _owner_db_path(network_id)
-        if os.path.exists(f):
-            os.remove(f)
-    except Exception as e:
-        logger.warning(f'[SuperAdmin] Gagal hapus file DB owner {network_id}: {e}')
+    # Hapus file DB owner (data operasional) + file pendamping WAL/SHM/journal.
+    # Retry beberapa kali dengan jeda singkat — di Windows file SQLite kadang
+    # masih terkunci sesaat oleh koneksi yang baru saja ditutup / antivirus,
+    # sehingga percobaan pertama os.remove() bisa gagal padahal filenya tidak
+    # sedang dipakai lagi. Tanpa ini file jadi "yatim" dan menumpuk diam-diam.
+    import os, time
+    from utils import _owner_db_path
+    base = _owner_db_path(network_id)
+    gagal_hapus = []
+    for f in (base, base + '-wal', base + '-shm', base + '-journal'):
+        if not os.path.exists(f):
+            continue
+        for attempt in range(5):
+            try:
+                os.remove(f)
+                break
+            except OSError as e:
+                if attempt == 4:
+                    gagal_hapus.append(os.path.basename(f))
+                    logger.warning(f'[SuperAdmin] Gagal hapus file {f}: {e}')
+                else:
+                    time.sleep(0.3)
 
+    log_admin_action('Hapus owner', target=net['isp_name'], detail=network_id)
     logger.info(f'[SuperAdmin] Hapus network: {net["isp_name"]} ({network_id})')
+
+    if gagal_hapus:
+        # Beri tahu superadmin secara EKSPLISIT (bukan cuma di log) supaya
+        # file yatim ini tidak menumpuk tanpa disadari — perlu dibersihkan
+        # manual di app/database/owners/ setelah file tidak lagi terkunci.
+        pesan = (f'ISP "{net["isp_name"]}" berhasil dihapus dari sistem, tapi file database '
+                 f'fisik ({", ".join(gagal_hapus)}) gagal dihapus karena sedang terkunci. '
+                 f'Mohon hapus manual nanti di app/database/owners/ setelah server di-restart.')
+        return jsonify({'status': 'warning', 'message': pesan}), 207
+
     return jsonify({'status': 'success', 'message': f'ISP "{net["isp_name"]}" berhasil dihapus'}), 200
 
 
@@ -1238,71 +1509,218 @@ def superadmin_setup():
     return jsonify({'status': 'success', 'message': 'Superadmin berhasil dibuat. Setup endpoint telah dinonaktifkan.'}), 201
 
 
-# ── GET/POST /api/auth/admin/genieacs-config ──────────────────
-@auth_bp.route('/admin/genieacs-config', methods=['GET'])
-def admin_genieacs_get():
-    """Ambil config GenieACS platform (superadmin only)."""
-    if not session.get('superadmin_id'):
-        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+# ══════════════════════════════════════════════════════════════
+# SUPERADMIN — Statistik Pendapatan & Distribusi Paket
+# ══════════════════════════════════════════════════════════════
+
+@auth_bp.route('/admin/stats', methods=['GET'])
+@superadmin_required
+def admin_stats():
+    """
+    Estimasi pendapatan bulanan (MRR) & distribusi paket dari owner
+    yang status langganannya 'active' (berbayar, bukan trial).
+    """
+    from packages import get_package
     conn = get_db()
     rows = conn.execute(
-        "SELECT key, value FROM platform_settings WHERE key IN (?,?,?,?)",
-        ('genieacs_url', 'genieacs_user', 'genieacs_pass', 'genieacs_enabled')
+        "SELECT paket, COUNT(*) AS jumlah FROM networks WHERE status='active' GROUP BY paket"
     ).fetchall()
     conn.close()
-    d = {r['key']: r['value'] for r in rows}
+
+    distribusi = []
+    mrr = 0
+    paid_owners = 0
+    for r in rows:
+        paket = r['paket'] or 'trial'
+        if paket == 'trial':
+            continue
+        pkg   = get_package(paket)
+        harga = pkg.get('price', 0) or 0
+        jumlah = r['jumlah']
+        mrr += harga * jumlah
+        paid_owners += jumlah
+        distribusi.append({
+            'paket': paket, 'paket_nama': pkg['name'],
+            'jumlah': jumlah, 'harga': harga, 'subtotal': harga * jumlah,
+        })
+    distribusi.sort(key=lambda x: x['subtotal'], reverse=True)
+    arpu = (mrr // paid_owners) if paid_owners else 0
+
     return jsonify({
-        'url':          d.get('genieacs_url', ''),
-        'username':     d.get('genieacs_user', ''),
-        'has_password': bool(d.get('genieacs_pass', '')),
-        'enabled':      d.get('genieacs_enabled', '0') == '1',
+        'status': 'success', 'mrr': mrr, 'paid_owners': paid_owners,
+        'arpu': arpu, 'distribusi': distribusi,
     }), 200
 
 
-@auth_bp.route('/admin/genieacs-config', methods=['POST'])
-def admin_genieacs_save():
-    """Simpan config GenieACS platform (superadmin only)."""
-    if not session.get('superadmin_id'):
-        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
-    data = request.get_json(silent=True) or {}
-    now  = __import__('datetime').datetime.now().isoformat()
+# ══════════════════════════════════════════════════════════════
+# SUPERADMIN — Log Aktivitas (Audit Trail)
+# ══════════════════════════════════════════════════════════════
+
+def init_admin_log_table():
+    """Buat tabel 'admin_logs' (riwayat aksi superadmin) jika belum ada."""
     conn = get_db()
-    for key, val in [
-        ('genieacs_url',     (data.get('url') or '').strip().rstrip('/')),
-        ('genieacs_user',    (data.get('username') or '').strip()),
-        ('genieacs_enabled', '1' if data.get('enabled') else '0'),
-    ]:
-        conn.execute(
-            '''INSERT INTO platform_settings (key, value, updated_at) VALUES (?,?,?)
-               ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at''',
-            (key, val, now)
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS admin_logs (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin       TEXT    NOT NULL,
+            aksi        TEXT    NOT NULL,
+            target      TEXT    DEFAULT '',
+            detail      TEXT    DEFAULT '',
+            created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
         )
-    if data.get('password'):
-        conn.execute(
-            '''INSERT INTO platform_settings (key, value, updated_at) VALUES (?,?,?)
-               ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at''',
-            ('genieacs_pass', str(data['password']), now)
-        )
+    ''')
     conn.commit()
     conn.close()
-    logger.info('[SuperAdmin] GenieACS config diperbarui')
-    return jsonify({'status': 'success', 'message': 'Konfigurasi GenieACS tersimpan'}), 200
+    logger.info('[Auth] Tabel admin_logs siap.')
 
 
-@auth_bp.route('/admin/genieacs-devices', methods=['GET'])
-def admin_genieacs_devices():
-    """Daftar semua device yang sudah di-link ke owner (superadmin only)."""
-    if not session.get('superadmin_id'):
-        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+init_admin_log_table()
+
+
+def log_admin_action(aksi, target='', detail=''):
+    """Catat satu aksi superadmin ke admin_logs (dipanggil dari endpoint admin)."""
+    try:
+        conn = get_db()
+        conn.execute(
+            'INSERT INTO admin_logs (admin, aksi, target, detail) VALUES (?, ?, ?, ?)',
+            (session.get('superadmin_username', 'unknown'), aksi, target, detail)
+        )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logger.warning(f'[SuperAdmin] Gagal mencatat log aktivitas: {e}')
+
+
+@auth_bp.route('/admin/logs', methods=['GET'])
+@superadmin_required
+def admin_list_logs():
+    """50 aktivitas superadmin terbaru."""
     conn = get_db()
     rows = conn.execute(
-        '''SELECT gd.device_id, gd.serial, gd.network_id, gd.linked_at, n.isp_name
-           FROM genieacs_devices gd
-           LEFT JOIN networks n ON n.network_id = gd.network_id
-           ORDER BY gd.linked_at DESC'''
+        'SELECT admin, aksi, target, detail, created_at FROM admin_logs ORDER BY id DESC LIMIT 50'
     ).fetchall()
     conn.close()
-    return jsonify([dict(r) for r in rows]), 200
+    return jsonify({'status': 'success', 'logs': [dict(r) for r in rows]}), 200
+
+
+# ══════════════════════════════════════════════════════════════
+# SUPERADMIN — Manajemen Akun Super Admin
+# ══════════════════════════════════════════════════════════════
+
+@auth_bp.route('/admin/superadmins', methods=['GET'])
+@superadmin_required
+def admin_list_superadmins():
+    conn = get_db()
+    rows = conn.execute(
+        'SELECT id, username, created_at, last_login FROM superadmins ORDER BY id'
+    ).fetchall()
+    conn.close()
+    return jsonify({'status': 'success', 'admins': [dict(r) for r in rows]}), 200
+
+
+@auth_bp.route('/admin/superadmins', methods=['POST'])
+@superadmin_required
+def admin_create_superadmin():
+    """Body: { "username": "...", "password": "..." } — tambah akun superadmin baru."""
+    data     = request.get_json(silent=True) or {}
+    username = data.get('username', '').strip()
+    password = data.get('password', '').strip()
+
+    if not username:
+        return jsonify({'status': 'error', 'message': 'Username wajib diisi'}), 400
+    if not password or len(password) < 6:
+        return jsonify({'status': 'error', 'message': 'Password minimal 6 karakter'}), 400
+
+    conn = get_db()
+    dup = conn.execute('SELECT id FROM superadmins WHERE username=?', (username,)).fetchone()
+    if dup or conn.execute('SELECT id FROM users WHERE username=?', (username,)).fetchone():
+        conn.close()
+        return jsonify({'status': 'error', 'message': 'Username sudah dipakai'}), 409
+
+    conn.execute(
+        'INSERT INTO superadmins (username, password_hash) VALUES (?, ?)',
+        (username, generate_password_hash(password))
+    )
+    conn.commit()
+    conn.close()
+
+    log_admin_action('Tambah akun superadmin', target=username)
+    logger.info(f'[SuperAdmin] Akun baru ditambahkan: {username}')
+    return jsonify({'status': 'success', 'message': f'Akun "{username}" berhasil dibuat'}), 201
+
+
+@auth_bp.route('/admin/superadmins/<int:admin_id>', methods=['DELETE'])
+@superadmin_required
+def admin_delete_superadmin(admin_id):
+    """Hapus akun superadmin — tidak bisa hapus diri sendiri atau akun terakhir."""
+    conn = get_db()
+    row = conn.execute('SELECT id, username FROM superadmins WHERE id=?', (admin_id,)).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({'status': 'error', 'message': 'Akun tidak ditemukan'}), 404
+    if row['id'] == session.get('superadmin_id'):
+        conn.close()
+        return jsonify({'status': 'error', 'message': 'Tidak bisa menghapus akun sendiri'}), 400
+    total = conn.execute('SELECT COUNT(*) AS c FROM superadmins').fetchone()['c']
+    if total <= 1:
+        conn.close()
+        return jsonify({'status': 'error', 'message': 'Tidak bisa menghapus satu-satunya akun superadmin'}), 400
+
+    conn.execute('DELETE FROM superadmins WHERE id=?', (admin_id,))
+    conn.commit()
+    conn.close()
+
+    log_admin_action('Hapus akun superadmin', target=row['username'])
+    logger.info(f'[SuperAdmin] Akun dihapus: {row["username"]}')
+    return jsonify({'status': 'success', 'message': f'Akun "{row["username"]}" berhasil dihapus'}), 200
+
+
+# ══════════════════════════════════════════════════════════════
+# SUPERADMIN — Detail / Drill-down Owner
+# ══════════════════════════════════════════════════════════════
+
+@auth_bp.route('/admin/networks/<network_id>/detail', methods=['GET'])
+@superadmin_required
+def admin_network_detail(network_id):
+    """Detail satu owner: ringkasan data operasional + daftar tim."""
+    from utils import get_owner_db
+    conn = get_db()
+    net = conn.execute(
+        'SELECT network_id, isp_name, paket, status, created_at, trial_end, expired_at FROM networks WHERE network_id=?',
+        (network_id,)
+    ).fetchone()
+    if not net:
+        conn.close()
+        return jsonify({'status': 'error', 'message': 'Jaringan tidak ditemukan'}), 404
+
+    team = conn.execute(
+        'SELECT username, nama, role, aktif FROM users WHERE network_id=? ORDER BY id',
+        (network_id,)
+    ).fetchall()
+    conn.close()
+
+    jumlah_pelanggan = 0
+    jumlah_perangkat = 0
+    try:
+        odb = get_owner_db(network_id)
+        jumlah_pelanggan = odb.execute('SELECT COUNT(*) AS c FROM pelanggan').fetchone()['c']
+        jumlah_perangkat = odb.execute('SELECT COUNT(*) AS c FROM devices').fetchone()['c']
+        odb.close()
+    except Exception as e:
+        logger.warning(f'[SuperAdmin] Gagal baca DB owner {network_id}: {e}')
+
+    return jsonify({
+        'status': 'success',
+        'isp_name': net['isp_name'],
+        'paket': net['paket'],
+        'status': net['status'],
+        'created_at': net['created_at'],
+        'trial_end': net['trial_end'],
+        'expired_at': net['expired_at'],
+        'jumlah_pelanggan': jumlah_pelanggan,
+        'jumlah_perangkat': jumlah_perangkat,
+        'team': [dict(r) for r in team],
+    }), 200
 
 
 # ══════════════════════════════════════════════════════════════

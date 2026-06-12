@@ -8,6 +8,7 @@ Menggunakan utils.py untuk helper terpusat:
 """
 
 import logging
+import re
 from flask import Blueprint, request, jsonify, g
 
 # ── Shared helpers ─────────────────────────────────────────────
@@ -23,7 +24,16 @@ def _olt_guard():
     if request.method == 'OPTIONS':
         return
     from auth import guard_request
-    perm = 'perangkat_manage' if request.method in ('POST','PUT','DELETE') else 'perangkat'
+    # sync, sync-onu, scan-sn boleh teknisi (perm 'perangkat')
+    # tambah/edit/hapus OLT hanya perangkat_manage (owner saja)
+    if request.method in ('PUT', 'DELETE'):
+        perm = 'perangkat_manage'
+    elif request.method == 'POST' and not any(
+        request.path.endswith(s) for s in ('/sync', '/sync-onu', '/scan-sn')
+    ):
+        perm = 'perangkat_manage'
+    else:
+        perm = 'perangkat'
     return guard_request(perm=perm)
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
@@ -101,6 +111,20 @@ def get_olt():
         result.append(d)
     conn.close()
     return jsonify(result), 200
+
+
+# ── Helper: validasi keyword tipe ONU di perintah registrasi CLI ──
+# Selain "ALL"/"ALL-ONT" bawaan, terima keyword custom (mis. firmware lain
+# yang pakai 'ONT', 'GPON-ONU', dll) — asal alfanumerik + dash/underscore,
+# supaya tidak bisa menyuntik karakter aneh ke dalam perintah CLI yang dikirim.
+_ONU_TYPE_RE = re.compile(r'^[A-Z0-9_-]{1,32}$')
+
+
+def _sanitize_onu_type_keyword(raw) -> str:
+    val = (raw or '').strip().upper()
+    if val and _ONU_TYPE_RE.match(val):
+        return val
+    return 'ALL'
 
 
 # ── Helper: parse & simpan daftar uplink (router_id, interface, port) ──
@@ -183,7 +207,14 @@ def add_olt():
     lokasi           = data.get('lokasi',           '').strip()
     koordinat        = data.get('koordinat',        '').strip()
     keterangan       = data.get('keterangan',       '').strip()
-    epon_ports       = int(data.get('epon_ports') or 4)
+    try:
+        epon_ports = int(data.get('epon_ports') or 4)
+    except (TypeError, ValueError):
+        epon_ports = 4
+    # Kata kunci tipe ONU di perintah registrasi CLI ZTE — beda firmware/model
+    # pakai "ALL-ONT", "ALL", atau keyword custom lain. Salah pilih → OLT
+    # menolak perintah registrasi (lihat _kirim_olt_cli di api.py).
+    onu_type_keyword = _sanitize_onu_type_keyword(data.get('onu_type_keyword'))
     uplinks          = _parse_uplinks(data)
     # Kolom legacy di 'olt' diisi dari uplink pertama — dipakai maps.py &
     # monitoring bandwidth selama belum dipindah sepenuhnya ke tabel olt_uplink.
@@ -206,10 +237,10 @@ def add_olt():
     cursor = conn.execute(
         '''INSERT INTO olt
            (name, tipe, ip, port, username, password, snmp, lokasi, koordinat, keterangan, status,
-            router_id, router_interface, olt_uplink_port, epon_ports)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+            router_id, router_interface, olt_uplink_port, epon_ports, onu_type_keyword)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
         (name, tipe, ip, port, username, password, snmp, lokasi, koordinat, keterangan, status,
-         router_id, router_interface, olt_uplink_port, epon_ports)
+         router_id, router_interface, olt_uplink_port, epon_ports, onu_type_keyword)
     )
     new_id = cursor.lastrowid
     _save_uplinks(conn, new_id, uplinks)
@@ -251,7 +282,11 @@ def update_olt(olt_id):
     lokasi           = data.get('lokasi',           '').strip()
     koordinat        = data.get('koordinat',        '').strip()
     keterangan       = data.get('keterangan',       '').strip()
-    epon_ports       = int(data.get('epon_ports') or 4)
+    try:
+        epon_ports = int(data.get('epon_ports') or 4)
+    except (TypeError, ValueError):
+        epon_ports = 4
+    onu_type_keyword = _sanitize_onu_type_keyword(data.get('onu_type_keyword'))
     uplinks          = _parse_uplinks(data)
     primary          = uplinks[0] if uplinks else {}
     router_id        = primary.get('router_id')
@@ -275,11 +310,12 @@ def update_olt(olt_id):
         '''UPDATE olt
            SET name=?, tipe=?, ip=?, port=?, username=?, password=?,
                snmp=?, lokasi=?, koordinat=?, keterangan=?, status=?,
-               router_id=?, router_interface=?, olt_uplink_port=?, epon_ports=?
+               router_id=?, router_interface=?, olt_uplink_port=?, epon_ports=?,
+               onu_type_keyword=?
            WHERE id=?''',
         (name, tipe, ip, port, username, final_password,
          snmp, lokasi, koordinat, keterangan, 'pending',
-         router_id, router_interface, olt_uplink_port, epon_ports, olt_id)
+         router_id, router_interface, olt_uplink_port, epon_ports, onu_type_keyword, olt_id)
     )
     _save_uplinks(conn, olt_id, uplinks)
     conn.commit()

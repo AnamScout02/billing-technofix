@@ -21,7 +21,18 @@ def _guard():
     if request.method == 'OPTIONS':
         return   # biarkan CORS preflight lolos
     from auth import guard_request
-    return guard_request(perm='pelanggan')
+    err = guard_request(perm='pelanggan')
+    if err:
+        return err
+    # Halaman Setting bersifat owner-only di frontend — backend ikut
+    # menegakkan ini supaya anggota tim tidak bisa mengubah profil/
+    # logo/portal/preferensi ISP lewat panggilan API langsung.
+    if g.current_user['role'] != 'owner':
+        return jsonify({
+            'status':  'error',
+            'code':    'permission_denied',
+            'message': 'Akses ditolak untuk peran Anda.',
+        }), 403
 
 
 def _save(conn, key: str, value):

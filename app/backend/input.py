@@ -32,7 +32,6 @@ from odp    import odp_bp
 from portal import portal_bp
 from maps   import maps_bp
 from tagihan import tagihan_bp
-from genieacs import genieacs_bp
 from loket import loket_bp
 from wa import wa_bp
 from payment import payment_bp
@@ -56,13 +55,20 @@ ALLOWED_ORIGINS = [
     'http://103.194.175.54',
     'http://103.194.175.54:5000',
     'https://103.194.175.54',
+    # ── Server Proxmox (LAN lokal) ──
+    'http://172.15.0.11',
+    'http://172.15.0.11:5000',
+    # ── Domain produksi (technofix-bill.com) ──
+    'http://technofix-bill.com',
+    'https://technofix-bill.com',
+    'https://www.technofix-bill.com',
 ]
 CORS(
     app,
     supports_credentials=True,
     origins=ALLOWED_ORIGINS,
     allow_headers=['Content-Type', 'Authorization', 'X-Network-Id'],
-    expose_headers=['Content-Type', 'Authorization'],
+    expose_headers=['Content-Type', 'Authorization', 'X-Mikrotik-Connected', 'X-Fallback-Reason'],
 )
 # [DITAMBAHKAN] Secret key wajib ada agar Flask session berfungsi
 # Gunakan environment variable di produksi; fallback ke nilai statis
@@ -82,7 +88,6 @@ app.register_blueprint(odp_bp,    url_prefix='/api/odp')
 app.register_blueprint(portal_bp, url_prefix='/api/portal')
 app.register_blueprint(maps_bp,   url_prefix='/api/maps')
 app.register_blueprint(tagihan_bp, url_prefix='/api/tagihan')
-app.register_blueprint(genieacs_bp, url_prefix='/api/genieacs')
 app.register_blueprint(loket_bp, url_prefix='/api/loket')
 app.register_blueprint(wa_bp, url_prefix='/api/wa')
 app.register_blueprint(payment_bp, url_prefix='/api/payment')
@@ -106,7 +111,10 @@ def _devices_guard():
             if 'profile-count' in request.path or '/sync' in request.path:
                 return guard_request(perm='perangkat')
             return guard_request(perm='pelanggan')
-        # Mutasi perangkat: butuh perangkat_manage (owner/admin saja)
+        # Sync koneksi boleh teknisi (POST /devices/<id>/sync)
+        if '/sync' in request.path and request.method == 'POST':
+            return guard_request(perm='perangkat')
+        # Mutasi perangkat (tambah/edit/hapus): butuh perangkat_manage (owner saja)
         return guard_request(perm='perangkat_manage')
 
 
@@ -198,6 +206,10 @@ def init_db():
         "ALTER TABLE onu_mapping ADD COLUMN tcont_profile TEXT DEFAULT ''",
         # olt
         'ALTER TABLE olt ADD COLUMN epon_ports INTEGER DEFAULT 4',
+        # ✅ kata kunci tipe ONU di perintah registrasi CLI ZTE — sebagian
+        # firmware/model pakai "ALL-ONT", sebagian lain "ALL". Kalau salah,
+        # OLT menolak perintah registrasi (ONU tidak nambah meski "sukses").
+        "ALTER TABLE olt ADD COLUMN onu_type_keyword TEXT DEFAULT 'ALL'",
         # kolom service di pelanggan
         "ALTER TABLE pelanggan ADD COLUMN service TEXT DEFAULT 'pppoe'",
         # ✅ v2.0: kolom bandwidth_note di profil_harga (untuk catatan kustom lokal)
@@ -490,7 +502,68 @@ def _start_olt_sync_worker():
     logging.info('[OLT Worker] Thread sinkronisasi ONU berjalan di background.')
 
 
+def _start_wa_reminder_worker():
+    """
+    Background thread: kirim pengingat tagihan WA otomatis (H-3/H/H+3)
+    untuk semua owner yang mengaktifkan wa_auto_enabled & punya fitur
+    'broadcast'. Dicek tiap 1 jam — aman dijalankan berulang karena
+    wa_reminder_log mencegah pengingat dobel per tagihan+tipe.
+    Mulai setelah 60 detik delay agar Flask sudah siap sepenuhnya.
+    """
+    import time, threading
+    try:
+        from wa import run_auto_reminders
+    except ImportError as e:
+        logging.warning('[WA Reminder Worker] wa tidak tersedia: %s', e)
+        return
+
+    def _loop():
+        time.sleep(60)  # tunggu Flask siap
+        logging.info('[WA Reminder Worker] Pengingat otomatis dimulai (cek tiap 1 jam).')
+        while True:
+            try:
+                run_auto_reminders()  # iterasi semua owner
+            except Exception as e:
+                logging.error('[WA Reminder Worker] Error: %s', e)
+            time.sleep(60 * 60)  # 1 jam
+
+    t = threading.Thread(target=_loop, daemon=True, name='wa-reminder-worker')
+    t.start()
+    logging.info('[WA Reminder Worker] Thread pengingat WA berjalan di background.')
+
+
+def _start_auto_isolir_worker():
+    """
+    Background thread: isolir otomatis pelanggan yang tagihannya sudah lewat
+    jatuh tempo & belum dibayar, untuk semua owner. Dicek tiap 1 jam — aman
+    dijalankan berulang karena pelanggan yang sudah berstatus isolir dilewati.
+    Mulai setelah 90 detik delay agar Flask sudah siap sepenuhnya.
+    """
+    import time, threading
+    try:
+        from tagihan import run_auto_isolir
+    except ImportError as e:
+        logging.warning('[Auto-Isolir Worker] tagihan tidak tersedia: %s', e)
+        return
+
+    def _loop():
+        time.sleep(90)  # tunggu Flask siap
+        logging.info('[Auto-Isolir Worker] Isolir otomatis dimulai (cek tiap 1 jam).')
+        while True:
+            try:
+                run_auto_isolir()  # iterasi semua owner
+            except Exception as e:
+                logging.error('[Auto-Isolir Worker] Error: %s', e)
+            time.sleep(60 * 60)  # 1 jam
+
+    t = threading.Thread(target=_loop, daemon=True, name='auto-isolir-worker')
+    t.start()
+    logging.info('[Auto-Isolir Worker] Thread isolir otomatis berjalan di background.')
+
+
 if __name__ == '__main__':
     init_db()
     _start_olt_sync_worker()
+    _start_wa_reminder_worker()
+    _start_auto_isolir_worker()
     app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)

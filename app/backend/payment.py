@@ -2,8 +2,8 @@
 payment.py — TechnoFix · Blueprint Payment Gateway
 ==================================================
 Buat link pembayaran online untuk tagihan (Midtrans / Xendit).
-MODE MOCK: bila gateway belum diaktifkan, dibuat order_id +
-payment_url dummy dan tombol "Tandai Lunas (simulasi)" untuk
+MODE MANUAL: bila gateway belum diaktifkan, dibuat order_id +
+payment_url dummy dan tombol "Konfirmasi Bayar Manual" untuk
 menutup alur tanpa akun merchant.
 
 Config (app_settings KV, per-owner):
@@ -22,18 +22,20 @@ Endpoint (prefix /api/payment):
   POST /config                    → simpan config
   POST /create {tagihan_id}       → buat transaksi + payment_url
   GET  /transactions?periode=     → daftar transaksi pembayaran
-  POST /simulate-paid {order_id}  → (mock) tandai lunas utk demo
+  POST /mark-paid {order_id}       → konfirmasi bayar manual
   POST /webhook?network_id=       → callback gateway (real)
 """
 
 import json
 import base64
+import hashlib
+import hmac
 import logging
 import urllib.request
 import urllib.parse
 from datetime import date, datetime
 from flask import Blueprint, request, jsonify, g
-from utils import get_db, get_owner_db
+from utils import get_db, get_owner_db, get_master_db
 
 log = logging.getLogger(__name__)
 payment_bp = Blueprint('payment', __name__)
@@ -50,12 +52,17 @@ def _pay_guard():
         return
     from auth import guard_request
     p = request.path.rstrip('/')
-    perm = 'keuangan' if (p.endswith('/config') or p.endswith('/simulate-paid')) else 'bayar'
+    # Ubah rekening bank tujuan pembayaran = aksi finansial sensitif —
+    # wajib 'keuangan' (kolektor punya 'bayar' tapi TIDAK boleh ganti
+    # rekening tujuan transfer pelanggan). Lihat rekening tetap boleh
+    # 'bayar' karena kolektor perlu memberi info rekening ke pelanggan.
+    is_rekening_write = p.endswith('/rekening') and request.method == 'POST'
+    perm = 'keuangan' if (p.endswith('/config') or p.endswith('/mark-paid') or is_rekening_write) else 'bayar'
     return guard_request(perm=perm)
 
 
 # ── Config ─────────────────────────────────────────────────────
-_KEYS = ('pay_provider', 'pay_server_key', 'pay_client_key', 'pay_mode', 'pay_enabled')
+_KEYS = ('pay_provider', 'pay_server_key', 'pay_client_key', 'pay_mode', 'pay_enabled', 'pay_callback_token')
 
 
 def _load_config(conn):
@@ -65,11 +72,12 @@ def _load_config(conn):
     ).fetchall()
     d = {r['key']: r['value'] for r in rows}
     return {
-        'provider':   d.get('pay_provider') or 'midtrans',
-        'server_key': d.get('pay_server_key') or '',
-        'client_key': d.get('pay_client_key') or '',
-        'mode':       d.get('pay_mode') or 'sandbox',
-        'enabled':    (d.get('pay_enabled') or '0') == '1',
+        'provider':       d.get('pay_provider') or 'midtrans',
+        'server_key':     d.get('pay_server_key') or '',
+        'client_key':     d.get('pay_client_key') or '',
+        'mode':           d.get('pay_mode') or 'sandbox',
+        'enabled':        (d.get('pay_enabled') or '0') == '1',
+        'callback_token': d.get('pay_callback_token') or '',
     }
 
 
@@ -87,6 +95,7 @@ def get_config():
     return jsonify({'status': 'success', 'config': {
         'provider': cfg['provider'], 'mode': cfg['mode'], 'enabled': cfg['enabled'],
         'client_key': cfg['client_key'], 'has_server_key': bool(cfg['server_key']),
+        'has_callback_token': bool(cfg['callback_token']),
     }}), 200
 
 
@@ -105,6 +114,8 @@ def save_config():
     _save_setting(conn, 'pay_client_key', (data.get('client_key') or '').strip())
     if data.get('server_key'):
         _save_setting(conn, 'pay_server_key', str(data.get('server_key')))
+    if data.get('callback_token'):
+        _save_setting(conn, 'pay_callback_token', str(data.get('callback_token')).strip())
     _save_setting(conn, 'pay_enabled', '1' if data.get('enabled') else '0')
     conn.commit(); conn.close()
     return jsonify({'status': 'success', 'message': 'Pengaturan payment gateway tersimpan'}), 200
@@ -126,6 +137,24 @@ def _midtrans_snap(cfg, order_id, amount, nama):
     with urllib.request.urlopen(req, timeout=PAY_TIMEOUT) as resp:
         d = json.loads(resp.read().decode('utf-8'))
     return d.get('redirect_url') or ''
+
+
+def _xendit_invoice(cfg, order_id, amount, nama):
+    url = 'https://api.xendit.co/v2/invoices'
+    payload = {
+        'external_id': order_id,
+        'amount': int(amount),
+        'description': 'Pembayaran tagihan - {}'.format(nama or 'Pelanggan'),
+        'currency': 'IDR',
+    }
+    auth = base64.b64encode((cfg['server_key'] + ':').encode()).decode()
+    req = urllib.request.Request(
+        url, data=json.dumps(payload).encode(),
+        headers={'Content-Type': 'application/json', 'Accept': 'application/json',
+                 'Authorization': 'Basic ' + auth}, method='POST')
+    with urllib.request.urlopen(req, timeout=PAY_TIMEOUT) as resp:
+        d = json.loads(resp.read().decode('utf-8'))
+    return d.get('invoice_url') or ''
 
 
 @payment_bp.route('/create', methods=['POST'])
@@ -151,19 +180,25 @@ def create_tx():
         conn.close()
         return jsonify({'status': 'success', 'message': 'Link pembayaran sudah ada',
                         'order_id': existing['order_id'], 'payment_url': existing['payment_url'],
-                        'amount': existing['amount'], 'mock': not existing['payment_url'].startswith('http')}), 200
+                        'amount': existing['amount'], 'mock': not (existing['payment_url'] or '').startswith('http')}), 200
 
     cfg = _load_config(conn)
     order_id = 'TF-{}-{}'.format(tid, datetime.now().strftime('%Y%m%d%H%M%S'))
     amount = int(t['nominal'] or 0)
+    if amount <= 0:
+        conn.close()
+        return jsonify({'status': 'error', 'message': 'Harga paket belum diset'}), 400
     payment_url = ''
     mock = True
-    if cfg['enabled'] and cfg['server_key'] and cfg['provider'] == 'midtrans':
+    if cfg['enabled'] and cfg['server_key'] and cfg['provider'] in ('midtrans', 'xendit'):
         try:
-            payment_url = _midtrans_snap(cfg, order_id, amount, t['nama'] or t['username'])
+            if cfg['provider'] == 'midtrans':
+                payment_url = _midtrans_snap(cfg, order_id, amount, t['nama'] or t['username'])
+            else:
+                payment_url = _xendit_invoice(cfg, order_id, amount, t['nama'] or t['username'])
             mock = False
         except Exception as e:
-            log.warning('[Payment] midtrans gagal: %s', e)
+            log.warning('[Payment] %s gagal: %s', cfg['provider'], e)
             conn.close()
             return jsonify({'status': 'error', 'message': 'Gagal membuat transaksi: %s' % e}), 502
     if mock:
@@ -176,7 +211,7 @@ def create_tx():
     )
     conn.commit(); conn.close()
     return jsonify({'status': 'success',
-                    'message': ('Link pembayaran dibuat' if not mock else 'Transaksi simulasi dibuat (mode mock)'),
+                    'message': ('Link pembayaran dibuat' if not mock else 'Transaksi dibuat (gateway belum aktif — konfirmasi manual)'),
                     'order_id': order_id, 'payment_url': payment_url, 'amount': amount, 'mock': mock}), 201
 
 
@@ -203,7 +238,7 @@ def transactions():
     return jsonify({'status': 'success', 'transactions': items}), 200
 
 
-# ── Tandai lunas (dipakai simulate-paid & webhook) ─────────────
+# ── Tandai lunas (dipakai mark-paid & webhook) ─────────────────
 def _mark_paid(conn, pay_row, channel='online'):
     if pay_row['status'] == 'paid':
         return
@@ -212,20 +247,25 @@ def _mark_paid(conn, pay_row, channel='online'):
                  (now, channel, pay_row['id']))
     t = conn.execute('SELECT * FROM tagihan WHERE id=?', (pay_row['tagihan_id'],)).fetchone()
     if t and t['status'] != 'lunas':
+        keterangan_prefix = 'Pelunasan piutang online' if t['status'] == 'piutang' else 'Pembayaran online'
         conn.execute("UPDATE tagihan SET status='lunas', paid_at=?, metode=? WHERE id=?",
                      (now, pay_row['provider'] or 'online', t['id']))
         conn.execute(
             '''INSERT INTO keuangan (tanggal, keterangan, tipe, nominal, status, metode, username, catatan)
                VALUES (?, ?, 'pemasukan', ?, 'Lunas', ?, ?, ?)''',
             (date.today().isoformat(),
-             'Pembayaran online {} - {}'.format(t['periode'], t['username'] or t['nama']),
+             '{} {} - {}'.format(keterangan_prefix, t['periode'], t['username'] or t['nama']),
              t['nominal'], pay_row['provider'] or 'online', t['username'] or '',
              'Order {} via {}'.format(pay_row['order_id'], pay_row['provider'] or '-'))
         )
+        # Pelanggan langsung hidup lagi kalau sedang diisolir krn nunggak
+        # (pembayaran online/webhook tidak melalui alur loket/tagihan manual)
+        from tagihan import _restore_isolir_if_needed
+        _restore_isolir_if_needed(conn, t['username'] or '')
 
 
-@payment_bp.route('/simulate-paid', methods=['POST'])
-def simulate_paid():
+@payment_bp.route('/mark-paid', methods=['POST'])
+def mark_paid():
     data = request.get_json(silent=True) or {}
     order_id = (data.get('order_id') or '').strip()
     if not order_id:
@@ -234,24 +274,72 @@ def simulate_paid():
     p = conn.execute('SELECT * FROM pembayaran WHERE order_id=?', (order_id,)).fetchone()
     if not p:
         conn.close(); return jsonify({'status': 'error', 'message': 'Transaksi tidak ditemukan'}), 404
-    _mark_paid(conn, p, channel='simulasi')
+    _mark_paid(conn, p, channel='manual')
     conn.commit(); conn.close()
-    return jsonify({'status': 'success', 'message': 'Transaksi ditandai lunas (simulasi)'}), 200
+    return jsonify({'status': 'success', 'message': 'Transaksi dikonfirmasi lunas (manual)'}), 200
 
 
 # ── Webhook gateway (real, publik) ─────────────────────────────
+def _verify_midtrans_signature(cfg, data):
+    """
+    Midtrans: signature_key = SHA512(order_id + status_code + gross_amount + ServerKey)
+    https://docs.midtrans.com/docs/https-notification-webhooks
+    """
+    order_id     = str(data.get('order_id') or '')
+    status_code  = str(data.get('status_code') or '')
+    gross_amount = str(data.get('gross_amount') or '')
+    signature    = str(data.get('signature_key') or '')
+    if not (order_id and status_code and gross_amount and signature and cfg['server_key']):
+        return False
+    expected = hashlib.sha512(
+        (order_id + status_code + gross_amount + cfg['server_key']).encode()
+    ).hexdigest()
+    return hmac.compare_digest(expected, signature)
+
+
+def _verify_xendit_token(cfg, token):
+    """Xendit: header X-Callback-Token harus sama dengan token verifikasi di dashboard."""
+    if not cfg['callback_token'] or not token:
+        return False
+    return hmac.compare_digest(cfg['callback_token'], token)
+
+
 @payment_bp.route('/webhook', methods=['POST'])
 def webhook():
     # Multi-tenant: gateway harus diberi URL berisi ?network_id=<uuid>
     network_id = request.args.get('network_id', '')
     data = request.get_json(silent=True) or {}
-    order_id = data.get('order_id') or ''
+    order_id = data.get('order_id') or data.get('external_id') or ''
     status = (data.get('transaction_status') or data.get('status') or '').lower()
     if not network_id or not order_id:
         return jsonify({'status': 'error', 'message': 'network_id & order_id wajib'}), 400
 
+    # Validasi network_id terdaftar di master sebelum buka/buat DB owner —
+    # mencegah pihak luar memicu pembuatan file DB owner baru lewat
+    # webhook publik dengan network_id sembarangan (DoS file system).
+    mconn = get_master_db()
+    net = mconn.execute('SELECT 1 FROM networks WHERE network_id=?', (network_id,)).fetchone()
+    mconn.close()
+    if not net:
+        return jsonify({'status': 'error', 'message': 'network_id tidak dikenal'}), 404
+
     paid_states = ('settlement', 'capture', 'paid', 'success')
     conn = get_owner_db(network_id)
+    cfg = _load_config(conn)
+
+    # ── Verifikasi keaslian callback sebelum memproses apa pun ──
+    if cfg['provider'] == 'midtrans':
+        if not _verify_midtrans_signature(cfg, data):
+            conn.close()
+            log.warning('[Payment] webhook midtrans signature invalid (network=%s order=%s)', network_id, order_id)
+            return jsonify({'status': 'error', 'message': 'Signature tidak valid'}), 401
+    elif cfg['provider'] == 'xendit':
+        token = request.headers.get('X-Callback-Token', '')
+        if not _verify_xendit_token(cfg, token):
+            conn.close()
+            log.warning('[Payment] webhook xendit token invalid (network=%s order=%s)', network_id, order_id)
+            return jsonify({'status': 'error', 'message': 'Token tidak valid'}), 401
+
     p = conn.execute('SELECT * FROM pembayaran WHERE order_id=?', (order_id,)).fetchone()
     if not p:
         conn.close(); return jsonify({'status': 'error', 'message': 'Order tidak ditemukan'}), 404

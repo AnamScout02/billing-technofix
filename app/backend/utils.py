@@ -81,8 +81,12 @@ def get_owner_db(network_id: str) -> sqlite3.Connection:
         raise ValueError('network_id wajib untuk get_owner_db()')
     os.makedirs(OWNER_DB_DIR, exist_ok=True)
     path = _owner_db_path(network_id)
-    conn = sqlite3.connect(path)
+    # timeout besar + WAL: penting karena sync OLT (olt_sync.py) bisa membuka
+    # banyak koneksi paralel ke file owner yang sama — tanpa ini, penulisan
+    # bersamaan akan gagal cepat dengan error "database is locked".
+    conn = sqlite3.connect(path, timeout=30)
     conn.row_factory = sqlite3.Row
+    conn.execute('PRAGMA journal_mode=WAL')
     init_owner_schema(conn)        # idempotent — CREATE TABLE IF NOT EXISTS
     return conn
 
@@ -127,11 +131,11 @@ def get_db() -> sqlite3.Connection:
 # ══════════════════════════════════════════════════════════════
 
 def get_network_row(network_id: str):
-    """Ambil baris networks (paket, status, trial_end, expired_at)."""
+    """Ambil baris networks (paket, status, trial_end, expired_at, created_at)."""
     try:
         conn = get_master_db()
         row = conn.execute(
-            'SELECT paket, status, trial_end, expired_at FROM networks WHERE network_id = ?',
+            'SELECT paket, status, trial_end, expired_at, created_at FROM networks WHERE network_id = ?',
             (network_id,)
         ).fetchone()
         conn.close()
@@ -140,10 +144,94 @@ def get_network_row(network_id: str):
         return None
 
 
+def get_isp_profile(conn, network_id: str = None) -> dict:
+    """
+    Ambil profil ISP (nama + logo) untuk kop laporan/struk.
+    `conn` = koneksi DB owner (get_db()) yang menyimpan tabel app_settings.
+    Fallback nama ISP ke `networks.isp_name` (master) bila `profil_isp`
+    belum diisi di pengaturan owner.
+    """
+    import json as _json
+
+    def _load_setting(key, default):
+        try:
+            row = conn.execute('SELECT value FROM app_settings WHERE key = ?', (key,)).fetchone()
+        except Exception:
+            return default
+        if not row:
+            return default
+        try:
+            return _json.loads(row['value'])
+        except Exception:
+            return default
+
+    logo_data  = _load_setting('isp_logo', {})
+    profil_isp = _load_setting('profil_isp', {})
+
+    isp_name = profil_isp.get('isp_name', '')
+    if not isp_name and network_id:
+        try:
+            mconn = get_master_db()
+            row = mconn.execute('SELECT isp_name FROM networks WHERE network_id = ?', (network_id,)).fetchone()
+            mconn.close()
+            isp_name = (row['isp_name'] if row else '') or ''
+        except Exception:
+            isp_name = ''
+
+    return {
+        'isp_name': isp_name or 'ISP',
+        'isp_logo': logo_data.get('logo_base64', ''),
+    }
+
+
+_ISOLIR_KEYWORDS = ('isolir', 'blokir', 'suspend', 'block', 'isolasi')
+
+
+def is_isolir_profil(profil: str) -> bool:
+    """
+    True kalau nama profil PPP menandakan pelanggan sedang diisolir/diblokir
+    karena nunggak (bukan di-disable — secret tetap aktif tapi profil diganti
+    ke profil berkecepatan rendah). Dipakai portal pelanggan untuk redirect
+    ke halaman isolir, karena kolom `aktif` (= status disabled di MikroTik)
+    tidak berubah saat isolir.
+    """
+    p = (profil or '').lower()
+    return any(kw in p for kw in _ISOLIR_KEYWORDS)
+
+
+def status_secret_comment(nama: str, status: str = '') -> str:
+    """
+    Bangun teks komentar PPP Secret dengan tag status singkat — supaya staf
+    yang cek MikroTik langsung bisa melihat pelanggan mana yang sedang
+    diisolir karena nunggak, tanpa perlu buka aplikasi billing.
+
+    status: '' (normal) | 'isolir' (sedang diisolir krn belum bayar)
+    """
+    nama = (nama or '').strip() or '-'
+    if status == 'isolir':
+        return f'{nama} - ISOLIR (nunggak)'
+    if status == 'piutang':
+        return f'{nama} - PIUTANG (diaktifkan)'
+    return nama
+
+
 def get_network_package(network_id: str) -> str:
-    """Nama paket owner. Default 'trial'."""
+    """
+    Nama paket owner untuk keperluan limit/fitur. Default 'trial'.
+
+    Selama status masih 'trial', limit yang dipakai SELALU paket 'trial'
+    (bukan paket yang dipilih saat registrasi) — agar pendaftar tidak bisa
+    mendapatkan limit paket besar (mis. enterprise) secara gratis selama
+    masa uji coba. `networks.paket` tetap menyimpan paket pilihan untuk
+    referensi setelah owner upgrade ke status 'active'.
+    """
     row = get_network_row(network_id)
-    if row and row['paket']:
+    if not row:
+        return 'trial'
+    status = (row['status'] or 'trial')
+    if status == 'trial':
+        return 'trial'
+    if row['paket']:
         return row['paket']
     return 'trial'
 
@@ -178,8 +266,21 @@ def get_effective_status(network_id: str) -> str:
             try:
                 if now > datetime.fromisoformat(te):
                     return 'locked'        # trial sudah lewat
+                return 'trial'
             except Exception:
                 pass
+        # trial_end kosong/tidak valid (data lama/korup) → fallback hitung
+        # dari created_at + TRIAL_DAYS, supaya trial tetap bisa berakhir.
+        try:
+            from packages import TRIAL_DAYS
+            from datetime import timedelta
+            ca = (row['created_at'] or '').strip()
+            if ca:
+                created = datetime.fromisoformat(ca.replace(' ', 'T'))
+                if now > created + timedelta(days=TRIAL_DAYS):
+                    return 'locked'
+        except Exception:
+            pass
         return 'trial'
 
     if status == 'active':
@@ -233,7 +334,23 @@ def init_owner_schema(conn: sqlite3.Connection) -> None:
         username TEXT NOT NULL UNIQUE, olt_id INTEGER,
         slot_port TEXT DEFAULT '', vlan TEXT DEFAULT '', sn TEXT DEFAULT '',
         rx_power REAL, tx_power REAL, synced_at TEXT DEFAULT '',
-        tcont_profile TEXT DEFAULT ''
+        tcont_profile TEXT DEFAULT '', ip_address TEXT DEFAULT '',
+        is_online INTEGER DEFAULT 0
+    )''')
+    # Migrasi kolom baru (idempotent)
+    for col, defval in [('ip_address', '""'), ('is_online', '0')]:
+        try:
+            cur.execute(f'ALTER TABLE onu_mapping ADD COLUMN {col} TEXT DEFAULT {defval}')
+        except Exception:
+            pass
+
+    cur.execute('''CREATE TABLE IF NOT EXISTS onu_liar (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        olt_id INTEGER NOT NULL,
+        sn TEXT NOT NULL,
+        port TEXT NOT NULL,
+        detected_at TEXT NOT NULL,
+        UNIQUE(olt_id, sn)
     )''')
 
     cur.execute('''CREATE TABLE IF NOT EXISTS profil_harga (
@@ -254,6 +371,31 @@ def init_owner_schema(conn: sqlite3.Connection) -> None:
         router_id INTEGER DEFAULT NULL, router_interface TEXT DEFAULT '',
         olt_uplink_port TEXT DEFAULT ''
     )''')
+
+    # Satu OLT bisa punya >1 jalur uplink fisik ke router berbeda
+    # (mis. redundansi atau split trafik per VLAN ke 2 MikroTik).
+    cur.execute('''CREATE TABLE IF NOT EXISTS olt_uplink (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        olt_id INTEGER NOT NULL,
+        router_id INTEGER NOT NULL,
+        router_interface TEXT DEFAULT '',
+        uplink_port TEXT DEFAULT '',
+        keterangan TEXT DEFAULT ''
+    )''')
+
+    # Migrasi data lama: olt.router_id (kolom tunggal) -> baris pertama di olt_uplink
+    _sudah_migrasi = {r['olt_id'] for r in cur.execute(
+        'SELECT DISTINCT olt_id FROM olt_uplink').fetchall()}
+    for r in cur.execute(
+        'SELECT id, router_id, router_interface, olt_uplink_port FROM olt '
+        'WHERE router_id IS NOT NULL'
+    ).fetchall():
+        if r['id'] not in _sudah_migrasi:
+            cur.execute(
+                'INSERT INTO olt_uplink (olt_id, router_id, router_interface, uplink_port) '
+                'VALUES (?, ?, ?, ?)',
+                (r['id'], r['router_id'], r['router_interface'] or '', r['olt_uplink_port'] or '')
+            )
 
     cur.execute('''CREATE TABLE IF NOT EXISTS odc (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -279,7 +421,11 @@ def init_owner_schema(conn: sqlite3.Connection) -> None:
     _add_column(cur, 'odp', 'port_odc', 'INTEGER DEFAULT NULL')
     _add_column(cur, 'odp', 'parent_odp_id', 'INTEGER DEFAULT NULL')
     _add_column(cur, 'odp', 'port_parent_odp', 'INTEGER DEFAULT NULL')
+    _add_column(cur, 'odp', 'olt_id', 'INTEGER DEFAULT NULL')
     _add_column(cur, 'pelanggan', 'port_odp', 'INTEGER DEFAULT NULL')
+    # Keyword tipe ONU di perintah CLI registrasi — beda firmware/model OLT
+    # pakai 'ALL' atau 'ALL-ONT' (lihat _build_olt_cli di api.py)
+    _add_column(cur, 'olt', 'onu_type_keyword', "TEXT DEFAULT 'ALL'")
 
     cur.execute('''CREATE TABLE IF NOT EXISTS keuangan (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -319,8 +465,29 @@ def init_owner_schema(conn: sqlite3.Connection) -> None:
 
     # Migrasi kolom kolektor di pelanggan
     _add_column(cur, 'pelanggan', 'kolektor', "TEXT DEFAULT ''")
+    # Kolom profil sebelum isolir (dipakai auto-isolir & restore)
+    _add_column(cur, 'pelanggan', 'profil_sebelum_isolir', "TEXT DEFAULT ''")
+    # Kolom status khusus pelanggan
+    _add_column(cur, 'pelanggan', 'is_prioritas', 'INTEGER DEFAULT 0')
+    _add_column(cur, 'pelanggan', 'catatan_khusus', "TEXT DEFAULT ''")
+    # Alamat pelanggan — dibaca oleh loket.py (struk) & portal.py, tapi
+    # kolomnya belum pernah ada di skema sehingga query SELECT alamat gagal
+    _add_column(cur, 'pelanggan', 'alamat', "TEXT DEFAULT ''")
+    # Kolom berikut dipakai api.py (sync MikroTik/OLT) & portal.py tapi hanya
+    # dimigrasikan oleh api.migrate_pelanggan_table() yang berjalan SEKALI saat
+    # modul di-import — owner yang DB-nya dibuat SETELAH itu (mis. ISP baru
+    # daftar setelah server start) tidak pernah dapat kolom ini, sehingga
+    # SELECT/INSERT/UPDATE terkait gagal dengan "no such column". Pindahkan ke
+    # sini supaya selalu ditambahkan tiap kali koneksi owner dibuka.
+    _add_column(cur, 'pelanggan', 'olt_id', 'INTEGER')
+    _add_column(cur, 'pelanggan', 'slot_port', "TEXT DEFAULT ''")
+    _add_column(cur, 'pelanggan', 'no_hp', "TEXT DEFAULT ''")
+    _add_column(cur, 'pelanggan', 'harga', 'INTEGER DEFAULT 0')
+    # Kolom audit piutang di tagihan
+    _add_column(cur, 'tagihan', 'piutang_at', "TEXT DEFAULT ''")
+    _add_column(cur, 'tagihan', 'piutang_oleh', "TEXT DEFAULT ''")
 
-    # Pengaturan key-value per-owner (mis. config GenieACS / TR-069, komisi loket,
+    # Pengaturan key-value per-owner (mis. komisi loket,
     # gateway WhatsApp, payment gateway)
     cur.execute('''CREATE TABLE IF NOT EXISTS app_settings (
         key TEXT PRIMARY KEY,
@@ -335,6 +502,16 @@ def init_owner_schema(conn: sqlite3.Connection) -> None:
         pesan TEXT DEFAULT '', status TEXT DEFAULT 'terkirim',  -- terkirim | gagal | mock
         provider TEXT DEFAULT '', keterangan TEXT DEFAULT '',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    # Jejak pengiriman pengingat WA otomatis — cegah kirim dobel untuk
+    # tagihan+tipe (h3/jatuh_tempo/telat) yang sama
+    cur.execute('''CREATE TABLE IF NOT EXISTS wa_reminder_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tagihan_id INTEGER NOT NULL,
+        tipe TEXT NOT NULL,
+        sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(tagihan_id, tipe)
     )''')
 
     # Record transaksi payment gateway
@@ -412,11 +589,29 @@ def olt_to_dict(row) -> dict:
         'koordinat':        _safe('koordinat'),
         'keterangan':       _safe('keterangan'),
         'status':           row['status'],
-        # v3.0 — topologi: relasi OLT → Router
+        # v3.0 — topologi: relasi OLT → Router (legacy, lihat olt_uplink utk multi-uplink)
         'router_id':        row['router_id']        if 'router_id'        in row.keys() else None,
         'router_interface': row['router_interface'] if 'router_interface' in row.keys() else '',
         'olt_uplink_port':  row['olt_uplink_port']  if 'olt_uplink_port'  in row.keys() else '',
     }
+
+
+def get_olt_uplinks(conn, olt_id: int) -> list:
+    """
+    Daftar jalur uplink fisik OLT -> router (satu OLT bisa >1 uplink,
+    mis. 2 jalur fisik ke 2 MikroTik berbeda untuk redundansi/split VLAN).
+    """
+    rows = conn.execute(
+        'SELECT id, router_id, router_interface, uplink_port, keterangan '
+        'FROM olt_uplink WHERE olt_id = ? ORDER BY id', (olt_id,)
+    ).fetchall()
+    return [{
+        'id':               r['id'],
+        'router_id':        r['router_id'],
+        'router_interface': r['router_interface'] or '',
+        'uplink_port':      r['uplink_port'] or '',
+        'keterangan':       r['keterangan'] or '',
+    } for r in rows]
 
 
 # ══════════════════════════════════════════════════════════════
@@ -581,9 +776,10 @@ def parse_zte_rx(cli_output: str) -> dict:
     """
     Parse output perintah ZTE:
       'show pon onu optical-info gpon-onu_<slot/port>:<onu>'
+      'show pon power attenuation gpon-onu_<slot/port>:<onu>'
     atau perintah equivalen.
 
-    Mendukung dua format output ZTE C300/C600 yang umum ditemui:
+    Mendukung tiga format output ZTE C300/C600/C320 yang umum ditemui:
 
     Format A — satuan di belakang label (paling umum di C300/C600):
       Rx optical power(dBm)         :-25.47
@@ -592,6 +788,13 @@ def parse_zte_rx(cli_output: str) -> dict:
     Format B — satuan di belakang angka:
       Rx power   : -25.47 dBm
       Tx power   : 2.10 dBm
+
+    Format C — tabel "show pon power attenuation" (umum di ZTE C320):
+                 OLT                  ONU              Attenuation
+       up      Rx :no signal         Tx:2.868(dbm)        N/A
+       down    Tx :4.230(dbm)        Rx:-18.210(dbm)      22.440(dB)
+      Nilai ONU Rx (downstream, baris "down") = rx_power pelanggan,
+      nilai ONU Tx (upstream, baris "up") = tx_power pelanggan.
 
     Return:
       { 'rx_power': float|None, 'tx_power': float|None }
@@ -618,6 +821,18 @@ def parse_zte_rx(cli_output: str) -> dict:
         tx_match = re.search(
             r'[Tt]x\s+power\s*[:\-]\s*(-?\d+(?:\.\d+)?)\s*dBm',
             cli_output
+        )
+
+    # Format C: tabel "show pon power attenuation" — kolom ONU pada baris up/down
+    if not tx_match:
+        tx_match = re.search(
+            r'up\s+Rx\s*:\s*\S+\s+Tx\s*:\s*(-?\d+(?:\.\d+)?)\s*\(?dbm\)?',
+            cli_output, re.IGNORECASE
+        )
+    if not rx_match:
+        rx_match = re.search(
+            r'down\s+Tx\s*:\s*\S+\s+Rx\s*:\s*(-?\d+(?:\.\d+)?)\s*\(?dbm\)?',
+            cli_output, re.IGNORECASE
         )
 
     if rx_match:
@@ -697,6 +912,34 @@ def get_onu_data(username: str) -> dict:
                        FROM onu_mapping WHERE sn=? LIMIT 1''',
                     (p['sn'],)
                 ).fetchone()
+
+    # Fallback: OLT HSGQ EPON truncate nama ONU (mis. 'deva_kulonka' vs 'deva_kulonkali')
+    # Coba prefix match — ambil yang paling panjang agar tidak salah cocok
+    if not row and len(username) > 6:
+        candidates = conn.execute(
+            '''SELECT slot_port, vlan, sn, olt_id, rx_power, tx_power, tcont_profile, username
+               FROM onu_mapping WHERE username LIKE ? AND username NOT LIKE 'mac:%' ''',
+            (username[:8] + '%',)
+        ).fetchall()
+        # Pilih kandidat yang nama-nya merupakan prefix dari username pelanggan
+        best = None
+        for c in candidates:
+            if username.startswith(c['username']) or c['username'].startswith(username[:10]):
+                if best is None or len(c['username']) > len(best['username']):
+                    best = c
+        if best:
+            # Sekalian update username di onu_mapping agar berikutnya langsung cocok
+            try:
+                conn.execute(
+                    'UPDATE onu_mapping SET username=? WHERE username=?',
+                    (username, best['username'])
+                )
+                conn.commit()
+            except sqlite3.IntegrityError:
+                # username sudah dipakai baris lain (UNIQUE) — biarkan baris lama,
+                # tetap pakai data 'best' untuk response kali ini
+                conn.rollback()
+            row = best
 
     conn.close()
 

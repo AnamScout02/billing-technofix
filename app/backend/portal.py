@@ -22,7 +22,7 @@ from functools import wraps
 from datetime import date
 from flask import Blueprint, request, jsonify, session
 
-from utils import get_owner_db, OWNER_DB_DIR
+from utils import get_owner_db, get_master_db, OWNER_DB_DIR, is_isolir_profil
 
 portal_bp = Blueprint('portal', __name__)
 logger    = logging.getLogger(__name__)
@@ -66,33 +66,100 @@ def _normalize_phone(p: str) -> str:
     return p
 
 
+def _ensure_pelanggan_index_table(conn):
+    conn.execute('''CREATE TABLE IF NOT EXISTS pelanggan_index (
+        username   TEXT NOT NULL,
+        network_id TEXT NOT NULL,
+        PRIMARY KEY (username, network_id)
+    )''')
+
+
+def _index_lookup(username: str) -> list:
+    """Ambil daftar network_id kandidat dari index login portal (cache)."""
+    try:
+        mconn = get_master_db()
+        _ensure_pelanggan_index_table(mconn)
+        rows = mconn.execute(
+            'SELECT network_id FROM pelanggan_index WHERE username = ?', (username,)
+        ).fetchall()
+        mconn.close()
+        return [r['network_id'] for r in rows]
+    except Exception as e:
+        logger.warning(f'[Portal] Index lookup error: {e}')
+        return []
+
+
+def _index_remember(username: str, network_id: str):
+    """Simpan pasangan username->network_id agar login berikutnya tak perlu scan semua owner DB."""
+    try:
+        mconn = get_master_db()
+        _ensure_pelanggan_index_table(mconn)
+        mconn.execute(
+            'INSERT OR IGNORE INTO pelanggan_index (username, network_id) VALUES (?, ?)',
+            (username, network_id)
+        )
+        mconn.commit()
+        mconn.close()
+    except Exception as e:
+        logger.warning(f'[Portal] Index remember error: {e}')
+
+
+def _match_pelanggan_row(row, pwd_norm: str):
+    hp_db    = _normalize_phone(row['hp']    or '')
+    no_hp_db = _normalize_phone(row['no_hp'] if 'no_hp' in row.keys() else '')
+    return bool(pwd_norm) and pwd_norm in (hp_db, no_hp_db)
+
+
 def _search_pelanggan_all_owners(username: str, password: str):
     """
-    Cari pelanggan di semua owner DB.
+    Cari pelanggan untuk login portal.
     Cocokkan password dengan kolom hp / no_hp (nomor telepon).
+
+    Performa: cek index `pelanggan_index` (master DB) lebih dulu — login
+    berulang jadi O(1) tanpa scan semua file owners/*.db. Kalau index miss
+    (login pertama / data baru), fallback scan semua owner DB lalu simpan
+    hasilnya ke index untuk login berikutnya.
+
     Return (network_id, row_dict) atau (None, None).
     """
+    username = username.lower()
     pwd_norm = _normalize_phone(password)
-    owner_dbs = glob.glob(os.path.join(OWNER_DB_DIR, '*.db'))
 
-    for db_path in owner_dbs:
-        nid = os.path.splitext(os.path.basename(db_path))[0]
+    # ── Fast path: pakai index hasil login sebelumnya ──────────
+    indexed_nids = _index_lookup(username)
+    for nid in indexed_nids:
         try:
             conn = get_owner_db(nid)
             row = conn.execute(
-                'SELECT * FROM pelanggan WHERE LOWER(username) = ? LIMIT 1',
-                (username.lower(),)
+                'SELECT * FROM pelanggan WHERE LOWER(username) = ? LIMIT 1', (username,)
+            ).fetchone()
+            conn.close()
+            if row and _match_pelanggan_row(row, pwd_norm):
+                return nid, dict(row)
+        except Exception as e:
+            logger.warning(f'[Portal] Error saat cari di index {nid[:8]}: {e}')
+            continue
+
+    # ── Fallback: scan semua owner DB (login pertama / index basi) ──
+    owner_dbs = glob.glob(os.path.join(OWNER_DB_DIR, '*.db'))
+    indexed_set = set(indexed_nids)
+
+    for db_path in owner_dbs:
+        nid = os.path.splitext(os.path.basename(db_path))[0]
+        if nid in indexed_set:
+            continue  # sudah dicek di fast path
+        try:
+            conn = get_owner_db(nid)
+            row = conn.execute(
+                'SELECT * FROM pelanggan WHERE LOWER(username) = ? LIMIT 1', (username,)
             ).fetchone()
             conn.close()
 
             if not row:
                 continue
 
-            hp_db    = _normalize_phone(row['hp']    or '')
-            no_hp_db = _normalize_phone(row['no_hp'] if 'no_hp' in row.keys() else '')
-
-            # Cek password cocok dengan salah satu nomor
-            if pwd_norm and pwd_norm in (hp_db, no_hp_db):
+            if _match_pelanggan_row(row, pwd_norm):
+                _index_remember(username, nid)
                 return nid, dict(row)
 
         except Exception as e:
@@ -204,6 +271,23 @@ def _rekening_info():
     return []
 
 
+def _get_portal_setting(nid: str) -> dict:
+    """Ambil pengaturan portal pelanggan {enabled, welcome_msg} dari app_settings owner."""
+    default = {'enabled': True, 'welcome_msg': ''}
+    if not nid:
+        return default
+    try:
+        conn = get_owner_db(nid)
+        row = conn.execute("SELECT value FROM app_settings WHERE key='portal_setting'").fetchone()
+        conn.close()
+        if row and row['value']:
+            cfg = _json.loads(row['value'])
+            default.update(cfg)
+    except Exception:
+        pass
+    return default
+
+
 # ══════════════════════════════════════════════════════════════
 # 1. CHECK SESSION
 # ══════════════════════════════════════════════════════════════
@@ -235,6 +319,9 @@ def portal_login():
 
     if not row.get('aktif', 1):
         return jsonify({'success': False, 'message': 'Akun Anda tidak aktif. Hubungi ISP Anda.'}), 403
+
+    if _get_portal_setting(nid).get('enabled') is False:
+        return jsonify({'success': False, 'message': 'Portal pelanggan sedang dinonaktifkan oleh ISP Anda.'}), 403
 
     session[PORTAL_USERNAME_KEY]   = row['username']
     session[PORTAL_NETWORK_ID_KEY] = nid
@@ -324,6 +411,20 @@ def portal_detail():
     except Exception:
         pass
 
+    # Nomor WA admin ISP (untuk tombol "Hubungi ISP" di portal/halaman isolir)
+    try:
+        pconn = _portal_db()
+        profil_row = pconn.execute(
+            "SELECT value FROM app_settings WHERE key='profil_isp'"
+        ).fetchone()
+        pconn.close()
+        if profil_row and profil_row['value']:
+            isp_wa = (_json.loads(profil_row['value']).get('wa_admin') or '').strip()
+    except Exception:
+        pass
+
+    portal_cfg = _get_portal_setting(session.get(PORTAL_NETWORK_ID_KEY))
+
     return jsonify({
         'username':      p.get('username')  or '',
         'nama':          p.get('nama')      or p.get('username') or '',
@@ -332,7 +433,9 @@ def portal_detail():
         'tgl_pasang':    p.get('tgl_pasang')  or '',
         'tgl_jatuh':     p.get('tgl_jatuh')   or '',
         'aktif':         bool(p.get('aktif', 1)),
+        'isolir':        is_isolir_profil(profil_name),
         'isp_name':      isp_name,
+        'isp_wa':        isp_wa,
         'harga':         harga,
         'harga_fmt':     f'Rp {harga:,}'.replace(',', '.') if harga else 'Belum diset',
         'rate_down':     rate_down,
@@ -346,6 +449,7 @@ def portal_detail():
         'olt_tipe':      onu['olt_tipe'],
         'router_name':   p.get('device_name') or '',
         'tagihan_aktif': tagihan_aktif,
+        'welcome_msg':   portal_cfg.get('welcome_msg') or '',
     }), 200
 
 
@@ -430,6 +534,89 @@ def portal_tagihan():
             'jumlah_belum':   len(belum),
         }
     }), 200
+
+
+# ══════════════════════════════════════════════════════════════
+# 6b. STRUK PEMBAYARAN (milik pelanggan sendiri)
+# ══════════════════════════════════════════════════════════════
+
+@portal_bp.route('/struk/<int:tagihan_id>', methods=['GET'])
+@portal_required
+def portal_struk(tagihan_id):
+    import re
+    username = session[PORTAL_USERNAME_KEY]
+    nid      = session[PORTAL_NETWORK_ID_KEY]
+
+    conn = _portal_db()
+    try:
+        t = conn.execute(
+            'SELECT * FROM tagihan WHERE id = ? AND username = ?',
+            (tagihan_id, username)
+        ).fetchone()
+        if not t:
+            return jsonify({'status': 'error', 'message': 'Struk tidak ditemukan'}), 404
+        if t['status'] != 'lunas':
+            return jsonify({'status': 'error', 'message': 'Tagihan belum lunas'}), 400
+
+        pel = conn.execute(
+            'SELECT hp, alamat FROM pelanggan WHERE username = ? LIMIT 1', (username,)
+        ).fetchone()
+        hp     = (pel['hp']     if pel and pel['hp']     else '')
+        alamat = (pel['alamat'] if pel and pel['alamat'] else '')
+
+        def _load_setting(key, default):
+            row = conn.execute('SELECT value FROM app_settings WHERE key = ?', (key,)).fetchone()
+            if not row:
+                return default
+            try:
+                return _json.loads(row['value'])
+            except Exception:
+                return default
+
+        logo_data   = _load_setting('isp_logo', {})
+        profil_isp  = _load_setting('profil_isp', {})
+        logo_base64 = logo_data.get('logo_base64', '')
+
+        isp_name = profil_isp.get('isp_name', '')
+        if not isp_name:
+            from utils import get_master_db
+            mdb = get_master_db()
+            net = mdb.execute('SELECT isp_name FROM networks WHERE network_id = ?', (nid,)).fetchone()
+            mdb.close()
+            isp_name = (net['isp_name'] if net else 'ISP')
+
+        paid_at   = t['paid_at'] or ''
+        tgl_short = re.sub(r'[T ].*', '', paid_at).replace('-', '') if paid_at else ''
+        no_struk  = '{}-{:04d}'.format(tgl_short or '00000000', tagihan_id)
+
+        return jsonify({
+            'status': 'success',
+            'struk': {
+                'no_struk':    no_struk,
+                'tagihan_id':  tagihan_id,
+                'isp_name':    isp_name,
+                'isp_logo':    logo_base64,
+                'isp_telepon': profil_isp.get('telepon', ''),
+                'isp_alamat':  profil_isp.get('alamat', ''),
+                'nama':        t['nama'] or t['username'],
+                'username':    t['username'],
+                'hp':          hp,
+                'alamat':      alamat,
+                'profil':      t['profil'] or '',
+                'periode':     t['periode'] or '',
+                'nominal':     t['nominal'],
+                'metode':      t['metode'] or 'Cash',
+                'kolektor':    t['kolektor'] or '',
+                'komisi':      t['komisi'] or 0,
+                'paid_at':     t['paid_at'] or '',
+                'status':      t['status'],
+            }
+        }), 200
+    except Exception as e:
+        logger.warning(f'[Portal] struk error: {e}')
+        return jsonify({'status': 'error', 'message': 'Gagal mengambil struk.'}), 500
+    finally:
+        conn.close()
 
 
 # ══════════════════════════════════════════════════════════════
@@ -558,10 +745,13 @@ def portal_perpanjang():
     # ── Notifikasi WA ke admin ISP ────────────────────────────
     try:
         import json as _json
-        from wa import _load_config, _send_via_gateway
-        from utils import get_db as get_owner_db
+        from wa import _load_config, _send_via_gateway, _normalize_hp
 
-        _oconn     = get_owner_db()
+        # _portal_db() pakai network_id dari session portal — JANGAN pakai
+        # get_db() di sini, karena tidak ada g.network_id/session['network_id']
+        # di konteks portal sehingga get_db() fallback ke MASTER db (config
+        # WA & profil ISP owner tidak akan ketemu, notifikasi gagal senyap).
+        _oconn     = _portal_db()
         wa_cfg     = _load_config(_oconn)
         profil_row = _oconn.execute(
             "SELECT value FROM app_settings WHERE key='profil_isp'"
@@ -586,7 +776,7 @@ def portal_perpanjang():
                 + (f"\nCatatan: {catatan}" if catatan else "") +
                 f"\n\nSegera konfirmasi di halaman Keuangan."
             )
-            _send_via_gateway(wa_cfg, wa_admin, pesan)
+            _send_via_gateway(wa_cfg, _normalize_hp(wa_admin), pesan)
     except Exception as e_wa:
         logger.warning(f'[Portal] Notif WA admin gagal: {e_wa}')
 
@@ -656,88 +846,3 @@ def portal_rekening():
     """Kembalikan info rekening bank owner untuk transfer manual."""
     return jsonify({'rekening': _rekening_info()}), 200
 
-
-# ══════════════════════════════════════════════════════════════
-# 11. UBAH WIFI (via GenieACS) — pelanggan ganti SSID/password WiFi
-# ══════════════════════════════════════════════════════════════
-
-@portal_bp.route('/wifi', methods=['POST'])
-@portal_required
-def portal_wifi():
-    """
-    Pelanggan ubah SSID dan/atau password WiFi modem/ONU via GenieACS.
-    Butuh SN modem terdaftar di onu_mapping.
-    """
-    username = session[PORTAL_USERNAME_KEY]
-    body     = request.get_json(silent=True) or {}
-    ssid     = (body.get('ssid')     or '').strip()
-    password = (body.get('password') or '').strip()
-
-    if not ssid and not password:
-        return jsonify({'success': False, 'error': 'SSID atau password WiFi wajib diisi.'}), 400
-    if password and len(password) < 8:
-        return jsonify({'success': False, 'error': 'Password WiFi minimal 8 karakter.'}), 400
-
-    # Ambil SN dari onu_mapping
-    onu = _get_onu_data(username)
-    sn  = onu.get('sn', '')
-    if not sn:
-        return jsonify({'success': False, 'error': 'Serial Number modem belum terdaftar. Hubungi admin.'}), 400
-
-    # Panggil GenieACS wifi endpoint internal
-    try:
-        import urllib.request, urllib.parse, json as _jj
-        from utils import get_owner_db
-
-        nid  = session.get(PORTAL_NETWORK_ID_KEY)
-        conn = get_owner_db(nid)
-        row  = conn.execute(
-            "SELECT value FROM app_settings WHERE key='genieacs_url'"
-        ).fetchone()
-        token_row = conn.execute(
-            "SELECT value FROM app_settings WHERE key='genieacs_token'"
-        ).fetchone()
-        enabled_row = conn.execute(
-            "SELECT value FROM app_settings WHERE key='genieacs_enabled'"
-        ).fetchone()
-        conn.close()
-
-        gurl     = (row['value']         if row         else '').strip().rstrip('/')
-        gtoken   = (token_row['value']   if token_row   else '').strip()
-        genabled = (enabled_row['value'] if enabled_row else '0') == '1'
-
-        if not (genabled and gurl and gtoken):
-            # Mock mode — tidak ada GenieACS aktif
-            logger.info(f'[Portal WiFi] Mock mode — SN={sn} SSID={ssid}')
-            return jsonify({
-                'success': True,
-                'mock':    True,
-                'message': 'Permintaan diterima. Pengaturan WiFi akan diperbarui dalam beberapa menit (mode simulasi).',
-            }), 200
-
-        # Kirim ke GenieACS NBI
-        import base64
-        dev_id    = urllib.parse.quote(sn)
-        pv        = []
-        base_path = 'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.'
-        if ssid:
-            pv.append([base_path + 'SSID', ssid, 'xsd:string'])
-        if password:
-            pv.append([base_path + 'PreSharedKey.1.PreSharedKey', password, 'xsd:string'])
-            pv.append([base_path + 'KeyPassphrase', password, 'xsd:string'])
-
-        path    = f'{gurl}/devices/{dev_id}/tasks?connection_request'
-        payload = _jj.dumps({'name': 'setParameterValues', 'parameterValues': pv}).encode()
-        tok     = base64.b64encode(f'{gtoken}:'.encode()).decode()
-        req     = urllib.request.Request(path, data=payload,
-                    headers={'Content-Type': 'application/json', 'Authorization': 'Basic ' + tok},
-                    method='POST')
-        urllib.request.urlopen(req, timeout=8)
-
-        logger.info(f'[Portal WiFi] Berhasil kirim ke GenieACS — SN={sn}')
-        return jsonify({'success': True, 'mock': False, 'message': 'Pengaturan WiFi berhasil dikirim ke modem.'}), 200
-
-    except Exception as e:
-        logger.warning(f'[Portal WiFi] Error: {e}')
-        return jsonify({'success': True, 'mock': True,
-                        'message': 'Permintaan diterima. Pengaturan WiFi akan diperbarui dalam beberapa menit.'}), 200

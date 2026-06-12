@@ -32,8 +32,8 @@ ke dalam tabel onu_mapping di database lokal.
   MODUL 5 — Generic / Hioso / OLT tidak dikenal
     • Sama seperti sebelumnya, ditingkatkan dengan VLAN fallback MikroTik
 
-  PATCH VLAN DARI MIKROTIK (semua modul)
-    • Setelah sync OLT selesai, jalankan _patch_vlan_from_mikrotik()
+  PATCH VLAN DARI MIKROTIK (semua modul GPON)
+    • Setelah sync OLT selesai, jalankan _patch_vlan_from_mikrotik_bulk()
     • Update kolom vlan di onu_mapping untuk baris yang vlan-nya masih kosong
     • Sumber: MikroTikClient.get_all_vlan_by_secret()
 
@@ -76,47 +76,51 @@ logger = logging.getLogger(__name__)
 # ══════════════════════════════════════════════════════════════
 
 def _upsert_onu(conn, username: str, olt_id: int, slot_port: str,
-                sn: str, vlan: str, rx_power, tx_power):
+                sn: str, vlan: str, rx_power, tx_power, tcont_profile: str = None):
     """
     Insert atau update satu baris di tabel onu_mapping.
     Jika vlan kosong string → pakai COALESCE agar tidak timpa nilai lama.
-    rx_power / tx_power None → juga pakai COALESCE.
+    rx_power / tx_power / tcont_profile None atau kosong → juga pakai COALESCE
+    (supaya hasil parsing yang gagal tidak menimpa nilai lama dengan 'default').
     """
     now = datetime.now().isoformat()
+    tcont = (tcont_profile or '').strip() or None
     if vlan:
         # Punya VLAN → update semua kolom termasuk vlan
         conn.execute(
             '''INSERT INTO onu_mapping
-               (username, olt_id, slot_port, sn, vlan, rx_power, tx_power, synced_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+               (username, olt_id, slot_port, sn, vlan, rx_power, tx_power, tcont_profile, synced_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                ON CONFLICT(username) DO UPDATE SET
-                 olt_id    = excluded.olt_id,
-                 slot_port = excluded.slot_port,
-                 sn        = excluded.sn,
-                 vlan      = excluded.vlan,
-                 rx_power  = COALESCE(excluded.rx_power,  onu_mapping.rx_power),
-                 tx_power  = COALESCE(excluded.tx_power,  onu_mapping.tx_power),
-                 synced_at = excluded.synced_at
+                 olt_id        = excluded.olt_id,
+                 slot_port     = excluded.slot_port,
+                 sn            = excluded.sn,
+                 vlan          = excluded.vlan,
+                 rx_power      = COALESCE(excluded.rx_power, onu_mapping.rx_power),
+                 tx_power      = COALESCE(excluded.tx_power, onu_mapping.tx_power),
+                 tcont_profile = COALESCE(NULLIF(excluded.tcont_profile, ''), onu_mapping.tcont_profile),
+                 synced_at     = excluded.synced_at
             ''',
             (username, olt_id, slot_port, sn, vlan,
-             rx_power, tx_power, now)
+             rx_power, tx_power, tcont, now)
         )
     else:
         # VLAN kosong → pertahankan nilai vlan lama (COALESCE)
         conn.execute(
             '''INSERT INTO onu_mapping
-               (username, olt_id, slot_port, sn, vlan, rx_power, tx_power, synced_at)
-               VALUES (?, ?, ?, ?, '', ?, ?, ?)
+               (username, olt_id, slot_port, sn, vlan, rx_power, tx_power, tcont_profile, synced_at)
+               VALUES (?, ?, ?, ?, '', ?, ?, ?, ?)
                ON CONFLICT(username) DO UPDATE SET
-                 olt_id    = excluded.olt_id,
-                 slot_port = excluded.slot_port,
-                 sn        = excluded.sn,
-                 rx_power  = COALESCE(excluded.rx_power,  onu_mapping.rx_power),
-                 tx_power  = COALESCE(excluded.tx_power,  onu_mapping.tx_power),
-                 synced_at = excluded.synced_at
+                 olt_id        = excluded.olt_id,
+                 slot_port     = excluded.slot_port,
+                 sn            = excluded.sn,
+                 rx_power      = COALESCE(excluded.rx_power, onu_mapping.rx_power),
+                 tx_power      = COALESCE(excluded.tx_power, onu_mapping.tx_power),
+                 tcont_profile = COALESCE(NULLIF(excluded.tcont_profile, ''), onu_mapping.tcont_profile),
+                 synced_at     = excluded.synced_at
             ''',
             (username, olt_id, slot_port, sn,
-             rx_power, tx_power, now)
+             rx_power, tx_power, tcont, now)
         )
 
 
@@ -229,7 +233,7 @@ def sync_zte(ssh_conn, conn, olt: dict):
       - RX/TX     : show pon onu optical-info gpon-onu_<iface>
     """
     olt_name    = olt['name']
-    match_count = 0
+    match_count = 0 
 
     logger.info(f'[{olt_name}] Sinkronisasi ZTE GPON dimulai...')
 
@@ -258,7 +262,7 @@ def sync_zte(ssh_conn, conn, olt: dict):
         # ── 2. Peta SN dari blok gpon-olt ──
         sn_map = {}
         for port, block in re.findall(
-            r'interface gpon-olt_(\d+/\d+/\d+)(.*?)!',
+            r'interface gpon-olt_(\d+/\d+/\d+)(.*?)(?:\r?\n!|\Z)',
             config_text, re.DOTALL
         ):
             for onu_id, sn in re.findall(
@@ -267,13 +271,15 @@ def sync_zte(ssh_conn, conn, olt: dict):
                 sn_map[f'{port}:{onu_id}'] = sn
 
         # ── 3. Kumpulkan semua ONU dari blok gpon-onu ──
-        onu_list = []  # list of (iface, username, vlan, sn)
+        onu_list = []  # list of (iface, username, vlan, sn, tcont_profile)
         for iface, block in re.findall(
-            r'interface gpon-onu_(\d+/\d+/\d+:\d+)(.*?)!',
+            r'interface gpon-onu_(\d+/\d+/\d+:\d+)(.*?)(?:\r?\n!|\Z)',
             config_text, re.DOTALL
         ):
-            name_match = re.search(r'name\s+([^\r\n]+)', block)
-            vlan_match = re.search(r'(?:user-vlan|vlan)\s+(\d+)', block)
+            name_match  = re.search(r'name\s+([^\r\n]+)', block)
+            vlan_match  = re.search(r'(?:user-vlan|vlan)\s+(\d+)', block)
+            # Nama TCONT profile asli dari OLT, mis. 'tcont 1 profile PAKET1'
+            tcont_match = re.search(r'tcont\s+\d+\s+profile\s+(\S+)', block)
 
             if not name_match:
                 continue
@@ -282,12 +288,13 @@ def sync_zte(ssh_conn, conn, olt: dict):
             if not username or username.lower() in ('n/a', '-', ''):
                 continue
 
-            vlan = vlan_match.group(1) if vlan_match else ''
-            sn   = sn_map.get(iface, '')
-            onu_list.append((iface, username, vlan, sn))
+            vlan  = vlan_match.group(1) if vlan_match else ''
+            sn    = sn_map.get(iface, '')
+            tcont = tcont_match.group(1).strip() if tcont_match else ''
+            onu_list.append((iface, username, vlan, sn, tcont))
 
         # ── 4. Bulk fetch per port: RX, TX, phase state, ONU liar ──
-        unique_ports = {iface.rsplit(':', 1)[0] for iface, *_ in onu_list}
+        unique_ports = {iface.rsplit(':', 1)[0] for iface, _, _, _, _ in onu_list}
         rx_cache    = {}
         tx_cache    = {}
         state_cache = {}
@@ -300,12 +307,12 @@ def sync_zte(ssh_conn, conn, olt: dict):
             unauth_all.extend(_fetch_zte_unauthorized(ssh_conn, port))
 
         # ── 5. Simpan ONU ke DB ──
-        for iface, username, vlan, sn in onu_list:
+        for iface, username, vlan, sn, tcont in onu_list:
             port     = iface.rsplit(':', 1)[0]
             rx_power = rx_cache.get(port, {}).get(iface)
             tx_power = tx_cache.get(port, {}).get(iface)
             _upsert_onu(conn, username, olt['id'], iface, sn, vlan,
-                        rx_power, tx_power)
+                        rx_power, tx_power, tcont_profile=tcont)
             match_count += 1
 
         # ── 6. Update is_online dari phase state OLT ──
@@ -932,218 +939,6 @@ def sync_hsgq_epon_telnet(conn, olt: dict):
             tn.close()
 
 
-def sync_hsgq_epon(ssh_conn, conn, olt: dict):
-    """
-    Sinkronisasi ONU dari OLT HSGQ EPON (E04ID, E08ID, dan sejenisnya).
-
-    Alur berdasarkan referensi CLI HSGQ:
-      1. configure terminal  → masuk config mode
-      2. interface epon 0/{n} → masuk PON port
-      3. show onu-info all    → MAC (=SN di EPON) + slot/port + status
-      4. show onu optical-info / show onu opm-diag all → RX power
-      5. show running-config (global) → VLAN per ONU
-      6. interface onu {port}/{id} → detail ONU
-
-    Catatan: di EPON, MAC address = SN (tidak ada SN 16-char seperti GPON)
-    slot/port format: PON_port/ONU_ID (mis. 1/1 = PON port 1, ONU ID 1)
-    """
-    olt_name   = olt['name']
-    olt_id     = olt['id']
-    epon_ports = int(olt.get('epon_ports') or 8)
-    match_count = 0
-
-    logger.info(f'[{olt_name}] HSGQ EPON sync dimulai ({epon_ports} port)...')
-
-    try:
-        # ── Step 1: Masuk configure terminal (HSGQ butuh config mode) ──
-        try:
-            ssh_conn.send_command('configure terminal', timeout_ops=15)
-            logger.info(f'[{olt_name}] Masuk configure terminal')
-        except Exception:
-            pass
-
-        # ── Step 1b: Coba show onu-info all dari context global dulu ──
-        # Pada HSGQ, command ini bisa dijalankan dari OLT(config)# tanpa masuk interface
-        global_info_out = ''
-        try:
-            global_info_out = ssh_conn.send_command('show onu-info all', timeout_ops=30).result
-            logger.info(f'[{olt_name}] Global show onu-info all: {len(global_info_out)}b')
-        except Exception:
-            pass
-
-        # ── Step 2: Ambil VLAN dari running-config (sekali, global) ──
-        vlan_map = {}  # { 'port/onu_id': vlan_str }
-        try:
-            run_cfg = ssh_conn.send_command('show running-config', timeout_ops=120).result
-            # Parse blok konfigurasi ONU: cari PVID/VLAN per ONU
-            # Format umum: interface onu {port}/{id} ... pvid {vlan} ...
-            for m in re.finditer(
-                r'interface\s+onu\s+(\d+/\d+)(.*?)(?=interface|\Z)',
-                run_cfg, re.DOTALL | re.I
-            ):
-                slot = m.group(1).strip()
-                block = m.group(2)
-                # Cari PVID atau VLAN
-                vlan_m = re.search(r'(?:pvid|vlan)\s+(\d+)', block, re.I)
-                if vlan_m:
-                    vlan_map[slot] = vlan_m.group(1)
-            logger.info(f'[{olt_name}] VLAN dari running-config: {len(vlan_map)} ONU')
-        except Exception as e:
-            logger.warning(f'[{olt_name}] running-config gagal: {e}')
-
-        # ── Step 3: Loop setiap PON port ──
-        for port_num in range(1, epon_ports + 1):
-
-            # Format interface HSGQ: 'interface epon 0/{n}'
-            iface_entered = False
-            for iface_cmd in [f'interface epon 0/{port_num}',
-                               f'interface epon {port_num}']:
-                try:
-                    ssh_conn.send_command(iface_cmd, timeout_ops=10)
-                    iface_entered = True
-                    logger.info(f'[{olt_name}] Interface: {iface_cmd}')
-                    break
-                except Exception:
-                    continue
-
-            if not iface_entered:
-                logger.warning(f'[{olt_name}] ⚠ Port {port_num} tidak bisa diakses')
-                continue
-
-            try:
-                # ── Step 3a: show onu-info all ──
-                # Format HSGQ EPON:
-                # PON/ONU  MAC                Status   Auth  Cfg  Reg-time             ONU-Name
-                # 4/18     40:62:ea:e1:4b:c7  Online   TRUE  TRUE 2026/06/03 20:31:24  nando_tegaly
-                #
-                # ONU-Name LANGSUNG = PPPoE username! Tidak perlu MAC matching.
-                info_out = ''
-                for cmd in ['show onu-info all', 'show onu info all', 'show epon onu']:
-                    try:
-                        info_out = ssh_conn.send_command(cmd, timeout_ops=20).result
-                        if info_out and len(info_out) > 10:
-                            logger.info(f'[{olt_name}] port {port_num} onu-info ({len(info_out)}b) via: {cmd}')
-                            break
-                    except Exception:
-                        continue
-
-                # ── Step 3b: RX power ──
-                opt_out = ''
-                for cmd in ['show onu optical-info', 'show onu opm-diag all',
-                             'show onu optical-info all']:
-                    try:
-                        opt_out = ssh_conn.send_command(cmd, timeout_ops=20).result
-                        if opt_out and len(opt_out) > 10:
-                            logger.info(f'[{olt_name}] port {port_num} optical ({len(opt_out)}b) via: {cmd}')
-                            break
-                    except Exception:
-                        continue
-
-                # ── Parse: PON/ONU + MAC + Status + ONU-Name ──
-                # Baris: "4/18  40:62:ea:e1:4b:c7  Online  TRUE  TRUE  2026/06/03 20:31:24  nando_tegaly  ..."
-                onu_info = {}
-                for m in re.finditer(
-                    r'(\d+/\d+)\s+'                                      # PON/ONU
-                    r'((?:[0-9a-fA-F]{2}[:\-]){5}[0-9a-fA-F]{2})\s+'  # MAC
-                    r'(\w+)\s+'                                           # Status (Online/Offline)
-                    r'\w+\s+\w+\s+'                                      # Auth TRUE/FALSE + Cfg TRUE/FALSE
-                    r'[\d/\s:]+\s+'                                      # Reg-time
-                    r'(\S+)',                                             # ONU-Name = PPPoE username
-                    info_out
-                ):
-                    pon_onu  = m.group(1).strip()
-                    raw_mac  = m.group(2).strip().lower()
-                    status   = m.group(3).strip()
-                    onu_name = m.group(4).strip()
-
-                    onu_id    = pon_onu.split('/')[-1]
-                    slot_port = f'{port_num}/{onu_id}'
-                    onu_info[onu_id] = {
-                        'mac':       raw_mac,
-                        'slot_port': slot_port,
-                        'status':    status,
-                        'onu_name':  onu_name,   # ini PPPoE username langsung!
-                    }
-                    logger.debug(f'[{olt_name}] ONU {slot_port} MAC={raw_mac} '
-                                 f'user={onu_name} {status}')
-
-                # ── Parse: RX power dari optical-info ──
-                # Format: ONU-ID  Rx-Power(dBm)  Tx-Power(dBm)
-                #   atau: PON/ONU  Rx  Tx ...
-                rx_map = {}
-                for m in re.finditer(
-                    r'(\d+/\d+|\d+)\s+(-?\d+\.?\d*)\s+(-?\d+\.?\d*)',
-                    opt_out
-                ):
-                    key    = m.group(1).strip()
-                    onu_id = key.split('/')[-1]
-                    rx_map[onu_id] = (
-                        parse_rx_power(m.group(2)),
-                        parse_rx_power(m.group(3))
-                    )
-
-                logger.info(f'[{olt_name}] port {port_num}: {len(onu_info)} ONU, '
-                            f'{len(rx_map)} RX data')
-
-                # ── Simpan ke onu_mapping ──
-                for onu_id, info in onu_info.items():
-                    mac       = info['mac']
-                    slot_port = info['slot_port']
-                    onu_name  = info.get('onu_name', '')
-                    # SN = MAC uppercase tanpa colon (format standar EPON)
-                    sn        = mac.lower()  # simpan MAC dengan titik dua (EPON)
-                    vlan      = vlan_map.get(slot_port, '')
-                    rx, tx    = rx_map.get(onu_id, (None, None))
-
-                    # ONU-Name dari HSGQ = PPPoE username langsung!
-                    # Verifikasi: cek apakah username ini ada di tabel pelanggan
-                    username = None
-
-                    if onu_name and onu_name not in ('NO-DESCRIPTI', 'NO-DESCRIPTION', '-', ''):
-                        # Cek apakah ada di pelanggan
-                        row = conn.execute(
-                            "SELECT username FROM pelanggan WHERE username=? LIMIT 1",
-                            (onu_name,)
-                        ).fetchone()
-                        if row:
-                            username = onu_name  # match sempurna!
-                        else:
-                            # Belum ada di DB, simpan dengan nama ONU sebagai username
-                            # (akan cocok saat pelanggan ditambahkan)
-                            username = onu_name
-
-                    # Fallback jika nama ONU kosong/tidak valid
-                    if not username:
-                        row = conn.execute(
-                            "SELECT username FROM onu_mapping WHERE slot_port=? AND olt_id=? "
-                            "AND username NOT LIKE 'mac:%' LIMIT 1",
-                            (slot_port, olt_id)
-                        ).fetchone()
-                        if row:
-                            username = row['username']
-                        else:
-                            username = f'mac:{mac}'
-
-                    _upsert_onu(conn, username, olt_id, slot_port, sn, vlan, rx, tx)
-                    match_count += 1
-                    logger.info(f'[{olt_name}] SAVE {slot_port} → {username} '
-                                f'MAC={mac} VLAN={vlan} RX={rx}')
-
-            except Exception as e:
-                logger.warning(f'[{olt_name}] ⚠ port {port_num}: {e}')
-            finally:
-                try:
-                    ssh_conn.send_command('exit', timeout_ops=5)
-                except Exception:
-                    pass
-
-        conn.commit()
-        logger.info(f'[{olt_name}] ✅ HSGQ EPON: {match_count} ONU tersinkronisasi.')
-
-    except Exception as e:
-        logger.error(f'[{olt_name}] ❌ HSGQ EPON error: {e}', exc_info=True)
-
-
 # ══════════════════════════════════════════════════════════════
 # MODUL 4 — V-Sol GPON (V1600D / V1600G / V1600D4L)
 # ══════════════════════════════════════════════════════════════
@@ -1192,7 +987,7 @@ def sync_vsol(ssh_conn, conn, olt: dict):
         # ── Peta SN dari blok gpon-olt ──
         sn_map = {}
         for port, block in re.findall(
-            r'interface gpon-olt_(\d+/\d+/\d+)(.*?)!',
+            r'interface gpon-olt_(\d+/\d+/\d+)(.*?)(?:\r?\n!|\Z)',
             config_text, re.DOTALL
         ):
             for onu_id, sn in re.findall(
@@ -1202,7 +997,7 @@ def sync_vsol(ssh_conn, conn, olt: dict):
 
         # ── Peta Name & VLAN dari blok gpon-onu ──
         for iface, block in re.findall(
-            r'interface gpon-onu_(\d+/\d+/\d+:\d+)(.*?)!',
+            r'interface gpon-onu_(\d+/\d+/\d+:\d+)(.*?)(?:\r?\n!|\Z)',
             config_text, re.DOTALL
         ):
             name_match = re.search(r'name\s+([^\r\n]+)', block)
@@ -1264,7 +1059,7 @@ def sync_generic_olt(ssh_conn, conn, olt: dict):
 
         # ── Pola GPON (ZTE-like): interface gpon-onu_ ──
         for iface, block in re.findall(
-            r'interface gpon-onu_(\d+/\d+/\d+:\d+)(.*?)!',
+            r'interface gpon-onu_(\d+/\d+/\d+:\d+)(.*?)(?:\r?\n!|\Z)',
             config_text, re.DOTALL
         ):
             _parse_and_upsert_generic(conn, olt, ssh_conn, iface, block, 'gpon')
@@ -1272,7 +1067,7 @@ def sync_generic_olt(ssh_conn, conn, olt: dict):
 
         # ── Pola EPON (ZTE-like): interface epon-onu_ ──
         for iface, block in re.findall(
-            r'interface epon-onu_(\d+/\d+:\d+)(.*?)!',
+            r'interface epon-onu_(\d+/\d+:\d+)(.*?)(?:\r?\n!|\Z)',
             config_text, re.DOTALL
         ):
             _parse_and_upsert_generic(conn, olt, ssh_conn, iface, block, 'epon')
@@ -1280,7 +1075,7 @@ def sync_generic_olt(ssh_conn, conn, olt: dict):
 
         # ── Pola Hioso / BDCOM: interface onu ──
         for iface, block in re.findall(
-            r'interface [Oo][Nn][Uu]\s+(\S+)(.*?)!',
+            r'interface [Oo][Nn][Uu]\s+(\S+)(.*?)(?:\r?\n!|\Z)',
             config_text, re.DOTALL
         ):
             _parse_and_upsert_generic(conn, olt, ssh_conn, iface, block, 'generic')
@@ -1372,10 +1167,6 @@ def _patch_vlan_from_mikrotik_bulk(conn, olt_ids: list):
         if not all_usernames:
             return
 
-        usernames_need_vlan = {r['username'] for r in rows
-                               if not r['username'].startswith('mac:')
-                               and not (r['vlan'] if 'vlan' in r.keys() else False)}
-
         devices = conn.execute(
             "SELECT id, name, ip, port, username, password "
             "FROM devices WHERE status = 'connected'"
@@ -1441,87 +1232,6 @@ def _patch_vlan_from_mikrotik_bulk(conn, olt_ids: list):
         logger.error('[VLAN Patch] Error: %s', e)
 
 
-def _patch_vlan_from_mikrotik(conn, olt_id: int):
-    """
-    Setelah sinkronisasi OLT selesai, update kolom 'vlan' di onu_mapping
-    untuk baris yang vlan-nya masih kosong.
-
-    Caranya:
-      1. Ambil semua row onu_mapping dengan olt_id ini yang vlan = ''
-      2. Untuk tiap username, cari di semua device MikroTik yang ada
-         via MikroTikClient.get_all_vlan_by_secret()
-      3. Jika ketemu → UPDATE onu_mapping SET vlan = ?
-
-    Ini berjalan di background, error tidak menghentikan worker.
-    """
-    try:
-        # Ambil username yang vlan-nya masih kosong
-        rows = conn.execute(
-            "SELECT username FROM onu_mapping WHERE olt_id = ? AND (vlan = '' OR vlan IS NULL)",
-            (olt_id,)
-        ).fetchall()
-
-        if not rows:
-            logger.info(f'[VLAN Patch] OLT #{olt_id}: semua vlan sudah terisi, skip.')
-            return
-
-        usernames_need_vlan = {r['username'] for r in rows
-                               if not r['username'].startswith('mac:')}
-        if not usernames_need_vlan:
-            return
-
-        logger.info(
-            f'[VLAN Patch] OLT #{olt_id}: {len(usernames_need_vlan)} username '
-            f'butuh VLAN dari MikroTik.'
-        )
-
-        # Ambil semua device MikroTik yang connected
-        devices = conn.execute(
-            "SELECT id, name, ip, port, username, password "
-            "FROM devices WHERE status = 'connected'"
-        ).fetchall()
-
-        if not devices:
-            logger.info('[VLAN Patch] Tidak ada perangkat MikroTik connected, skip.')
-            return
-
-        # Kumpulkan VLAN map dari semua device MikroTik
-        combined_vlan = {}  # { username: vlan_id }
-        for dev in devices:
-            try:
-                with MikroTikClient(dict(dev)) as mt:
-                    vmap = mt.get_all_vlan_by_secret()
-                    combined_vlan.update(vmap)
-                logger.info(
-                    f'[VLAN Patch] MikroTik {dev["name"]}: '
-                    f'{len(vmap)} username ter-resolve VLAN'
-                )
-            except MikroTikError as e:
-                logger.warning(f'[VLAN Patch] MikroTik {dev["name"]} gagal: {e}')
-            except Exception as e:
-                logger.warning(f'[VLAN Patch] MikroTik {dev["name"]} error: {e}')
-
-        # Terapkan VLAN ke onu_mapping
-        updated = 0
-        for username in usernames_need_vlan:
-            vlan = combined_vlan.get(username)
-            if vlan:
-                conn.execute(
-                    'UPDATE onu_mapping SET vlan = ? WHERE username = ?',
-                    (str(vlan), username)
-                )
-                updated += 1
-
-        conn.commit()
-        logger.info(
-            f'[VLAN Patch] OLT #{olt_id}: {updated}/{len(usernames_need_vlan)} '
-            f'username berhasil diperbarui VLAN-nya dari MikroTik.'
-        )
-
-    except Exception as e:
-        logger.error(f'[VLAN Patch] Error: {e}')
-
-
 # ══════════════════════════════════════════════════════════════
 # FUNGSI UTAMA: SINKRONISASI SEMUA OLT
 # ══════════════════════════════════════════════════════════════
@@ -1548,10 +1258,9 @@ _TIPE_MAP = [
     ('ma5616', sync_huawei),
 
     # ── HSGQ EPON ─────────────────────────────────────────────
-    ('hsgq',  sync_hsgq_epon),
-    ('epon',  sync_hsgq_epon),   # tipe generik EPON
-    ('e04',   sync_hsgq_epon),
-    ('e08',   sync_hsgq_epon),
+    # Tidak ada di sini: tipe 'hsgq'/'epon'/'e04'/'e08' sudah ditangani
+    # lebih awal lewat sync_hsgq_epon_telnet() (cek is_epon) sebelum
+    # _pilih_sync_func() dipanggil — lihat _sync_one_olt/sync_single_olt.
 
     # ── V-Sol GPON ────────────────────────────────────────────
     ('vsol',   sync_vsol),
@@ -1581,7 +1290,7 @@ def _pilih_sync_func(tipe_db: str, prompt: str):
 
 
 import threading as _threading
-from concurrent.futures import ThreadPoolExecutor as _ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor as _ThreadPoolExecutor, as_completed as _as_completed
 
 # Lock per-owner: sync owner A tidak blokir owner B
 _owner_locks: dict = {}
@@ -1634,41 +1343,34 @@ def sync_all_olts(network_id: str = None):
     logger.info('=' * 60)
 
 
-def _sync_owner_olts(network_id: str):
-    """Jalankan sync OLT untuk satu owner."""
+def _sync_one_olt(network_id: str, olt_dict: dict) -> bool:
+    """
+    Login & sync satu OLT — dipanggil paralel dari _sync_owner_olts.
+    Membuka koneksi DB sendiri (jangan dibagi antar thread; sqlite3
+    connection tidak thread-safe). WAL mode di get_owner_db() membuat
+    penulisan paralel ke file owner yang sama tetap aman/tidak macet.
+    Return True jika sync berhasil, False jika gagal (login/CLI error).
+    """
+    olt_name   = olt_dict['name']
+    tipe_lower = (olt_dict['tipe'] or '').lower()
     conn = get_owner_db(network_id)
-    olts = conn.execute("SELECT * FROM olt WHERE status = 'connected'").fetchall()
-
-    if not olts:
-        logger.info('[%s] Tidak ada OLT connected. Skip.', network_id[:8])
-        conn.close()
-        return
-
-    synced_olt_ids = []
-
-    for olt in olts:
-        olt_dict = dict(olt)
-        tipe_lower = (olt['tipe'] or '').lower()
+    try:
         logger.info('[%s] Login ke: %s (%s:%s) tipe=%s',
-                    network_id[:8], olt['name'], olt['ip'], olt['port'], olt['tipe'])
+                    network_id[:8], olt_name, olt_dict['ip'], olt_dict['port'], olt_dict['tipe'])
 
         # ── HSGQ EPON: gunakan telnetlib (bukan Scrapli) ──────────
         is_epon = any(k in tipe_lower for k in ['epon', 'hsgq', 'e04', 'e08'])
         if is_epon:
-            logger.info('[%s] EPON terdeteksi → gunakan telnetlib', olt['name'])
-            try:
-                sync_hsgq_epon_telnet(conn, olt_dict)
-                synced_olt_ids.append(olt['id'])
-            except Exception as e:
-                logger.error('Gagal sync EPON %s: %s', olt['name'], e)
-            continue
+            logger.info('[%s] EPON terdeteksi → gunakan telnetlib', olt_name)
+            sync_hsgq_epon_telnet(conn, olt_dict)
+            return True
 
         # ── GPON & lainnya: gunakan Scrapli ───────────────────────
         device_cfg = {
-            'host':                  olt['ip'],
-            'port':                  int(olt['port']),
-            'auth_username':         olt['username'],
-            'auth_password':         olt['password'],
+            'host':                  olt_dict['ip'],
+            'port':                  int(olt_dict['port']),
+            'auth_username':         olt_dict['username'],
+            'auth_password':         olt_dict['password'],
             'auth_strict_key':       False,
             'transport':             'telnet',
             'timeout_socket':        20,
@@ -1683,31 +1385,65 @@ def _sync_owner_olts(network_id: str):
             },
         }
 
-        try:
-            with GenericDriver(**device_cfg) as ssh_conn:
-                try:
-                    prompt = ssh_conn.get_prompt()
-                except Exception:
-                    prompt = ''
-                logger.info("[%s] Prompt: '%s'", olt['name'], prompt)
+        with GenericDriver(**device_cfg) as ssh_conn:
+            try:
+                prompt = ssh_conn.get_prompt()
+            except Exception:
+                prompt = ''
+            logger.info("[%s] Prompt: '%s'", olt_name, prompt)
 
-                sync_func = _pilih_sync_func(tipe_lower, prompt)
-                logger.info('[%s] Fungsi: %s', olt['name'], sync_func.__name__)
+            sync_func = _pilih_sync_func(tipe_lower, prompt)
+            logger.info('[%s] Fungsi: %s', olt_name, sync_func.__name__)
 
-                sync_func(ssh_conn, conn, olt_dict)
-                synced_olt_ids.append(olt['id'])
+            sync_func(ssh_conn, conn, olt_dict)
+        return True
 
-        except Exception as e:
-            logger.error('Gagal login ke OLT %s (%s:%s): %s',
-                         olt['name'], olt['ip'], olt['port'], e)
-            continue
+    except Exception as e:
+        logger.error('Gagal sync OLT %s (%s:%s): %s',
+                     olt_name, olt_dict['ip'], olt_dict['port'], e)
+        return False
+    finally:
+        conn.close()
+
+
+def _sync_owner_olts(network_id: str):
+    """
+    Jalankan sync OLT untuk satu owner.
+
+    Tiap OLT di-login & disinkronkan PARALEL (maks 3 sekaligus, masing-masing
+    dengan koneksi DB sendiri) — bagian paling lambat dari sync adalah
+    login SSH/Telnet & menunggu balasan CLI (network I/O), jadi paralelisasi
+    di sini paling besar dampaknya. Owner dengan banyak OLT (mis. tiap OLT
+    untuk wilayah berbeda) tidak lagi menahan slot thread terlalu lama.
+    """
+    conn = get_owner_db(network_id)
+    olts = conn.execute("SELECT * FROM olt WHERE status = 'connected'").fetchall()
+
+    if not olts:
+        logger.info('[%s] Tidak ada OLT connected. Skip.', network_id[:8])
+        conn.close()
+        return
+
+    olt_dicts = [dict(o) for o in olts]
+
+    synced_olt_ids = []
+    max_paralel = min(3, len(olt_dicts))
+    with _ThreadPoolExecutor(max_workers=max_paralel) as ex:
+        futures = {ex.submit(_sync_one_olt, network_id, od): od for od in olt_dicts}
+        for fut in _as_completed(futures):
+            od = futures[fut]
+            try:
+                if fut.result():
+                    synced_olt_ids.append(od['id'])
+            except Exception as e:
+                logger.error('[%s] Sync OLT %s gagal: %s', network_id[:8], od['name'], e)
 
     # ── Patch VLAN dari MikroTik hanya untuk OLT non-EPON ──
     # EPON: semua user 1 pool IP → tidak bisa resolve VLAN dari MikroTik
     # GPON (ZTE/Huawei): VLAN sudah dari running-config, patch sebagai fallback
     gpon_olt_ids = [
-        olt['id'] for olt in olts
-        if not any(k in (olt['tipe'] or '').lower() for k in ['epon', 'hsgq', 'e04', 'e08'])
+        od['id'] for od in olt_dicts
+        if not any(k in (od['tipe'] or '').lower() for k in ['epon', 'hsgq', 'e04', 'e08'])
     ]
     if gpon_olt_ids:
         _patch_vlan_from_mikrotik_bulk(conn, gpon_olt_ids)

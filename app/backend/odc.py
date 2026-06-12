@@ -1,3 +1,5 @@
+
+
 """
 odc.py — TechnoFix · Blueprint ODC
 =====================================
@@ -111,7 +113,10 @@ def add_odc():
     lokasi      = (body.get('lokasi')     or '').strip()
     koordinat   = (body.get('koordinat')  or '').strip()
     tipe_kabel  = (body.get('tipe_kabel') or '').strip()
-    jumlah_port = int(body.get('jumlah_port') or 0)
+    try:
+        jumlah_port = int(body.get('jumlah_port') or 0)
+    except (TypeError, ValueError):
+        jumlah_port = 0
     olt_id      = body.get('olt_id') or None
     keterangan  = (body.get('keterangan') or '').strip()
 
@@ -146,6 +151,11 @@ def update_odc(odc_id):
         conn.close()
         return jsonify({'error': 'Nama ODC wajib diisi'}), 400
 
+    try:
+        jumlah_port = int(body.get('jumlah_port') or 0)
+    except (TypeError, ValueError):
+        jumlah_port = 0
+
     conn.execute(
         '''UPDATE odc SET nama=?, lokasi=?, koordinat=?, tipe_kabel=?,
            jumlah_port=?, olt_id=?, keterangan=? WHERE id=?''',
@@ -154,7 +164,7 @@ def update_odc(odc_id):
             (body.get('lokasi')     or '').strip(),
             (body.get('koordinat')  or '').strip(),
             (body.get('tipe_kabel') or '').strip(),
-            int(body.get('jumlah_port') or 0),
+            jumlah_port,
             body.get('olt_id') or None,
             (body.get('keterangan') or '').strip(),
             odc_id
