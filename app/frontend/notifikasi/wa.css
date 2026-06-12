@@ -196,6 +196,9 @@
 
 .modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.5); backdrop-filter: blur(2px); opacity: 0; visibility: hidden; transition: .2s; z-index: 90; }
 .modal-overlay.show { opacity: 1; visibility: visible; }
+/* Modal bersama (mis. #modal-logout) dari global.css dibuka via class .open,
+   bukan .show — tanpa baris ini overlay tetap opacity:0/visibility:hidden. */
+.modal-overlay.open { opacity: 1; visibility: visible; }
 .modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -46%); width: min(480px, calc(100vw - 32px)); background: var(--bg); border-radius: var(--r-lg); box-shadow: var(--shadow-lg, 0 20px 60px rgba(0,0,0,.25)); opacity: 0; visibility: hidden; transition: .2s; z-index: 91; max-height: 90vh; overflow-y: auto; }
 .modal.show { opacity: 1; visibility: visible; transform: translate(-50%, -50%); }
 .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid var(--border); }
