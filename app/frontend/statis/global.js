@@ -73,9 +73,8 @@ const API_BASE = (() => {
   if (h === 'localhost' || h === '127.0.0.1') return 'http://127.0.0.1:5000';
   if (h === '192.168.70.7')                   return 'http://192.168.70.7:5000';
   if (h === '103.194.175.54')                 return 'http://103.194.175.54:5000';
-  if (h === '172.15.0.11')                    return 'http://172.15.0.11:5000';
-  // technofix-bill.com & lainnya → fallback di bawah:
-  // production: pakai Apache reverse proxy, same origin
+  // 172.15.0.11, technofix-bill.com & lainnya → fallback di bawah:
+  // production (Proxmox): pakai Apache reverse proxy, same origin
   return '';
 })();
 // `const` di top-level TIDAK menjadi properti window — beberapa halaman
