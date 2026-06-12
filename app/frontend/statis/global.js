@@ -1306,6 +1306,8 @@ function requireLogin(options) {
    24. initDropdownHeader — isi avatar + nama + badge role
    di header dropdown profil. Panggil setelah initProfileHeader().
 ══════════════════════════════════════════════════════════ */
+var ROLE_LABELS = { owner: 'Owner', admin: 'Admin', teknisi: 'Teknisi', kolektor: 'Kolektor' };
+
 function initDropdownHeader() {
   const { username, role } = getSession();
   if (!username) return;
@@ -1318,7 +1320,7 @@ function initDropdownHeader() {
   if (ddName)   ddName.textContent   = username;
   if (ddBadge) {
     const isOwner = role === 'owner';
-    ddBadge.textContent = isOwner ? 'Owner' : 'Teknisi';
+    ddBadge.textContent = ROLE_LABELS[role] || 'Teknisi';
     ddBadge.classList.toggle('teknisi', !isOwner);
   }
 }
