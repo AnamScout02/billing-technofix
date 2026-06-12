@@ -1,6 +1,6 @@
 # TechnoFix di Proxmox — Cheat Sheet Harian
 
-VM: `technofix` — IP `172.15.0.11` — user SSH: `technofix`
+VM: `technofix` — IP lokal `172.15.0.11` — IP publik `103.194.175.54` — user SSH: `technofix`
 
 ---
 
@@ -33,9 +33,15 @@ Masukkan password yang dibuat saat instalasi.
 
 ## 3. Akses aplikasi via browser
 
+**Dari LAN kantor:**
 ```
 http://172.15.0.11/app/frontend/auth/auth.html       ← halaman login
 http://172.15.0.11/app/frontend/landing/landing.html ← landing page
+```
+
+**Dari luar (internet):**
+```
+http://103.194.175.54/app/frontend/auth/auth.html
 ```
 
 (Nanti kalau domain `technofix-bill.com` sudah aktif, tinggal ganti IP dengan domain.)
@@ -137,7 +143,49 @@ free -h       # memory
 
 ---
 
-## 11. Reboot VM penuh (kalau perlu)
+## 11. Akses dari luar jaringan (internet)
+
+VM bisa diakses dari luar LAN kantor lewat **port forwarding di MikroTik**:
+
+| Tujuan | Dari luar | Diteruskan ke |
+|---|---|---|
+| Web app (HTTP) | `103.194.175.54:80` | `172.15.0.11:80` |
+| SSH / VS Code | `103.194.175.54:2222` | `172.15.0.11:22` |
+
+**SSH/VS Code dari luar** — pakai host `technofix-vm-public` di `~/.ssh/config`:
+```
+Host technofix-vm
+    HostName 172.15.0.11
+    User technofix
+
+Host technofix-vm-public
+    HostName 103.194.175.54
+    Port 2222
+    User technofix
+```
+
+```bash
+ssh technofix-vm-public
+```
+Di VS Code: `Ctrl+Shift+P` → **Remote-SSH: Connect to Host** → pilih `technofix-vm-public`.
+
+> Pakai `technofix-vm` (tanpa `-public`) saat di LAN kantor — lebih cepat, tidak lewat internet.
+
+**Setup awal (sekali saja, dari laptop, PowerShell):**
+```powershell
+ssh-keygen -t ed25519
+type $env:USERPROFILE\.ssh\id_ed25519.pub | ssh technofix@172.15.0.11 "cat >> ~/.ssh/authorized_keys"
+```
+
+**Lihat/ubah rule NAT** (Winbox → Terminal MikroTik):
+```
+/ip firewall nat print
+```
+Rule terkait TechnoFix bertanda comment `"TechnoFix - ..."`.
+
+---
+
+## 12. Reboot VM penuh (kalau perlu)
 
 ```bash
 sudo reboot
