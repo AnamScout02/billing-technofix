@@ -20,19 +20,22 @@ APP_USER="${SUDO_USER:-$(whoami)}"
 echo "==> Install dir : $INSTALL_DIR"
 echo "==> App user    : $APP_USER"
 
-echo "==> [1/6] Update sistem & install paket dasar"
+echo "==> [1/7] Update sistem & install paket dasar"
 apt update && apt upgrade -y
 apt install -y apache2 python3 python3-pip python3-venv sqlite3 ufw
 
-echo "==> [2/6] Aktifkan module Apache (proxy + headers)"
+echo "==> [2/7] Aktifkan module Apache (proxy + headers)"
 a2enmod proxy proxy_http headers rewrite >/dev/null
 
-echo "==> [3/6] Setup virtualenv Python + dependencies"
+echo "==> [3/6] Siapkan folder database (tidak ikut git karena isi .db di-gitignore)"
+sudo -u "$APP_USER" mkdir -p "$INSTALL_DIR/app/database/owners"
+
+echo "==> [4/6] Setup virtualenv Python + dependencies"
 sudo -u "$APP_USER" python3 -m venv "$INSTALL_DIR/venv"
 sudo -u "$APP_USER" "$INSTALL_DIR/venv/bin/pip" install --upgrade pip -q
 sudo -u "$APP_USER" "$INSTALL_DIR/venv/bin/pip" install -r "$INSTALL_DIR/requirements.txt"
 
-echo "==> [4/6] Setup systemd service (technofix-backend)"
+echo "==> [5/6] Setup systemd service (technofix-backend)"
 sed -e "s/User=technofix/User=$APP_USER/" \
     -e "s/Group=technofix/Group=$APP_USER/" \
     -e "s#/opt/technofix#$INSTALL_DIR#g" \
@@ -40,14 +43,14 @@ sed -e "s/User=technofix/User=$APP_USER/" \
 systemctl daemon-reload
 systemctl enable --now technofix-backend
 
-echo "==> [5/6] Setup Apache vhost (reverse proxy)"
+echo "==> [6/6] Setup Apache vhost (reverse proxy)"
 sed -e "s#/opt/technofix#$INSTALL_DIR#g" \
     "$INSTALL_DIR/deploy/apache-technofix.conf" > /etc/apache2/sites-available/technofix.conf
 a2ensite technofix.conf >/dev/null
 a2dissite 000-default.conf >/dev/null 2>&1 || true
 systemctl reload apache2
 
-echo "==> [6/6] Firewall"
+echo "==> [7/7] Firewall"
 ufw allow OpenSSH
 ufw allow 'Apache Full'
 ufw --force enable
