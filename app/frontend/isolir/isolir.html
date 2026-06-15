@@ -78,6 +78,18 @@ body::before{
   padding: 28px 32px 24px;
   text-align: center;
   position: relative;
+  overflow: hidden;
+}
+.card-header::after{
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url('/app/frontend/statis/mockup/pattern.png');
+  background-repeat: repeat;
+  background-size: 140px auto;
+  filter: invert(1) grayscale(1);
+  opacity: .05;
+  pointer-events: none;
 }
 .header-logo{
   width: 64px; height: 64px;
@@ -86,14 +98,16 @@ body::before{
   display: flex; align-items: center; justify-content: center;
   margin: 0 auto 14px;
   backdrop-filter: blur(10px);
+  position: relative; z-index: 1;
 }
 .header-logo img{width:36px;height:36px;object-fit:contain;border-radius:8px}
 .header-brand{
   font-family: var(--heading);
   font-size: 22px; font-weight: 800;
   color: #fff; letter-spacing: -.02em;
+  position: relative; z-index: 1;
 }
-.header-tagline{font-size:13px;color:rgba(255,255,255,.75);margin-top:4px}
+.header-tagline{font-size:13px;color:rgba(255,255,255,.75);margin-top:4px;position:relative;z-index:1}
 
 /* â”€â”€ Warning banner â”€â”€ */
 .warn-banner{

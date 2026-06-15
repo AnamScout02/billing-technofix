@@ -1,4 +1,4 @@
-﻿﻿<!DOCTYPE html>
+﻿﻿﻿﻿<!DOCTYPE html>
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
@@ -58,6 +58,21 @@
       pointer-events: none;
     }
 
+    /* Watermark motif "F" (identitas TechnoFix) - selaras dengan auth.html,
+       admin_login.html & landing.html: recolor abu/putih transparan agar
+       menyatu dengan latar gradient biru */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url('/app/frontend/statis/mockup/pattern.png');
+      background-repeat: repeat;
+      background-size: 220px auto;
+      filter: invert(1) grayscale(1);
+      opacity: .04;
+      pointer-events: none;
+    }
+
     /* Floating circles dekorasi */
     .deco {
       position: fixed;
@@ -87,6 +102,29 @@
       padding: 32px 32px 28px;
       text-align: center;
       position: relative;
+      overflow: hidden;
+    }
+
+    /* Watermark motif "F" - sama seperti body::after, diterapkan juga di
+       header card (area fokus logo/brand) seperti pada admin_login.html
+       (.admin-card::before) */
+    .login-header::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: url('/app/frontend/statis/mockup/pattern.png');
+      background-repeat: repeat;
+      background-size: 140px auto;
+      filter: invert(1) grayscale(1);
+      opacity: .05;
+      pointer-events: none;
+    }
+
+    .login-logo,
+    .login-brand,
+    .login-tagline {
+      position: relative;
+      z-index: 1;
     }
 
     .login-logo {
