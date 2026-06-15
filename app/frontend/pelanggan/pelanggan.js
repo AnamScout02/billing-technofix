@@ -65,8 +65,19 @@ document.addEventListener('DOMContentLoaded', () => {
   if (_urlStatus) {
     const _selStatus = document.getElementById('filter-status');
     if (_selStatus) {
-      const _cap = _urlStatus.charAt(0).toUpperCase() + _urlStatus.slice(1).toLowerCase();
-      _selStatus.value = _cap;
+      const _map = { offline: 'nonaktif', online: 'aktif' };
+      const _val = _map[_urlStatus.toLowerCase()];
+      if (_val) _selStatus.value = _val;
+    }
+  }
+
+  // Baca URL param ?redaman=buruk dari alert sinyal ONU di dashboard → pre-set filter
+  const _urlRedaman = new URLSearchParams(window.location.search).get('redaman');
+  if (_urlRedaman) {
+    const _selRedaman = document.getElementById('filter-redaman');
+    if (_selRedaman) {
+      const _val = _urlRedaman.toLowerCase();
+      if (['bagus', 'sedang', 'buruk'].includes(_val)) _selRedaman.value = _val;
     }
   }
 
@@ -107,7 +118,7 @@ const DEVICES_CACHE_KEY = 'tf_devices_cache';
 function _renderDeviceSelect(data) {
   const selHeader = document.getElementById('select-device');
   const prevValue = selHeader.value;
-  selHeader.innerHTML = '<option value="">— Pilih Perangkat —</option>';
+  selHeader.innerHTML = '<option value="">Pilih Perangkat</option>';
   data.forEach(d => {
     selHeader.appendChild(new Option(`${d.name}  (${d.ip})`, d.id));
   });
@@ -174,7 +185,7 @@ async function loadOltCache() {
 /* ══════════════════════════════════════════════════════════
    2. LOAD PELANGGAN
    GET /api/pelanggan/<device_id>
-   + GET /api/pelanggan/<device_id>/rx-tx
+   (rx_power/tx_power/slot_port/vlan/sn/olt_id sudah ikut di response ini)
 ══════════════════════════════════════════════════════════ */
 async function loadPelanggan() {
   const deviceId = document.getElementById('select-device').value;
@@ -196,58 +207,29 @@ async function loadPelanggan() {
   animasiRefresh(true);
 
   try {
-    // ── Muat data pelanggan dan RX/TX secara paralel ──
-    const [resPelanggan, resRxTx] = await Promise.allSettled([
-      fetch(`${API_BASE}/api/pelanggan/${deviceId}`, { credentials: 'include', headers: getAuthHeaders() }),
-      fetch(`${API_BASE}/api/pelanggan/${deviceId}/rx-tx`, { credentials: 'include', headers: getAuthHeaders() }),
-    ]);
+    // ── Muat data pelanggan ──
+    // /api/pelanggan/<id> sudah menyertakan rx_power/tx_power/slot_port/vlan/sn/olt_id
+    // dari onu_mapping (lihat get_onu_data di backend) — TIDAK perlu lagi fetch
+    // /rx-tx terpisah di sini, karena itu cuma mengulang get_ppp_secrets() ke
+    // MikroTik untuk data yang sama (bikin halaman ini selalu "muter2" walau
+    // /api/pelanggan/<id> sudah kena cache). Tombol "Refresh RX/TX realtime"
+    // (refreshRxTx, ?realtime=1) tetap terpisah karena itu memang permintaan
+    // realtime ke OLT atas aksi pengguna.
+    const resPelanggan = await fetch(`${API_BASE}/api/pelanggan/${deviceId}`, { credentials: 'include', headers: getAuthHeaders() });
 
-    // Data pelanggan (wajib)
-    if (resPelanggan.status === 'rejected' || !resPelanggan.value.ok) {
-      const errMsg = resPelanggan.reason
-        || (await resPelanggan.value.json().catch(() => ({}))).error
-        || 'Gagal mengambil data pelanggan';
+    if (!resPelanggan.ok) {
+      const errMsg = (await resPelanggan.json().catch(() => ({}))).error || 'Gagal mengambil data pelanggan';
       throw new Error(errMsg);
     }
 
-    const dataPelanggan = await resPelanggan.value.json();
+    const dataPelanggan = await resPelanggan.json();
     _allData = Array.isArray(dataPelanggan) ? dataPelanggan : [];
 
     // Tandai mode fallback: MikroTik tidak bisa dihubungi (mis. mati lampu).
     // Backend tetap mengirim data terakhir dari DB lokal (status dipaksa Offline).
-    if (resPelanggan.value.headers.get('X-Mikrotik-Connected') === '0') {
+    if (resPelanggan.headers.get('X-Mikrotik-Connected') === '0') {
       toast('Perangkat MikroTik sedang tidak bisa dihubungi — menampilkan data terakhir, status pelanggan dianggap offline.', 'warning');
     }
-
-    // Data RX/TX (opsional — tidak fatal jika gagal)
-    rxTxCache = {};
-    if (resRxTx.status === 'fulfilled' && resRxTx.value.ok) {
-      try {
-        const rxTxList = await resRxTx.value.json();
-        rxTxList.forEach(item => {
-          if (item.username) {
-            rxTxCache[item.username] = {
-              rx_power: item.rx_power,
-              tx_power: item.tx_power,
-              source: item.source,
-            };
-          }
-        });
-      } catch (_) { /* RX/TX gagal → pakai field bawaan pelanggan */ }
-    }
-
-    // Merge RX/TX dari cache ke data pelanggan
-    _allData = _allData.map(p => {
-      const cached = rxTxCache[p.username];
-      if (cached) {
-        return {
-          ...p,
-          rx_power: cached.rx_power ?? p.rx_power,
-          tx_power: cached.tx_power ?? p.tx_power,
-        };
-      }
-      return p;
-    });
 
     // Reset pilihan massal setiap data segar di-load
     _selectedIds.clear();
@@ -775,7 +757,6 @@ function updateStats() {
    ← PEMBARUAN:
      - Form field "No HP" sudah ada → tetap dipertahankan
      - Tambah field: OLT (dropdown), Slot/Port, VLAN, SN sudah ada
-     - Tambah checkbox "Re-provisioning OLT" saat mode edit
      - Auto-fill hp & data OLT saat openEdit()
 ══════════════════════════════════════════════════════════ */
 function showFormPelanggan(prefill) {
@@ -784,7 +765,7 @@ function showFormPelanggan(prefill) {
   const isEdit = !!prefill;
 
   const devSel = document.getElementById('select-device');
-  let deviceOptions = '<option value="">— Pilih Perangkat —</option>';
+  let deviceOptions = '<option value="">Pilih Perangkat</option>';
   Array.from(devSel.options).forEach(function (o) {
     if (!o.value) return;
     // Mode edit: ikuti device_id pelanggan. Mode tambah baru: JANGAN ikut
@@ -862,7 +843,7 @@ function showFormPelanggan(prefill) {
           <div class="form-group">
             <label class="form-label">Profil <span class="req">*</span></label>
             <select class="form-input" id="f-profil">
-              <option value="">— Pilih Profil —</option>
+              <option value="">Pilih Profil</option>
             </select>
           </div>
 
@@ -879,7 +860,7 @@ function showFormPelanggan(prefill) {
           <div class="form-group full">
             <label class="form-label">Perangkat OLT</label>
             <select class="form-input" id="f-olt">
-              <option value="">-- Pilih OLT (opsional) --</option>
+              <option value="">Pilih OLT (opsional)</option>
             </select>
           </div>
 
@@ -914,7 +895,7 @@ function showFormPelanggan(prefill) {
               <span style="font-size:10px;font-weight:400;color:var(--text-dim);margin-left:4px">(untuk garis topologi di Maps)</span>
             </label>
             <select class="form-input" id="f-odp" onchange="_loadOdpPortsIntoForm()">
-              <option value="">-- Pilih ODP (opsional) --</option>
+              <option value="">Pilih ODP (opsional)</option>
             </select>
             <div id="odp-suggest-strip" style="display:none;margin-top:6px;font-size:11.5px;color:var(--text-dim)"></div>
           </div>
@@ -925,7 +906,7 @@ function showFormPelanggan(prefill) {
               <span style="font-size:10px;font-weight:400;color:var(--text-dim);margin-left:4px">(pilih port yang kosong)</span>
             </label>
             <select class="form-input" id="f-port-odp">
-              <option value="">-- Pilih Port --</option>
+              <option value="">Pilih Port</option>
             </select>
           </div>
 
@@ -941,7 +922,7 @@ function showFormPelanggan(prefill) {
               <span style="font-size:10px;font-weight:400;color:var(--text-dim);margin-left:4px">(sesuai interface VLAN di MikroTik)</span>
             </label>
             <select class="form-input" id="f-vlan">
-              <option value="">— Pilih VLAN —</option>
+              <option value="">Pilih VLAN</option>
             </select>
           </div>
 
@@ -967,7 +948,7 @@ function showFormPelanggan(prefill) {
               <span style="font-size:10px;font-weight:400;color:var(--text-dim);margin-left:4px">(opsional — untuk penugasan tagihan)</span>
             </label>
             <select class="form-input" id="f-kolektor">
-              <option value="">— Tidak Ditugaskan —</option>
+              <option value="">Tidak Ditugaskan</option>
             </select>
           </div>
 
@@ -1114,18 +1095,6 @@ function _showKonfirmasiSimpan() {
   if (!isModeEdit && !password) { toast('Password wajib diisi untuk pelanggan baru', 'warning'); return; }
   if (!deviceId) { toast('Pilih perangkat MikroTik terlebih dahulu', 'warning'); return; }
 
-  var reprovRow = isModeEdit ? `
-    <label class="lk-konfirmasi-option">
-      <input type="checkbox" id="f-reprovision" class="lk-konfirmasi-chk">
-      <div class="lk-konfirmasi-body">
-        <span class="material-symbols-outlined">restart_alt</span>
-        <div>
-          <div class="lk-konfirmasi-title">Re-Provisioning</div>
-          <div class="lk-konfirmasi-desc">Kirim ulang perintah provisioning ke OLT</div>
-        </div>
-      </div>
-    </label>` : '';
-
   var html = `
   <div class="modal-overlay open" id="modal-konfirmasi-simpan"
        style="z-index:200;" onclick="_closeKonfirmasiSimpan(event)">
@@ -1169,7 +1138,6 @@ function _showKonfirmasiSimpan() {
             </div>
           </div>
         </label>
-        ${reprovRow}
       </div>
       <div class="modal-footer">
         <button class="btn" onclick="_closeKonfirmasiSimpan()">
@@ -1226,7 +1194,6 @@ async function simpanPelanggan() {
 
   const tglPasang = document.getElementById('f-tgl-pasang') ? document.getElementById('f-tgl-pasang').value : '';
   const tglJatuh = document.getElementById('f-tgl-jatuh') ? document.getElementById('f-tgl-jatuh').value : '';
-  const reProvision = document.getElementById('f-reprovision')?.checked || false;
 
   // Checklist target operasi (Billing selalu ikut — record utama)
   const targetMikrotik = document.getElementById('f-target-mikrotik')?.checked ?? true;
@@ -1281,7 +1248,6 @@ async function simpanPelanggan() {
       // ── 🛠️ SEKARANG AMAN MENGEKSEKUSI MODE EDIT (PUT) ────────────────
       url = `${API_BASE}/api/pelanggan/${idPelangganLokal}`;
       method = 'PUT';
-      body.re_provision = reProvision; // Kirim instruksi sinkronisasi ulang OLT
       if (password) body.password = password; // Kirim password jika diubah
     } else {
       // ── ⚡ MODE TAMBAH BARU (POST) ───────────────────────────
@@ -1473,7 +1439,7 @@ async function _loadOltIntoForm(selectedVal) {
     await loadOltCache();
   }
 
-  sel.innerHTML = '<option value="">-- Pilih OLT (opsional) --</option>';
+  sel.innerHTML = '<option value="">Pilih OLT (opsional)</option>';
   oltCache.forEach(olt => {
     const opt = new Option(
       `${olt.name}${olt.tipe ? ' · ' + olt.tipe : ''} (${olt.ip})`,
@@ -1503,21 +1469,31 @@ async function _loadOdpIntoForm(selectedVal) {
   } catch (_) {}
 }
 
+/** Buat <option> ODP dengan info port tersisa; ODP penuh di-disable (kecuali sedang dipilih) */
+function _makeOdpOption(odp, selectedVal) {
+  const jumlah   = odp.jumlah_port || 0;
+  const terpakai = odp.port_terpakai || 0;
+  const tersisa  = Math.max(0, jumlah - terpakai);
+  const penuh    = jumlah > 0 && tersisa <= 0;
+  const portInfo = jumlah > 0 ? (penuh ? ' — PENUH' : ` (tersisa ${tersisa}/${jumlah} port)`) : '';
+  const lokasiStr = odp.lokasi ? ' — ' + odp.lokasi : '';
+  const opt = new Option(`${odp.nama}${portInfo}${lokasiStr}`, odp.id);
+  const isSelected = String(odp.id) === String(selectedVal);
+  if (isSelected) opt.selected = true;
+  if (penuh && !isSelected) opt.disabled = true;
+  return opt;
+}
+
 /** Render opsi ODP ke dalam select, dengan grup "Terdekat" jika ada */
 function _renderOdpOptions(sel, list, selectedVal, terdekatIds) {
-  sel.innerHTML = '<option value="">-- Pilih ODP (opsional) --</option>';
+  sel.innerHTML = '<option value="">Pilih ODP (opsional)</option>';
   if (terdekatIds && terdekatIds.length) {
     const grpDekat = document.createElement('optgroup');
     grpDekat.label = '3 ODP Terdekat';
     terdekatIds.forEach(id => {
       const odp = list.find(o => String(o.id) === String(id));
       if (!odp) return;
-      const opt = new Option(
-        `${odp.nama} (${odp.jumlah_port} port)${odp.lokasi ? ' — ' + odp.lokasi : ''}`,
-        odp.id
-      );
-      if (String(odp.id) === String(selectedVal)) opt.selected = true;
-      grpDekat.appendChild(opt);
+      grpDekat.appendChild(_makeOdpOption(odp, selectedVal));
     });
     sel.appendChild(grpDekat);
 
@@ -1525,22 +1501,12 @@ function _renderOdpOptions(sel, list, selectedVal, terdekatIds) {
     grpLain.label = 'Semua ODP';
     list.forEach(odp => {
       if (terdekatIds.includes(String(odp.id))) return;
-      const opt = new Option(
-        `${odp.nama} (${odp.jumlah_port} port)${odp.lokasi ? ' — ' + odp.lokasi : ''}`,
-        odp.id
-      );
-      if (String(odp.id) === String(selectedVal)) opt.selected = true;
-      grpLain.appendChild(opt);
+      grpLain.appendChild(_makeOdpOption(odp, selectedVal));
     });
     sel.appendChild(grpLain);
   } else {
     list.forEach(odp => {
-      const opt = new Option(
-        `${odp.nama} (${odp.jumlah_port} port)${odp.lokasi ? ' — ' + odp.lokasi : ''}`,
-        odp.id
-      );
-      if (String(odp.id) === String(selectedVal)) opt.selected = true;
-      sel.appendChild(opt);
+      sel.appendChild(_makeOdpOption(odp, selectedVal));
     });
   }
 }
@@ -1608,7 +1574,7 @@ async function _loadProfilIntoForm(selectedVal) {
   if (!sel) return;
 
   const deviceId = document.getElementById('f-device') ? document.getElementById('f-device').value : '';
-  sel.innerHTML = '<option value="">— Pilih Profil —</option>';
+  sel.innerHTML = '<option value="">Pilih Profil</option>';
   if (!deviceId) return;
 
   try {
@@ -1642,7 +1608,7 @@ async function _loadVlanIntoForm(selectedVal) {
   if (!sel) return;
 
   const deviceId = document.getElementById('f-device') ? document.getElementById('f-device').value : '';
-  sel.innerHTML = '<option value="">— Pilih VLAN —</option>';
+  sel.innerHTML = '<option value="">Pilih VLAN</option>';
   if (!deviceId) return;
 
   try {
@@ -1685,7 +1651,7 @@ async function _loadKolektorIntoForm(selectedVal) {
     });
     if (!r.ok) return;
     const list = await r.json();
-    sel.innerHTML = '<option value="">— Tidak Ditugaskan —</option>';
+    sel.innerHTML = '<option value="">Tidak Ditugaskan</option>';
     list.forEach(k => {
       const opt = new Option(k.nama || k.username, k.username);
       if (k.username === selectedVal) opt.selected = true;
@@ -1719,7 +1685,7 @@ async function _loadOdpPortsIntoForm() {
       if (!labelEl.querySelector('span.port-info')) labelEl.appendChild(small);
     }
 
-    sel.innerHTML = '<option value="">-- Pilih Port --</option>';
+    sel.innerHTML = '<option value="">Pilih Port</option>';
 
     // Port tersedia (kosong)
     (d.tersedia || []).forEach(p => {

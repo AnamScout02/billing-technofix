@@ -18,6 +18,8 @@
 }
 .filter-select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
 
+.filter-group { display: flex; gap: 8px; }
+
 /* Komisi banner */
 .komisi-banner { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: var(--r-md);
   font-size: 12.5px; font-weight: 600; margin-bottom: 16px;
@@ -45,6 +47,9 @@
   font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
   padding: 11px 14px; border-bottom: 1px solid rgba(255,255,255,.12); white-space: nowrap; text-align: left;
 }
+.lk-table thead th.sortable { cursor: pointer; }
+.lk-table thead th.sortable:hover { color: #fff; background: var(--primary-dark); }
+.lk-table thead th .sort-icon { font-size: 13px; vertical-align: middle; }
 .lk-table tbody td { padding: 11px 14px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: middle; }
 .lk-table tbody tr:last-child td { border-bottom: none; }
 .lk-table tbody tr:hover td { background: var(--surface); }
@@ -165,4 +170,15 @@
 /* Mobile: 1 card per baris agar tidak ada card gantung sendirian */
 @media (max-width: 640px) {
   .stat-row-5 { grid-template-columns: 1fr !important; }
+}
+
+@media (max-width: 480px) {
+  .toolbar { flex-direction: column; align-items: stretch; }
+  /* 2 filter ("Periode"/"50 baris") dibagi rata 1 baris, proporsional
+     terhadap lebar layar (lihat pola yang sama di pelanggan.css -
+     .filter-group .tf-select). Termasuk .tf-dp (hasil enhance input
+     type=month seperti #lk-periode). */
+  .filter-group { flex-wrap: wrap; gap: 10px; }
+  .filter-group .tf-select,
+  .filter-group .tf-dp { flex: 1 1 0; }
 }

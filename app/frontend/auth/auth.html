@@ -10,8 +10,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
-  <link rel="stylesheet" href="/app/frontend/statis/global.css?v=48" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,0..200" rel="stylesheet" />
+  <link rel="stylesheet" href="/app/frontend/statis/global.css?v=87" />
 
   <style>
     /* ══════════════════════════════════════════════════════════
@@ -63,6 +63,21 @@
       justify-content: space-between;
       padding: 44px 48px;
       overflow: hidden;
+    }
+
+    /* Watermark motif "F" (identitas TechnoFix), di-recolor jadi abu/putih
+       transparan lewat filter agar menyatu dengan latar navy gelap */
+    .auth-left::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: url('/app/frontend/statis/mockup/pattern.png');
+      background-repeat: repeat;
+      background-size: 220px auto;
+      filter: invert(1) grayscale(1);
+      opacity: .04;
+      pointer-events: none;
+      z-index: 0;
     }
 
     /* Grid pattern overlay */
@@ -182,6 +197,25 @@
         radial-gradient(circle at 10% 90%, rgba(14,165,233,.04) 0%, transparent 50%);
       pointer-events: none;
     }
+
+    /* Orb dekoratif — kasih "hidup" pada panel kanan yang polos putih,
+       senada dengan orb di panel kiri tapi jauh lebih halus.
+       Dibungkus wrapper overflow:hidden sendiri (bukan di .auth-right
+       langsung) supaya tidak "bocor" ke .auth-left saat layout mobile
+       (column) & tidak mengganggu overflow-y:auto milik .auth-right. */
+    .auth-right-deco {
+      position: absolute; inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .auth-right-orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(90px);
+    }
+    .auth-right-orb.orb-a { width: 320px; height: 320px; background: rgba(37,99,235,.07); top: -120px; right: -100px; }
+    .auth-right-orb.orb-b { width: 280px; height: 280px; background: rgba(14,165,233,.06); bottom: -90px; left: -90px; }
 
     .auth-form-wrap {
       width: 100%; max-width: 420px;
@@ -390,33 +424,7 @@
       .auth-form-title { font-size: 22px; }
       .left-footer { display: none; }
     }
-    /* Dark mode — right panel */
-    @media (prefers-color-scheme: dark) {
-      html:not([data-theme="light"]) .auth-right  { background: #0d1117 !important; }
-      html:not([data-theme="light"]) .auth-card   { background: #161b22 !important; border-color: #30363d !important; box-shadow: 0 8px 40px rgba(0,0,0,.5) !important; }
-      html:not([data-theme="light"]) .auth-form-greeting { color: #b1bac4 !important; }
-      html:not([data-theme="light"]) .auth-form-title    { color: #e6edf3 !important; }
-      html:not([data-theme="light"]) .auth-form-sub      { color: #6e7681 !important; }
-      html:not([data-theme="light"]) .auth-tabs          { background: #1c2128 !important; }
-      html:not([data-theme="light"]) .auth-tab           { color: #6e7681 !important; }
-      html:not([data-theme="light"]) .auth-tab.active    { background: #161b22 !important; color: #4d8ef7 !important; }
-      html:not([data-theme="light"]) .auth-form-group label { color: #b1bac4 !important; }
-      html:not([data-theme="light"]) .auth-input { background: #1c2128 !important; border-color: #30363d !important; color: #e6edf3 !important; }
-      html:not([data-theme="light"]) .auth-input::placeholder { color: #6e7681 !important; }
-    }
-    [data-theme="dark"] .auth-right  { background: #0d1117 !important; }
-    [data-theme="dark"] .auth-card   { background: #161b22 !important; border-color: #30363d !important; box-shadow: 0 8px 40px rgba(0,0,0,.5) !important; }
-    [data-theme="dark"] .auth-form-greeting { color: #b1bac4 !important; }
-    [data-theme="dark"] .auth-form-title    { color: #e6edf3 !important; }
-    [data-theme="dark"] .auth-form-sub      { color: #6e7681 !important; }
-    [data-theme="dark"] .auth-tabs          { background: #1c2128 !important; }
-    [data-theme="dark"] .auth-tab           { color: #6e7681 !important; }
-    [data-theme="dark"] .auth-tab.active    { background: #161b22 !important; color: #4d8ef7 !important; }
-    [data-theme="dark"] .auth-form-group label { color: #b1bac4 !important; }
-    [data-theme="dark"] .auth-input { background: #1c2128 !important; border-color: #30363d !important; color: #e6edf3 !important; }
-    [data-theme="dark"] .auth-input::placeholder { color: #6e7681 !important; }
   </style>
-  <script>(function(){ var t=localStorage.getItem('tf_theme'); if(t) document.documentElement.dataset.theme=t; else if(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme='dark'; })();</script>
 </head>
 
 <body>
@@ -481,6 +489,10 @@
 
     <!-- ══ PANEL KANAN ══ -->
     <div class="auth-right">
+      <div class="auth-right-deco">
+        <div class="auth-right-orb orb-a"></div>
+        <div class="auth-right-orb orb-b"></div>
+      </div>
       <div class="auth-form-wrap">
         <div class="auth-card">
 
@@ -510,32 +522,38 @@
               <span id="alert-login-msg"></span>
             </div>
 
+            <form id="form-login" onsubmit="submitLogin(event); return false;">
             <div class="auth-fields">
               <div class="form-group">
                 <label class="form-label" for="login-username">Username <span class="req">*</span></label>
-                <input type="text" class="form-input" id="login-username" placeholder="Masukkan username Anda"
+                <input type="text" class="form-input" id="login-username" name="username" placeholder="Masukkan username Anda"
                   autocomplete="username" autocapitalize="none" />
               </div>
 
               <div class="form-group">
                 <label class="form-label" for="login-password">Password <span class="req">*</span></label>
                 <div class="form-pwd-wrap">
-                  <input type="password" class="form-input" id="login-password" placeholder="Masukkan password Anda"
+                  <input type="password" class="form-input" id="login-password" name="password" placeholder="Masukkan password Anda"
                     autocomplete="current-password" />
                   <button type="button" class="form-pwd-toggle" onclick="togglePwdField('login-password', this)"
                     title="Tampilkan/sembunyikan password">
                     <span class="material-symbols-outlined">visibility</span>
                   </button>
                 </div>
+                <a href="#" onclick="openForgotPasswordModal();return false;"
+                  style="align-self:flex-end;font-size:12px;font-weight:600;color:var(--primary);text-decoration:none">
+                  Lupa password?
+                </a>
               </div>
             </div>
 
-            <button class="btn-auth" id="btn-login" onclick="submitLogin()">
+            <button class="btn-auth" id="btn-login" type="submit">
               <span class="btn-spinner"></span>
               <span class="btn-label" style="display:flex;align-items:center;gap:7px;">
                 <span class="material-symbols-outlined">login</span>Masuk ke Sistem
               </span>
             </button>
+            </form>
 
             <div class="auth-divider"><span>Belum punya akun?</span></div>
             <div class="auth-note">
@@ -616,10 +634,37 @@
     </div>
   </div>
 
-  <script src="/app/frontend/statis/global.js?v=46"></script>
-  <script src="/app/frontend/statis/auth.js?v=2"></script>
+  <script src="/app/frontend/statis/global.js?v=56"></script>
+  <script src="/app/frontend/statis/auth.js?v=3"></script>
 
   <script>
+    function openForgotPasswordModal() {
+      const username = (document.getElementById('login-username').value || '').trim();
+      const pesan = username
+        ? `Halo TechnoFix, saya lupa password akun login (username: ${username}). Mohon bantuan reset password.`
+        : 'Halo TechnoFix, saya lupa password akun login. Mohon bantuan reset password.';
+      const waUrl = `https://wa.me/6283135851605?text=${encodeURIComponent(pesan)}`;
+
+      openModalForm(`
+        <div class="modal">
+          <div class="hapus-icon-wrap" style="background:var(--primary-light)">
+            <span class="material-symbols-outlined hapus-icon" style="color:var(--primary)">support_agent</span>
+          </div>
+          <div class="hapus-title">Lupa Password?</div>
+          <div class="hapus-sub">
+            Untuk keamanan akun, reset password dibantu langsung oleh tim TechnoFix.
+            Hubungi kami via WhatsApp dengan menyertakan <strong>username</strong> dan
+            nama ISP Anda — password baru akan diberikan setelah verifikasi.
+          </div>
+          <div class="modal-actions" style="flex-direction:column;gap:8px;margin-top:18px">
+            <a class="btn-primary" style="width:100%;justify-content:center;text-decoration:none" href="${waUrl}" target="_blank" rel="noopener noreferrer">
+              <span class="material-symbols-outlined">chat</span> Hubungi via WhatsApp
+            </a>
+            <button class="btn" style="width:100%;justify-content:center" onclick="closeModalForm()">Tutup</button>
+          </div>
+        </div>`);
+    }
+
     function togglePwdField(inputId, btn) {
       const input = document.getElementById(inputId);
       const icon  = btn ? btn.querySelector('.material-symbols-outlined') : null;
@@ -632,7 +677,7 @@
       if (e.key !== 'Enter') return;
       const activePanel = document.querySelector('.auth-panel.active');
       if (!activePanel) return;
-      if (activePanel.id === 'panel-login')    submitLogin();
+      // panel-login: Enter sudah ditangani native lewat <form id="form-login"> (submit event)
       if (activePanel.id === 'panel-register') submitRegister();
     });
 

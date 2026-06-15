@@ -14,7 +14,7 @@ Endpoint (prefix /api/tagihan, di input.py):
 import logging
 from datetime import date
 from flask import Blueprint, request, jsonify, g
-from utils import get_db
+from utils import get_db, catat_aktivitas
 
 log = logging.getLogger(__name__)
 tagihan_bp = Blueprint('tagihan', __name__)
@@ -392,6 +392,9 @@ def _auto_isolir_overdue(network_id):
                     'UPDATE pelanggan SET profil = ?, profil_sebelum_isolir = ? WHERE id = ?',
                     (profil_isolir, r['profil'] or 'default', r['pelanggan_id'])
                 )
+                catat_aktivitas('pelanggan', 'isolir', target=username,
+                                pesan=f'Isolir otomatis: {username} (tagihan #{r["tagihan_id"]} lewat jatuh tempo)',
+                                aktor='system', conn=conn)
                 conn.commit()
                 log.info('[Auto-Isolir] %s diisolir otomatis (tagihan #%s lewat jatuh tempo %s)',
                          username, r['tagihan_id'], today)
@@ -456,6 +459,11 @@ def bayar_tagihan(tagihan_id):
         _restore_isolir_if_needed(conn, t['username'] or '')
     conn.commit(); conn.close()
     log.info('[Tagihan] Bayar #%s (%s) %s', tagihan_id, t['username'], t['nominal'])
+
+    catat_aktivitas('tagihan', 'lunas', target=t['username'] or '',
+                    pesan='{} {} - {}'.format(keterangan_prefix, t['periode'], t['username'] or t['nama']),
+                    nominal=t['nominal'])
+
     return jsonify({'status': 'success', 'message': 'Tagihan lunas'}), 200
 
 
@@ -555,6 +563,10 @@ def setujui_piutang(tagihan_id):
     conn.commit()
     conn.close()
 
+    catat_aktivitas('tagihan', 'piutang', target=username,
+                    pesan=f'Piutang disetujui: {username} ({t["periode"]})',
+                    nominal=t['nominal'])
+
     msg = 'Piutang disetujui'
     if mt_ok:
         msg += ' & internet diaktifkan kembali'
@@ -651,6 +663,13 @@ def bayar_multi():
         _restore_isolir_if_needed(conn, uname)
 
     conn.commit(); conn.close()
+
+    if berhasil:
+        catat_aktivitas('tagihan', 'lunas',
+                        pesan='{} tagihan lunas via kolektor {} — total Rp{:,}'.format(
+                            len(berhasil), kolektor or '-', total).replace(',', '.'),
+                        nominal=total)
+
     return jsonify({
         'status': 'success',
         'message': '{} tagihan lunas, total Rp{:,}'.format(len(berhasil), total).replace(',', '.'),

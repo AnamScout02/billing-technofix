@@ -332,13 +332,6 @@ function aksiModem(aksi) {
       _bukaModal('modal-reboot');
       break;
 
-    case 'remote':
-      // Pre-fill IP jika ada di data pelanggan
-      const ipEl = document.getElementById('remote-ip');
-      if (ipEl) ipEl.value = _pelanggan.ip_modem || _pelanggan.address || _pelanggan.remote_ip || '';
-      _bukaModal('modal-remote');
-      break;
-
     default:
       toast(`Aksi "${aksi}" belum tersedia`, 'info');
   }
@@ -394,68 +387,32 @@ async function konfirmasiReboot() {
   );
 }
 
-/* ── Konfirmasi Remote — buka IP di tab baru ── */
-async function konfirmasiRemote() {
-  const ipEl     = document.getElementById('remote-ip');
-  const hintEl   = document.getElementById('remote-ip-hint');
-  const publicIp = (ipEl?.value || '').trim();
-
-  // public_ip opsional — kalau kosong, backend auto-detect dari WAN MikroTik
-  if (publicIp) {
-    const ipv4Re = /^(\d{1,3}\.){3}\d{1,3}$/;
-    if (!ipv4Re.test(publicIp)) {
-      if (hintEl) { hintEl.textContent = 'Format IP publik tidak valid (cth: 103.194.175.54).'; hintEl.style.display = 'block'; }
-      ipEl?.focus();
-      return;
-    }
-  }
-
-  const btn = document.getElementById('btn-konfirmasi-remote');
-  if (btn) {
-    btn.disabled = true;
-    btn.innerHTML = '<span class="material-symbols-outlined spin">refresh</span> Membuat NAT...';
-  }
+/* ── Remote Modem — repoint slot NAT "Remote-Onu" lalu buka di tab baru ── */
+async function aksiRemoteModem() {
+  if (!_pelanggan) return;
+  const btn = document.getElementById('btn-remote-modem');
+  _setButtonLoading(btn, '<span class="material-symbols-outlined spin">refresh</span> Menyiapkan...');
 
   try {
     const res = await fetch(`${API_BASE}/api/pelanggan/${_pelanggan.id}/remote-on`, {
       method:      'POST',
       credentials: 'include',
       headers:     getAuthHeaders(),
-      body:        JSON.stringify({
-        public_ip:  publicIp || undefined,
-        modem_port: parseInt(document.getElementById('remote-port')?.value || '80'),
-      }),
+      body:        JSON.stringify({ device_id: _pelanggan.device_id }),
     });
     const data = await res.json();
 
     if (!res.ok) {
-      throw new Error(data.error || 'Gagal membuat NAT rule');
+      throw new Error(data.error || 'Gagal menyiapkan remote');
     }
 
-    _tutupModal('modal-remote');
-    if (btn) {
-      btn.disabled = false;
-      btn.innerHTML = '<span class="material-symbols-outlined">open_in_new</span> Buka';
-    }
-
-    // Buka URL hasil NAT di tab baru + tampilkan info modal
-    window.open(data.url, '_blank', 'noopener,noreferrer');
-    toast(`✅ Remote aktif: ${data.url} → modem ${data.modem_ip}`, 'success');
+    openRemoteLinksModal(data.modem_ip, data.url, _pelanggan.username);
 
   } catch (e) {
-    if (hintEl) { hintEl.textContent = e.message; hintEl.style.display = 'block'; }
-    if (btn) {
-      btn.disabled = false;
-      btn.innerHTML = '<span class="material-symbols-outlined">open_in_new</span> Buka';
-    }
     toast(e.message || 'Gagal membuat remote', 'danger');
+  } finally {
+    _resetButtonLoading(btn, '<span class="material-symbols-outlined">settings_remote</span>Remote Modem');
   }
-}
-
-/** Input handler — hilangkan hint error saat user mengetik */
-function validateRemoteIp() {
-  const hintEl = document.getElementById('remote-ip-hint');
-  if (hintEl) hintEl.style.display = 'none';
 }
 
 

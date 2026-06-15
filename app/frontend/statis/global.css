@@ -124,8 +124,6 @@
   --bnav-bg:        #003f88;
   --bnav-active:    #ffffff;
   --bnav-inactive:  rgba(255,255,255,.55);
-  --bnav-indicator: #00aeef;
-  --bnav-ripple:    rgba(255,255,255,.20);
   --bnav-h:         62px;
 
   /* ── Background Texture ── */
@@ -215,224 +213,6 @@
   --bw-tx:       #1d9e75;
   --bw-live-dot: #4ade80;
 }
-
-/* ── Dark Mode — Token ──────────────────────────────────── */
-[data-theme="dark"] {
-  --primary:        #4d8ef7;
-  --primary-dark:   #3a7aed;
-  --primary-light:  #1a2744;
-  --primary-ring:   rgba(77,142,247,.18);
-
-  --header-bg:      #0d1117;
-  --header-border:  rgba(255,255,255,.06);
-
-  --bg:             #0d1117;
-  --surface:        #161b22;
-  --surface-2:      #1c2128;
-  --border:         #30363d;
-  --border-2:       #484f58;
-
-  --text:           #e6edf3;
-  --text-muted:     #b1bac4;
-  --text-dim:       #6e7681;
-
-  --green:          #3fb950;
-  --green-bg:       #0d2118;
-  --green-border:   #1a4f2c;
-  --red:            #f85149;
-  --red-bg:         #2d1117;
-  --red-border:     #6e1c1c;
-  --amber:          #d29922;
-  --amber-bg:       #271f0d;
-  --amber-border:   #5c4210;
-  --blue:           #388bfd;
-  --blue-bg:        #0d1f3c;
-  --blue-border:    #1a3566;
-
-  --navy-bg:        #0d1117;
-  --navy-border:    #30363d;
-  --page-bg:        #0d1117;
-
-  --card-head-bg:   #1c2128;
-  --card-head-text: #e6edf3;
-  --card-head-border: rgba(255,255,255,.07);
-
-  --skel-base:  #1c2128;
-  --skel-shine: #262d36;
-
-  --shadow-xs: 0 1px 2px rgba(0,0,0,.4);
-  --shadow-sm: 0 1px 4px rgba(0,0,0,.5), 0 1px 2px rgba(0,0,0,.4);
-  --shadow-md: 0 4px 16px rgba(0,0,0,.6);
-  --shadow-lg: 0 12px 36px rgba(0,0,0,.7);
-
-  color-scheme: dark;
-}
-
-/* ── Dark Mode — Components ─────────────────────────────── */
-
-/* Base */
-[data-theme="dark"] body,
-[data-theme="dark"] .page { background: var(--bg) !important; }
-[data-theme="dark"] .header { background: var(--header-bg) !important; }
-
-/* Page top/title */
-[data-theme="dark"] .page-top { border-color: var(--border); }
-[data-theme="dark"] .page-title { color: var(--text); }
-[data-theme="dark"] .page-sub   { color: var(--text-muted); }
-
-/* Stat cards — body only, gradient header stays */
-[data-theme="dark"] .stat-card { color: var(--text); background: var(--surface); border-color: var(--border); }
-[data-theme="dark"] .stat-val  { color: var(--text); }
-[data-theme="dark"] .stat-label { color: var(--text-muted); }
-[data-theme="dark"] .stat-sub   { color: var(--text-dim); }
-[data-theme="dark"] .stat-prog  { background: var(--surface-2); }
-
-/* Cards / Section wrappers — semua variasi nama */
-[data-theme="dark"] .card,
-[data-theme="dark"] .card-inner,
-[data-theme="dark"] .tab-card,
-[data-theme="dark"] .detail-card,
-[data-theme="dark"] .info-card,
-[data-theme="dark"] .data-card,
-[data-theme="dark"] .dash-card  { background: var(--surface); border-color: var(--border); }
-
-/* Section headers (dark-navy bar) */
-[data-theme="dark"] .section-head,
-[data-theme="dark"] .card-head,
-[data-theme="dark"] .dash-head  { background: var(--card-head-bg) !important; border-color: var(--card-head-border) !important; }
-[data-theme="dark"] .section-head *,
-[data-theme="dark"] .card-head * { color: var(--card-head-text); }
-
-/* Tables */
-[data-theme="dark"] table { border-color: var(--border); }
-[data-theme="dark"] thead th {
-  background: var(--surface-2) !important;
-  color: var(--text-muted) !important;
-  border-color: var(--border) !important;
-}
-[data-theme="dark"] tbody tr { border-color: var(--border); }
-[data-theme="dark"] tbody tr td { color: var(--text); border-color: var(--border); }
-[data-theme="dark"] tbody tr:hover td { background: rgba(255,255,255,.03) !important; }
-[data-theme="dark"] tbody tr:nth-child(even) td { background: rgba(255,255,255,.02); }
-
-/* Forms & Inputs */
-[data-theme="dark"] input,
-[data-theme="dark"] select,
-[data-theme="dark"] textarea {
-  background: var(--surface-2) !important;
-  border-color: var(--border) !important;
-  color: var(--text) !important;
-}
-[data-theme="dark"] input::placeholder,
-[data-theme="dark"] textarea::placeholder { color: var(--text-dim) !important; }
-[data-theme="dark"] input:focus,
-[data-theme="dark"] select:focus,
-[data-theme="dark"] textarea:focus { border-color: var(--primary) !important; box-shadow: 0 0 0 3px var(--primary-ring) !important; }
-[data-theme="dark"] label { color: var(--text-muted) !important; }
-[data-theme="dark"] .form-group label { color: var(--text-muted) !important; }
-[data-theme="dark"] .g-select,
-[data-theme="dark"] .dd-select { background: var(--surface-2) !important; border-color: var(--border) !important; color: var(--text) !important; }
-[data-theme="dark"] .g-select-wrap::after { color: var(--text-dim); }
-
-/* Buttons — secondary/outline only; primary stays */
-[data-theme="dark"] .btn-secondary {
-  background: var(--surface-2);
-  border-color: var(--border);
-  color: var(--text);
-}
-[data-theme="dark"] .btn-secondary:hover { background: var(--surface); border-color: var(--border-2); }
-[data-theme="dark"] .btn { color: var(--text); }
-[data-theme="dark"] .btn:not(.btn-primary):not(.btn-secondary) {
-  background: var(--surface-2);
-  border-color: var(--border);
-  color: var(--text);
-}
-
-/* Modals & Sheets */
-[data-theme="dark"] .modal-sheet,
-[data-theme="dark"] .modal-bs-sheet,
-[data-theme="dark"] .modal { background: var(--surface) !important; border-color: var(--border); }
-[data-theme="dark"] .modal-head,
-[data-theme="dark"] .modal-footer { border-color: var(--border); }
-[data-theme="dark"] .modal-title  { color: var(--text); }
-[data-theme="dark"] .modal-sub,
-[data-theme="dark"] .modal-body   { color: var(--text-muted); }
-[data-theme="dark"] .modal-close  { background: var(--surface-2); color: var(--text-muted); border-color: var(--border); }
-[data-theme="dark"] .modal-close:hover { background: var(--red-bg); color: var(--red); }
-[data-theme="dark"] .modal-overlay { background: rgba(0,0,0,.7); }
-
-/* Psheet (bottom sheet) */
-[data-theme="dark"] .psheet { background: var(--surface); border-color: var(--border); }
-[data-theme="dark"] .psheet-head { border-color: var(--border); }
-[data-theme="dark"] .psheet-title { color: var(--text); }
-[data-theme="dark"] .psheet-eyebrow { color: var(--text-muted); }
-[data-theme="dark"] .psheet-item {
-  background: var(--surface-2) !important;
-  border-color: var(--border) !important;
-}
-[data-theme="dark"] .psheet-item:hover { background: #262d36 !important; }
-[data-theme="dark"] .psheet-item-name { color: var(--text); }
-[data-theme="dark"] .psheet-item-desc { color: var(--text-muted); }
-[data-theme="dark"] .psheet-item-arrow { color: var(--text-dim); }
-[data-theme="dark"] .psheet-item-badge { filter: brightness(.85) saturate(.9); }
-
-/* Device card */
-[data-theme="dark"] .device-card { background: var(--surface); border-color: var(--border); }
-[data-theme="dark"] .device-name { color: var(--text); }
-[data-theme="dark"] .device-meta { color: var(--text-muted); }
-
-/* Profile dropdown */
-[data-theme="dark"] .profile-dropdown { background: var(--surface); border-color: var(--border); box-shadow: var(--shadow-lg); }
-[data-theme="dark"] .profile-info    { border-color: var(--border); }
-[data-theme="dark"] .profile-name    { color: var(--text); }
-[data-theme="dark"] .profile-email   { color: var(--text-dim); }
-[data-theme="dark"] .profile-menu-item { color: var(--text-muted); }
-[data-theme="dark"] .profile-menu-item:hover { background: var(--surface-2); color: var(--primary); }
-[data-theme="dark"] .profile-divider { border-color: var(--border); }
-
-/* Skeleton */
-[data-theme="dark"] .skeleton { background: var(--skel-base); }
-[data-theme="dark"] .skeleton::after { background: linear-gradient(90deg,transparent,var(--skel-shine),transparent); }
-
-/* Badges — semantic colors stay via CSS vars */
-[data-theme="dark"] .badge.pending { background: var(--surface-2); color: var(--text-dim); border-color: var(--border); }
-
-/* Pagination */
-[data-theme="dark"] .page-btn { background: var(--surface-2); border-color: var(--border); color: var(--text-muted); }
-[data-theme="dark"] .page-btn:hover { background: var(--surface); color: var(--text); }
-[data-theme="dark"] .page-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
-
-/* Per-page select */
-[data-theme="dark"] .per-page-sel { background: var(--surface-2); border-color: var(--border); color: var(--text); }
-
-/* Search box / filter bar */
-[data-theme="dark"] .filter-bar { background: transparent; }
-[data-theme="dark"] .search-wrap,
-[data-theme="dark"] .search-box-wrap { background: var(--surface); border-color: var(--border); }
-
-/* Toast — keeps its own color, just make bg darker */
-[data-theme="dark"] #toast { backdrop-filter: blur(10px); }
-
-/* Scrollbar */
-[data-theme="dark"] ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); }
-[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.22); }
-
-/* Bottom nav stays dark naturally — no override needed */
-
-/* Dark mode toggle button */
-.dark-toggle {
-  width: 36px; height: 36px;
-  border-radius: 10px;
-  border: 1px solid var(--header-border);
-  background: rgba(255,255,255,.10);
-  color: var(--header-text);
-  cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: .15s;
-  flex-shrink: 0;
-}
-.dark-toggle:hover { background: rgba(255,255,255,.18); }
-.dark-toggle .material-symbols-outlined { font-size: 18px; }
 
 
 /* ══════════════════════════════════════════════════════════
@@ -745,29 +525,18 @@ body {
    pada banyak WebView Android (bug klasik resize viewport). */
 body.keyboard-open .bottom-nav { display: none !important; }
 
-.bnav-fiber {
+/* Ganti animasi canvas (RAF terus-menerus, berat) dengan shimmer
+   CSS murni — cuma animasi background-position, jauh lebih ringan. */
+.bottom-nav::before {
+  content: '';
   position: absolute;
   inset: 0;
-  pointer-events: none;
-  mix-blend-mode: screen;
-  z-index: 0;
-}
-
-/* Pil melayang yang meluncur di belakang ikon aktif — pengganti
-   garis tipis lama. Hanya animasi `left`/`width` (murah di GPU,
-   tanpa transform/filter berat) supaya tetap mulus di WebView. */
-.bottom-nav-indicator {
-  position: absolute;
-  top: 6px; height: 32px;
-  border-radius: 16px;
-  background: rgba(0,174,239,.20);
-  border: 1px solid rgba(0,174,239,.35);
-  box-shadow: 0 0 14px rgba(0,174,239,.25);
-  transition: left .38s cubic-bezier(.34,1.3,.64,1),
-              width .38s cubic-bezier(.34,1.3,.64,1);
+  background: linear-gradient(100deg,
+    transparent 20%, rgba(0,174,239,.14) 50%, transparent 80%);
+  background-size: 250% 100%;
+  animation: bnavShimmer 6s ease-in-out infinite;
   pointer-events: none;
   z-index: 0;
-  will-change: left, width;
 }
 
 .bottom-nav-inner {
@@ -828,14 +597,6 @@ body.keyboard-open .bottom-nav { display: none !important; }
 }
 .bottom-nav-item:not(.active):hover { color: rgba(255,255,255,.80); }
 .bottom-nav-item:not(.active):hover .bottom-nav-icon { transform: translateY(-1px) scale(1.06); }
-
-.bottom-nav-ripple {
-  position: absolute; border-radius: 50%;
-  background: var(--bnav-ripple);
-  transform: scale(0);
-  animation: bottomNavRipple .55s ease-out forwards;
-  pointer-events: none;
-}
 
 
 /* ══════════════════════════════════════════════════════════
@@ -1231,6 +992,8 @@ body.keyboard-open .bottom-nav { display: none !important; }
 .badge.failed .badge-dot    { background: var(--red); animation: pulseRed 1.2s infinite; }
 .badge.pending              { background: var(--surface);   color: var(--text-dim); border-color: var(--border); }
 .badge.pending .badge-dot   { background: var(--text-dim); }
+.badge.warning              { background: var(--amber-bg);  color: var(--amber);    border-color: var(--amber-border); }
+.badge.warning .badge-dot   { background: var(--amber); animation: pulseAmber 1.2s infinite; }
 .badge.syncing              { background: var(--blue-bg);   color: var(--blue);     border-color: var(--blue-border); }
 .badge.syncing .badge-dot   { background: var(--blue); animation: pulseBlue .8s infinite; }
 
@@ -1656,7 +1419,7 @@ select.field-input {
   color: var(--text-dim); text-transform: var(--tbl-head-case);
   letter-spacing: var(--tbl-head-spacing);
 }
-#device-count { font-size: 12px; color: var(--text-dim); }
+#device-count, #odp-count, #odc-count, #olt-count { font-size: 12px; color: var(--text-dim); }
 
 
 /* ══════════════════════════════════════════════════════════
@@ -1800,7 +1563,7 @@ tbody tr:hover td.sticky-col-2           { background-color: #e0eaff !important;
 @keyframes popIn     { from{opacity:0;transform:scale(.94) translateY(8px)} to{opacity:1;transform:scale(1) translateY(0)} }
 @keyframes spin      { to{transform:rotate(360deg)} }
 @keyframes spinAnim  { to{transform:rotate(360deg)} }
-@keyframes bottomNavRipple { to{transform:scale(4);opacity:0} }
+@keyframes bnavShimmer { 0%,100%{background-position:100% 0} 50%{background-position:0% 0} }
 
 @keyframes headerGridPulse {
   0%, 100% { opacity: .6; }
@@ -1990,6 +1753,7 @@ tbody tr:hover td.sticky-col-2           { background-color: #e0eaff !important;
 .psheet.open .psheet-item:nth-child(3) { animation-delay: .14s; }
 .psheet.open .psheet-item:nth-child(4) { animation-delay: .19s; }
 .psheet.open .psheet-item:nth-child(5) { animation-delay: .24s; }
+.psheet.open .psheet-item:nth-child(6) { animation-delay: .29s; }
 
 /* Keuangan sheet items */
 .psheet-keuangan { background: #eaf0fb; border-color: rgba(0,64,161,.12); }
@@ -2027,12 +1791,12 @@ tbody tr:hover td.sticky-col-2           { background-color: #e0eaff !important;
 .psheet-payment:hover { background: #ede0fa; border-color: rgba(124,58,237,.28); }
 .psheet-payment:hover .psheet-item-arrow { color: #7c3aed; }
 
-.psheet-tiket { background: #eff6ff; border-color: rgba(37,99,235,.15); }
-.psheet-tiket .psheet-item-icon  { background: rgba(37,99,235,.12); color: #2563eb; }
-.psheet-tiket .psheet-item-badge { background: #2563eb; color: #fff; }
-.psheet-tiket .psheet-item-arrow { color: rgba(37,99,235,.35); }
-.psheet-tiket:hover { background: #dbeafe; border-color: rgba(37,99,235,.28); }
-.psheet-tiket:hover .psheet-item-arrow { color: #2563eb; }
+.psheet-tiket { background: var(--red-bg); border-color: var(--red-border); }
+.psheet-tiket .psheet-item-icon  { background: rgba(186,26,26,.10); color: var(--red); }
+.psheet-tiket .psheet-item-badge { background: var(--red); color: #fff; }
+.psheet-tiket .psheet-item-arrow { color: rgba(186,26,26,.35); }
+.psheet-tiket:hover { background: #fbd4d4; border-color: var(--red-border); }
+.psheet-tiket:hover .psheet-item-arrow { color: var(--red); }
 
 
 /* ══════════════════════════════════════════════════════════
@@ -2140,7 +1904,7 @@ tbody tr:hover td.sticky-col-2           { background-color: #e0eaff !important;
 }
 
 .dash-device-icon {
-  width: 42px; height: 42px;
+  width: 48px; height: 48px;
   border-radius: var(--r-md);
   background: var(--primary-light);
   display: flex; align-items: center; justify-content: center;
@@ -2163,44 +1927,6 @@ tbody tr:hover td.sticky-col-2           { background-color: #e0eaff !important;
   flex-shrink: 0;
 }
 
-/* Status dot & teks koneksi perangkat */
-.dash-conn-wrap {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.dash-status-dot {
-  width: 9px; height: 9px;
-  border-radius: 50%;
-  background: var(--border-2);
-  flex-shrink: 0;
-  transition: background .3s;
-}
-.dash-status-dot.online  {
-  background: var(--green);
-  box-shadow: 0 0 0 3px var(--green-bg);
-  animation: pulseGreen .9s infinite;
-}
-.dash-status-dot.offline {
-  background: var(--red);
-  box-shadow: 0 0 0 3px var(--red-bg);
-  animation: pulseRed 1.2s infinite;
-}
-.dash-status-dot.pending {
-  background: var(--amber);
-  box-shadow: 0 0 0 3px var(--amber-bg);
-  animation: pulseAmber .8s infinite;
-}
-
-.dash-status-text {
-  font-size: 12px; font-weight: 600;
-  color: var(--text-dim); white-space: nowrap; transition: color .3s;
-}
-.dash-status-text.online  { color: var(--green); }
-.dash-status-text.offline { color: var(--red);   }
-.dash-status-text.pending { color: var(--amber);  }
-
 /* Badge sync kecil di sisi kanan device bar */
 .sync-badge {
   font-size: 10.5px; font-weight: 600;
@@ -2212,6 +1938,61 @@ tbody tr:hover td.sticky-col-2           { background-color: #e0eaff !important;
 .sync-badge.syncing { background: var(--blue-bg);  color: var(--blue);  border-color: var(--blue-border); }
 .sync-badge.ok      { background: var(--green-bg); color: var(--green); border-color: var(--green-border); }
 .sync-badge.error   { background: var(--red-bg);   color: var(--red);   border-color: var(--red-border); }
+
+/* Ikon statis .g-select-icon selalu duplikat dengan chevron hasil enhance JS
+   (.tf-sel-chevron) pada SEMUA dropdown ter-enhance — sembunyikan global */
+.g-select-icon { display: none; }
+
+/* Modifier: tampilan "sumber data" — gradient gelap seperti stat-card
+   #1 (Total Pelanggan), warna dibedakan. Dipakai di Dashboard & Pelanggan
+   untuk card device bar pilih perangkat MikroTik. */
+.dash-device-bar--source {
+  background: linear-gradient(135deg, #170655 0%, #003f88 100%);
+  border-color: rgba(255,255,255,.15);
+  box-shadow: 0 4px 20px rgba(0,63,136,.22);
+  position: relative;
+  /* z-index:1 - animation transform (cardSlideUp) membuat elemen ini
+     stacking context sendiri; tanpa z-index eksplisit, seluruh context
+     ini (termasuk .tf-pop dropdown #select-device, z-index:30 di
+     dalamnya) jatuh sejajar dgn .stat-card lain (z-index:auto) dan
+     tertutup .stat-row yang urutan DOM-nya setelah bar ini. */
+  z-index: 1;
+  animation: cardSlideUp .4s cubic-bezier(.22,1,.36,1) forwards;
+}
+/* Kilauan tipis melintas - sama seperti efek di bottom-nav, dipasang
+   di belakang konten (z-index negatif) supaya teks/ikon tetap terbaca.
+   border-radius sendiri (bukan overflow:hidden di parent) supaya panel
+   dropdown #select-device (position:absolute, meluas ke luar card ini)
+   tidak ikut terpotong. */
+.dash-device-bar--source::before {
+  content: '';
+  position: absolute; inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(100deg,
+    transparent 20%, rgba(255,255,255,.18) 50%, transparent 80%);
+  background-size: 250% 100%;
+  animation: bnavShimmer 6s ease-in-out infinite;
+  pointer-events: none;
+  z-index: -1;
+}
+.dash-device-bar--source .dash-device-icon {
+  background: rgba(255,255,255,.18);
+  color: #fff;
+  box-shadow: 0 1px 0 rgba(255,255,255,.25) inset;
+}
+.dash-device-bar--source .dash-device-label {
+  color: rgba(255,255,255,.75);
+}
+.dash-device-bar--source .sync-badge {
+  background: rgba(255,255,255,.18) !important;
+  border-color: transparent !important;
+  color: rgba(255,255,255,.92) !important;
+}
+.dash-device-bar--source .tf-sel-trigger {
+  background-color: rgba(255,255,255,.14) !important;
+  border-color: rgba(255,255,255,.22) !important;
+  color: #fff !important;
+}
 
 
 /* ══════════════════════════════════════════════════════════
@@ -2326,6 +2107,20 @@ tbody tr:hover td.sticky-col-2           { background-color: #e0eaff !important;
 .g-section-table tr:last-child td,
 .dash-section-table tr:last-child td,
 .dp-card-table tr:last-child td { border-bottom: none; }
+
+/* Wrapper scroll tabel — scrollbar disembunyikan, scroll tetap aktif
+   (mouse/trackpad/swipe) supaya tampilan lebih bersih */
+.table-scroll,
+#table-scroll,
+#profile-table-wrap {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.table-scroll::-webkit-scrollbar,
+#table-scroll::-webkit-scrollbar,
+#profile-table-wrap::-webkit-scrollbar {
+  display: none;
+}
 
 
 /* ══════════════════════════════════════════════════════════
@@ -2472,8 +2267,38 @@ tbody tr:hover td.sticky-col-2           { background-color: #e0eaff !important;
   .device-card    { flex-wrap: wrap; }
   .device-actions { width: 100%; justify-content: flex-end; margin-top: 6px; }
 
-  .dash-device-bar       { flex-direction: column; align-items: flex-start; }
-  .dash-device-bar-right { width: 100%; justify-content: flex-start; }
+  /* Device bar lebih ramping: dropdown + status sejajar label, badge sync sejajar judul.
+     margin-bottom disamakan dengan gap antar stat-card (768px: 10px) supaya jarak
+     device-bar ke card di bawahnya tidak terasa lebih lebar dari jarak antar card. */
+  .dash-device-bar {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "icon   label  sync"
+      "icon   select .";
+    align-items: center;
+    gap: 4px 10px;
+    margin-bottom: 10px;
+  }
+  .dash-device-bar-left,
+  .dash-device-info,
+  .dash-device-bar-right { display: contents; }
+  .dash-device-icon  { grid-area: icon; align-self: start; }
+  .dash-device-label { grid-area: label; }
+  .dash-device-info .g-select-wrap { grid-area: select; min-width: 0; }
+  /* Badge sync sebaris dengan label (baris atas) - posisi konsisten di
+     semua halaman, tidak ikut turun mengikuti tinggi area select/dropdown */
+  .dash-device-bar-right .sync-badge { grid-area: sync; justify-self: end; align-self: center; }
+
+  /* Dropdown perangkat sering punya min-width inline (style="min-width:240px")
+     yang dibawa enhanceSelect() ke .tf-select — di mobile itu memaksa
+     .dash-device-bar melebar sampai badge "Terhubung"/"Memperbarui..." keluar
+     dari kartu. Paksa menyusut & biarkan teks terpotong (...) */
+  .dash-device-info .g-select-wrap .tf-select {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    width: 100%;
+  }
 
   #toast { bottom: calc(var(--bnav-h) + 12px); }
 
@@ -2558,8 +2383,6 @@ tbody tr:hover td.sticky-col-2           { background-color: #e0eaff !important;
     border-bottom: 1px solid var(--border);
   }
 
-  /* Dropdown full-width di mobile */
-  .g-select, .filter-select { min-width: 0; width: 100%; }
   .g-section-head, .dash-section-head { flex-direction: column; align-items: flex-start; }
 }
 
@@ -2584,10 +2407,27 @@ tbody tr:hover td.sticky-col-2           { background-color: #e0eaff !important;
   .page-top-actions .date-badge { align-self: flex-start; }
   .btn-primary    { justify-content: center; }
 
+  /* Persis 2 item (date-badge + tombol, atau 2 tombol) -> sebelahan, lebar sama */
+  .page-top-actions:has(> :nth-child(2):last-child) { flex-direction: row; }
+  .page-top-actions:has(> :nth-child(2):last-child) > * {
+    flex: 1 1 0; width: auto; min-width: 0;
+  }
+  .page-top-actions:has(> :nth-child(2):last-child) .date-badge {
+    align-self: stretch; justify-content: center;
+  }
+
+  /* Persis 3 tombol (tanpa date-badge/input) -> 2 per baris */
+  .page-top-actions:has(> :nth-child(3):last-child):not(:has(.date-badge)):not(:has(input)) {
+    flex-direction: row; flex-wrap: wrap;
+  }
+  .page-top-actions:has(> :nth-child(3):last-child):not(:has(.date-badge)):not(:has(input)) > * {
+    flex: 1 1 calc(50% - 4px); width: auto; min-width: 0;
+  }
+
   .form-grid      { grid-template-columns: 1fr; }
   .form-group.full{ grid-column: 1; }
 
-  .dash-device-bar { padding: 12px 14px; }
+  .dash-device-bar { padding: 12px 14px; margin-bottom: 8px; }
 
   .btn-sm         { font-size: 11.5px; padding: 4px 9px; }
 
@@ -2964,3 +2804,186 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
+
+/* ── Feature lock (fitur terkunci sesuai paket langganan) ──── */
+.tf-locked {
+  position: relative !important;
+  opacity: .5;
+  filter: grayscale(.35);
+  cursor: not-allowed !important;
+  pointer-events: none;
+}
+.tf-lockbadge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--amber);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  cursor: pointer;
+  z-index: 2;
+  box-shadow: 0 1px 3px rgba(0,0,0,.25);
+}
+.tf-lockbadge .material-symbols-outlined {
+  font-size: 9px;
+  color: #fff;
+}
+
+/* ════════════════════════════════════════════════════════════
+   CUSTOM DROPDOWN & DATE/MONTH PICKER
+   Ganti tampilan <select> & <input type="date"/"month"> bawaan
+   browser/device (termasuk picker mobile) dengan UI premium yang
+   konsisten. Elemen asli disembunyikan visual (.tf-native-hidden)
+   tapi tetap ada di DOM untuk value/onchange — lihat global.js.
+══════════════════════════════════════════════════════════════ */
+.tf-native-hidden {
+  position: absolute !important;
+  width: 1px !important; height: 1px !important;
+  padding: 0 !important; margin: 0 !important; border: none !important;
+  opacity: 0 !important; overflow: hidden !important; pointer-events: none !important;
+}
+
+/* Panel dibuka INLINE (position:static), tepat di bawah trigger lewat
+   urutan DOM normal — bukan overlay absolute/fixed. Jadi posisinya selalu
+   benar di manapun trigger berada (toolbar, dalam modal yg discroll, dll)
+   tanpa perlu hitung containing-block atau JS positioning. */
+.tf-pop {
+  position: static; width: 100%; box-sizing: border-box;
+  margin-top: 0; max-height: 0; overflow: hidden;
+  background: var(--bg); border: 1px solid transparent;
+  border-radius: var(--r-md); box-shadow: none;
+  padding: 6px;
+  opacity: 0;
+  transition: max-height .2s ease, opacity .15s ease, margin-top .2s ease,
+    border-color .2s ease, box-shadow .2s ease;
+}
+.tf-pop.open {
+  margin-top: 6px; max-height: 200px; overflow-y: auto;
+  opacity: 1; border-color: var(--border); box-shadow: var(--shadow-lg);
+}
+
+/* ── Custom select ──────────────────────────────────────── */
+.tf-select { position: relative; display: inline-block; }
+.tf-select.tf-block { display: block; width: 100%; }
+
+/* Dropdown compact (filter, picker perangkat, dll - bukan field
+   full-width di card tambah/edit): panel tampil sebagai overlay
+   melayang menempel trigger, tidak mendorong layout saat dibuka -
+   sama seperti dropdown pilih perangkat. Lebar panel minimal
+   selebar trigger, tapi BOLEH lebih lebar kalau teks opsi
+   lebih panjang (tidak dipotong ikut lebar trigger).
+   Catatan: width:auto pada elemen absolute "shrink-to-fit" tetap
+   dibatasi lebar trigger (containing block) walau ada min-width;
+   max-content tidak ikut batas itu, jadi panel benar2 menyesuaikan
+   teks opsi terlebar - dibatasi max-width agar tidak meluber. */
+.tf-select:not(.tf-block) .tf-pop {
+  position: absolute; top: 100%; left: 0;
+  width: max-content; min-width: 100%; max-width: 280px;
+  z-index: 30; margin-top: 0;
+}
+.tf-select:not(.tf-block) .tf-pop.open { margin-top: 4px; }
+/* Kalau trigger dekat tepi kanan layar, panel (bisa lebih lebar dari
+   trigger) ditambahkan class ini lewat JS (lihat openPop di global.js)
+   supaya rata-kanan & tumbuh ke kiri, tidak meluber keluar viewport. */
+.tf-select:not(.tf-block) .tf-pop.tf-pop-end { left: auto; right: 0; }
+
+.tf-sel-trigger {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  text-align: left; cursor: pointer; background-image: none !important;
+  padding-right: var(--dd-pad-h) !important; /* simetris kiri-kanan tanpa chevron */
+}
+.tf-sel-trigger-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Ikon chevron dropdown disembunyikan di semua custom-select (global) */
+.tf-sel-chevron { display: none; }
+.tf-sel-trigger:disabled { opacity: .55; cursor: not-allowed; }
+
+.tf-sel-panel .tf-sel-opt {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 9px 11px; border-radius: var(--r-sm); font-size: 13px; color: var(--text);
+  cursor: pointer; transition: background .12s ease;
+}
+.tf-sel-panel .tf-sel-opt:hover { background: var(--surface-2); }
+.tf-sel-panel .tf-sel-opt.selected { background: var(--primary-light); color: var(--primary); font-weight: 600; }
+.tf-sel-panel .tf-sel-opt[aria-disabled="true"] { opacity: .4; pointer-events: none; }
+/* Ikon centang opsi terpilih disembunyikan di semua dropdown (global) */
+.tf-sel-panel .tf-sel-check { display: none; }
+.tf-sel-empty { padding: 14px 11px; font-size: 12.5px; color: var(--text-dim); text-align: center; }
+
+/* ── Custom date / month picker ────────────────────────────── */
+.tf-dp { position: relative; display: inline-block; }
+.tf-dp.tf-dp-block { display: block; width: 100%; }
+
+/* Picker tanggal/bulan compact (filter, bukan field di card
+   tambah/edit): panel kalender overlay melayang menempel trigger
+   (tidak mendorong layout) - sama seperti dropdown pilih perangkat.
+   Lebar TIDAK dipaksa ikut trigger (beda dgn .tf-select) karena
+   grid kalender 7 kolom butuh lebar sendiri (lihat .tf-dp-panel). */
+.tf-dp:not(.tf-dp-block) .tf-pop {
+  position: absolute; top: 100%; left: 0; width: auto;
+  z-index: 30; margin-top: 0;
+}
+.tf-dp:not(.tf-dp-block) .tf-pop.open { margin-top: 4px; }
+/* Sama seperti .tf-select di atas - cegah panel kalender meluber
+   keluar tepi kanan layar (lihat openPop di global.js). */
+.tf-dp:not(.tf-dp-block) .tf-pop.tf-pop-end { left: auto; right: 0; }
+
+.tf-dp-trigger {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  text-align: left; cursor: pointer; background-image: none !important;
+}
+.tf-dp-icon { font-size: 17px; color: var(--primary); flex-shrink: 0; }
+.tf-dp-trigger-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tf-dp-trigger:disabled { opacity: .55; cursor: not-allowed; }
+
+.tf-dp-panel { padding: 6px; max-width: 240px; }
+.tf-dp-panel.open { max-height: 280px; }
+
+.tf-dp-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.tf-dp-label { font-weight: 700; font-size: 12px; color: var(--text); font-family: var(--heading); }
+.tf-dp-nav {
+  width: 24px; height: 24px; border-radius: var(--r-sm); border: 1px solid var(--border);
+  background: var(--surface); color: var(--text-muted);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: background .15s ease, color .15s ease;
+}
+.tf-dp-nav:hover { background: var(--primary-light); color: var(--primary); }
+.tf-dp-nav .material-symbols-outlined { font-size: 15px; }
+
+.tf-dp-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; }
+.tf-dp-dow {
+  text-align: center; font-size: 9.5px; font-weight: 700; color: var(--text-dim);
+  text-transform: uppercase; padding: 2px 0;
+}
+.tf-dp-day {
+  aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+  border: none; background: none; border-radius: var(--r-sm); font-size: 11px; color: var(--text);
+  cursor: pointer; transition: background .12s ease, color .12s ease;
+}
+.tf-dp-day:hover { background: var(--surface-2); }
+.tf-dp-day.tf-dp-out { color: var(--text-dim); opacity: .4; cursor: default; }
+.tf-dp-day.tf-dp-out:hover { background: none; }
+.tf-dp-day.tf-dp-today { color: var(--primary); font-weight: 700; box-shadow: inset 0 0 0 1.5px var(--primary); }
+.tf-dp-day.tf-dp-selected { background: var(--primary); color: #fff; font-weight: 700; }
+
+.tf-dp-mgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.tf-dp-month {
+  padding: 7px 4px; border: none; background: var(--surface); border-radius: var(--r-sm);
+  font-size: 11px; font-weight: 600; color: var(--text); cursor: pointer;
+  transition: background .12s ease, color .12s ease;
+}
+.tf-dp-month:hover { background: var(--primary-light); color: var(--primary); }
+.tf-dp-month.tf-dp-today { box-shadow: inset 0 0 0 1.5px var(--primary); color: var(--primary); }
+.tf-dp-month.tf-dp-selected { background: var(--primary); color: #fff; }
+
+.tf-dp-foot { display: flex; justify-content: flex-end; margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--border); }
+.tf-dp-today-btn {
+  font-size: 11px; font-weight: 700; color: var(--primary); background: var(--primary-light);
+  border: none; border-radius: var(--r-sm); padding: 4px 10px; cursor: pointer;
+  transition: background .15s ease, color .15s ease;
+}
+.tf-dp-today-btn:hover { background: var(--primary); color: #fff; }

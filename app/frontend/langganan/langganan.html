@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8" /><script>(function(){var t=localStorage.getItem("tf_theme");if(t)document.documentElement.dataset.theme=t;else if(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)document.documentElement.dataset.theme="dark";})();</script>
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Langganan — TechnoFix</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
-  <link rel="stylesheet" href="/app/frontend/statis/global.css?v=48" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,0..200" rel="stylesheet" />
+  <link rel="stylesheet" href="/app/frontend/statis/global.css?v=87" />
   <link rel="stylesheet" href="/app/frontend/langganan/langganan.css?v=2" />
 </head>
 <body>
@@ -27,7 +27,7 @@
         <a href="/app/frontend/dashboard/dashboard.html"><span class="material-symbols-outlined">dashboard</span>Dashboard</a>
         <a href="/app/frontend/pelanggan/pelanggan.html"><span class="material-symbols-outlined">group</span>Pelanggan</a>
         <a href="#" onclick="openPerangkatSheet(event)" data-perm="perangkat"><span class="material-symbols-outlined">router</span>Perangkat</a>
-        <a href="#" onclick="openKeuanganSheet(event)" data-perm="keuangan"><span class="material-symbols-outlined">payments</span>Layanan</a>
+        <a href="#" onclick="openKeuanganSheet(event)" data-perm="keuangan"><span class="material-symbols-outlined">credit_card_gear</span>Layanan</a>
         <a href="/app/frontend/maps/maps.html" data-perm="maps"><span class="material-symbols-outlined">map</span>Maps</a>
       </nav>
       <div class="header-actions">
@@ -94,7 +94,6 @@
   <!-- BOTTOM NAVBAR — MOBILE ONLY -->
   <nav class="bottom-nav">
     <div class="bottom-nav-inner">
-      <div class="bottom-nav-indicator" id="bottom-nav-indicator"></div>
       <a href="/app/frontend/dashboard/dashboard.html" class="bottom-nav-item">
         <div class="bottom-nav-icon"><span class="material-symbols-outlined">dashboard</span></div>
         <span class="bottom-nav-label">Dashboard</span>
@@ -108,7 +107,7 @@
         <span class="bottom-nav-label">Perangkat</span>
       </a>
       <a href="#" class="bottom-nav-item" onclick="openKeuanganSheet(event)" data-perm="keuangan">
-        <div class="bottom-nav-icon"><span class="material-symbols-outlined">payments</span></div>
+        <div class="bottom-nav-icon"><span class="material-symbols-outlined">credit_card_gear</span></div>
         <span class="bottom-nav-label">Layanan</span>
       </a>
       <a href="/app/frontend/maps/maps.html" class="bottom-nav-item" data-perm="maps">
@@ -139,7 +138,12 @@
     <div class="list-header" style="margin-top:24px">
       <span class="list-title">Pilih / Upgrade Paket</span>
     </div>
-    <div class="sub-grid" id="sub-grid"></div>
+    <div class="sub-grid" id="sub-grid">
+      <div class="state-box" style="grid-column:1/-1">
+        <div class="spinner"></div>
+        <p class="state-title">Memuat daftar paket…</p>
+      </div>
+    </div>
   </main>
 
   <!-- TOAST -->
@@ -173,11 +177,11 @@
       <a href="/app/frontend/tagihan/tagihan.html" class="psheet-item psheet-tagihan" data-perm="keuangan"><div class="psheet-item-icon"><span class="material-symbols-outlined">receipt_long</span></div><div class="psheet-item-body"><div class="psheet-item-name">Tagihan</div><div class="psheet-item-desc">Tagihan bulanan pelanggan</div></div><div class="psheet-item-badge">Invoice</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
       <a href="/app/frontend/loket/loket.html" class="psheet-item psheet-loket" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">point_of_sale</span></div><div class="psheet-item-body"><div class="psheet-item-name">Loket / Kasir</div><div class="psheet-item-desc">Terima bayar + komisi</div></div><div class="psheet-item-badge">Kasir</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
       <a href="/app/frontend/notifikasi/wa.html" class="psheet-item psheet-wa" data-perm="pelanggan_manage"><div class="psheet-item-icon"><span class="material-symbols-outlined">chat</span></div><div class="psheet-item-body"><div class="psheet-item-name">Notifikasi WA</div><div class="psheet-item-desc">Pengingat tagihan WhatsApp</div></div><div class="psheet-item-badge">Reminder</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
-      <a href="/app/frontend/pembayaran/payment.html" class="psheet-item psheet-payment" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">credit_card</span></div><div class="psheet-item-body"><div class="psheet-item-name">Bayar Online</div><div class="psheet-item-desc">Midtrans / Xendit</div></div><div class="psheet-item-badge">Gateway</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/pembayaran/payment.html" class="psheet-item psheet-payment" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">account_balance_wallet</span></div><div class="psheet-item-body"><div class="psheet-item-name">Bayar Online</div><div class="psheet-item-desc">Midtrans / Xendit</div></div><div class="psheet-item-badge">Gateway</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
       <a href="/app/frontend/tiket/tiket.html" class="psheet-item psheet-tiket" data-perm="pelanggan"><div class="psheet-item-icon"><span class="material-symbols-outlined">support_agent</span></div><div class="psheet-item-body"><div class="psheet-item-name">Tiket Laporan <span id="tiket-badge-nav" style="display:none;background:#dc2626;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:6px;vertical-align:1px"></span></div><div class="psheet-item-desc">Laporan gangguan pelanggan</div></div><div class="psheet-item-badge">Support</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
     </div>
   </div>
-  <script src="/app/frontend/statis/global.js?v=46"></script>
+  <script src="/app/frontend/statis/global.js?v=56"></script>
   <script src="/app/frontend/langganan/langganan.js?v=3"></script>
 </body>
 </html>

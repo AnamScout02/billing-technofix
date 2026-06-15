@@ -31,10 +31,10 @@ import calendar
 from flask import Blueprint, jsonify, request, g, Response
 
 # ── Shared helpers ────────────────────────────────────────────
-from utils import get_db, get_onu_data
+from utils import get_db, get_onu_data, catat_aktivitas
 
 # ── MikroTik client ───────────────────────────────────────────
-from mikrotik import MikroTikClient, MikroTikError
+from mikrotik import MikroTikClient, MikroTikError, REMOTE_ONU_COMMENT
 
 # ── Scrapli untuk RX/TX real-time dari OLT (opsional) ────────
 try:
@@ -234,7 +234,7 @@ def cari_device(device_id: int) -> dict | None:
     """Cari device di tabel 'devices' berdasarkan ID."""
     conn = get_db()
     row  = conn.execute(
-        'SELECT id, name, ip, port, username, password, koordinat, public_ip FROM devices WHERE id = ?',
+        'SELECT id, name, ip, port, username, password, koordinat, public_ip, remote_onu_ip, remote_onu_port, remote_onu_comment FROM devices WHERE id = ?',
         (device_id,)
     ).fetchone()
     conn.close()
@@ -648,7 +648,7 @@ def _get_pelanggan_dari_db(device_id, kolektor_filter=None):
     hasil = []
     for row in rows:
         username = row['username'] or ''
-        onu = get_onu_data(username)
+        onu = get_onu_data(username, conn)
         hasil.append({
             'id':              row['id'],
             'mikrotik_id':     None,
@@ -756,7 +756,7 @@ def get_pelanggan(device_id):
             if not username:
                 continue
 
-            onu = get_onu_data(username)
+            onu = get_onu_data(username, conn)
 
             profile_mt  = s.get('profile', 'default')
             comment_mt  = s.get('comment', '')
@@ -808,7 +808,6 @@ def get_pelanggan(device_id):
                     onu.get('vlan'),
                     onu.get('sn')
                 ))
-                conn.commit()
             except Exception:
                 pass
 
@@ -894,10 +893,12 @@ def get_pelanggan(device_id):
                            VALUES (?, ?, ?, ?, ?, ?, 1)''',
                         (device_id, username, password_ke_db, profile_mt, service_mt, nama_pelanggan)
                     )
-                conn.commit()
             except Exception as upsert_err:
                 logging.warning(f'[get_pelanggan] Auto-save gagal untuk {username}: {upsert_err}')
 
+        # ── Commit sekali untuk semua perubahan loop di atas ──
+        # (sebelumnya commit per-pelanggan = banyak fsync untuk N pelanggan)
+        conn.commit()
         conn.close()
 
         # Simpan ke cache (sebelum filter kolektor, agar bisa dipakai semua peran)
@@ -1119,6 +1120,9 @@ def tambah_pelanggan():
             if not sn:        missing.append('SN')
             if not slot_port: missing.append('Slot/Port')
             warnings.append(f'Registrasi OLT dilewati — {", ".join(missing)} belum diisi')
+
+    catat_aktivitas('pelanggan', 'tambah', target=username,
+                    pesan=f'Pelanggan baru: {nama} ({username}) — profil {profil}')
 
     status_code = 207 if warnings else 201
     return jsonify({
@@ -1399,6 +1403,9 @@ def update_pelanggan(id_pelanggan):
         else:
             steps['olt'] = 'skipped'
 
+        catat_aktivitas('pelanggan', 'edit', target=username,
+                        pesan=f'Edit pelanggan: {nama or username} ({username})')
+
         resp = {
             'status':           'success',
             'message':          f'Data {username} berhasil diperbarui',
@@ -1533,6 +1540,9 @@ def delete_pelanggan(pelanggan_id):
             steps['billing'] = 'warning'
             warnings.append(f'Billing: {e}')
 
+    catat_aktivitas('pelanggan', 'hapus', target=username,
+                    pesan=f'Hapus pelanggan: {username}')
+
     resp = {
         'message':  f'{username} — proses hapus selesai',
         'steps':    steps,
@@ -1570,12 +1580,13 @@ def get_rx_tx(device_id):
             secrets = mt.get_ppp_secrets()
 
         hasil = []
+        conn = get_db()
         for s in secrets:
             username = str(s.get('name', '') or '')
             if not username:
                 continue
 
-            onu      = get_onu_data(username)
+            onu      = get_onu_data(username, conn)
             rx_power = onu['rx_power']
             tx_power = onu['tx_power']
             source   = 'db'
@@ -1603,6 +1614,9 @@ def get_rx_tx(device_id):
                 'olt_id':    onu['olt_id'],
                 'source':    source,
             })
+
+        conn.commit()
+        conn.close()
 
         if not realtime:
             _PELANGGAN_CACHE[cache_key] = (time.time(), hasil)
@@ -1831,7 +1845,7 @@ def _resolve_device_with_hint(pelanggan, device_id_hint=None):
     # Strategi 3: scan semua devices
     conn = get_db()
     all_devices = conn.execute(
-        'SELECT id, name, ip, port, username, password, koordinat, public_ip FROM devices'
+        'SELECT id, name, ip, port, username, password, koordinat, public_ip, remote_onu_ip, remote_onu_port, remote_onu_comment FROM devices'
     ).fetchall()
     conn.close()
     for dev_row in all_devices:
@@ -1883,7 +1897,7 @@ def _get_pelanggan_device(pelanggan_id: int):
     logging.info(f'[_get_pelanggan_device] device_id null untuk {pelanggan["username"]}, scanning all devices...')
     conn = get_db()
     all_devices = conn.execute(
-        'SELECT id, name, ip, port, username, password, koordinat, public_ip FROM devices'
+        'SELECT id, name, ip, port, username, password, koordinat, public_ip, remote_onu_ip, remote_onu_port, remote_onu_comment FROM devices'
     ).fetchall()
     conn.close()
 
@@ -1932,6 +1946,8 @@ def enable_pelanggan(pelanggan_id):
     try:
         with MikroTikClient(device) as mt:
             mt.edit_secret(username, {'disabled': 'no'})
+        catat_aktivitas('pelanggan', 'aktifkan', target=username,
+                        pesan=f'Aktifkan PPPoE: {username}')
         return jsonify({'message': f'{username} berhasil di-enable'}), 200
     except MikroTikError as e:
         return jsonify({'error': str(e)}), 502
@@ -1959,6 +1975,8 @@ def disable_pelanggan(pelanggan_id):
     try:
         with MikroTikClient(device) as mt:
             mt.edit_secret(username, {'disabled': 'yes'})
+        catat_aktivitas('pelanggan', 'nonaktif', target=username,
+                        pesan=f'Nonaktifkan PPPoE: {username}')
         return jsonify({'message': f'{username} berhasil di-disable'}), 200
     except MikroTikError as e:
         return jsonify({'error': str(e)}), 502
@@ -2084,6 +2102,9 @@ def isolir_pelanggan(pelanggan_id):
         conn.commit()
         conn.close()
 
+        catat_aktivitas('pelanggan', 'isolir', target=username,
+                        pesan=f'Isolir: {username} ({profil_lama} → {profil_isolir})')
+
         return jsonify({
             'message':       f'{username} berhasil diisolir. Profil: {profil_lama} → {profil_isolir}',
             'profil_lama':   profil_lama,
@@ -2162,6 +2183,9 @@ def bayar_pelanggan(pelanggan_id):
         )
         conn.commit()
         conn.close()
+
+        catat_aktivitas('keuangan', 'lunas', target=username,
+                        pesan=f'Lunas — layanan {username} diaktifkan kembali (profil {profil_restore})')
 
         return jsonify({
             'message':     f'{username} berhasil diaktifkan kembali. Profil: {profil_restore}',
@@ -2419,38 +2443,32 @@ def get_pelanggan_cli_preview(pelanggan_id):
 @api_bp.route('/pelanggan/<int:pelanggan_id>/remote-on', methods=['POST'])
 def remote_modem_on(pelanggan_id):
     """
-    Buat NAT rule (dst-nat) di MikroTik untuk forward port publik ke IP modem
-    pelanggan, sehingga modem bisa diakses dari internet untuk diagnostik.
+    Arahkan slot NAT "Remote ONU" (rule dst-nat ber-comment 'Remote-Onu',
+    sudah dikonfigurasi sebelumnya di halaman Input MikroTik) ke IP modem
+    pelanggan ini, sehingga modem bisa diakses dari internet untuk diagnostik.
 
-    Body JSON:
-    {
-      "public_ip":  "103.194.175.54",   # opsional, default: WAN IP MikroTik
-      "public_port": 8001,              # opsional, default: random 8000-8999
-      "modem_port": 80                  # opsional, default: 80 (Web modem)
-    }
+    Body JSON (opsional): { "device_id": <id> }  — hint kalau device_id pelanggan belum tercatat
 
     Response:
     {
-      "url":         "http://103.194.175.54:8001",
-      "modem_ip":    "10.10.10.5",
-      "public_port": 8001,
-      "expires_in":  3600
+      "url":      "http://103.194.175.174:1234",
+      "modem_ip": "10.10.10.5"
     }
     """
+    from utils import get_network_package
+    from packages import package_has_feature
+    pkg = get_network_package(g.network_id)
+    if not package_has_feature(pkg, 'remote_modem'):
+        return jsonify({
+            'error': 'Fitur Remote Akses Modem tidak tersedia di paket Anda. Upgrade ke paket Lanjutan atau lebih tinggi untuk mengaktifkan.',
+            'code':  'feature_locked',
+        }), 403
+
     pelanggan, device = _get_pelanggan_device(pelanggan_id)
     if not pelanggan:
         return jsonify({'error': 'Pelanggan tidak ditemukan'}), 404
 
-    body        = request.get_json(silent=True) or {}
-    public_ip   = (body.get('public_ip')   or '').strip()
-    try:
-        public_port = int(body.get('public_port') or 0)
-    except (TypeError, ValueError):
-        public_port = 0
-    try:
-        modem_port = int(body.get('modem_port') or 80)
-    except (TypeError, ValueError):
-        modem_port = 80
+    body = request.get_json(silent=True) or {}
 
     if not device:
         # Fallback: coba resolve device pakai hint device_id dari body
@@ -2458,10 +2476,14 @@ def remote_modem_on(pelanggan_id):
     if not device:
         return jsonify({'error': 'Perangkat MikroTik tidak ditemukan. Pastikan pelanggan terdaftar di salah satu MikroTik.'}), 404
 
-    if not public_port:
-        # Generate port random dari range 8001-8999
-        import random
-        public_port = random.randint(8001, 8999)
+    remote_ip      = (device.get('remote_onu_ip') or '').strip()
+    remote_port    = device.get('remote_onu_port')
+    remote_comment = (device.get('remote_onu_comment') or '').strip() or REMOTE_ONU_COMMENT
+    if not remote_ip or not remote_port:
+        return jsonify({
+            'error': 'Remote ONU belum dikonfigurasi untuk MikroTik ini. '
+                     'Atur dulu di halaman Input MikroTik (tombol "Remote ONU").'
+        }), 400
 
     try:
         with MikroTikClient(device) as mt:
@@ -2479,70 +2501,26 @@ def remote_modem_on(pelanggan_id):
                     'error': f'Pelanggan {pelanggan["username"]} sedang offline. Remote tidak bisa dibuat.'
                 }), 400
 
-            # 2. Tentukan public IP dengan prioritas:
-            #    a. public_ip dari body request (override manual)
-            #    b. public_ip tersimpan di device (dari halaman input mikrotik) ← UTAMA
-            #    c. auto-detect dari WAN MikroTik (fallback terakhir)
-            if not public_ip:
-                public_ip = (device.get('public_ip') or '').strip()
-            if not public_ip:
-                try:
-                    addrs = list(api.path('/ip/address'))
-                    for a in addrs:
-                        addr = str(a.get('address') or '')
-                        if addr and not addr.startswith(('10.', '192.168.', '172.')):
-                            public_ip = addr.split('/')[0]
-                            break
-                except Exception:
-                    pass
-                if not public_ip:
-                    return jsonify({
-                        'error': 'IP Publik belum di-set. Atur di halaman Input MikroTik (field IP Publik), '
-                                 'atau isi manual saat remote.'
-                    }), 400
-
-            # 3. Hapus NAT rule lama dengan comment yang sama (jika ada)
-            tag     = f'remote-modem:{pelanggan["username"]}'
+            # 2. Repoint slot NAT Remote ONU (dicari berdasarkan comment yang dikonfigurasi) ke IP modem pelanggan ini
             nat_path = api.path('/ip/firewall/nat')
-            for r in list(nat_path):
-                if (r.get('comment') or '') == tag:
-                    try:
-                        nat_path.remove(r['.id'])
-                    except Exception:
-                        pass
+            rule = next(
+                (r for r in nat_path if (r.get('comment') or '') == remote_comment),
+                None
+            )
+            if not rule:
+                return jsonify({
+                    'error': f'Rule NAT dengan comment "{remote_comment}" tidak ditemukan di MikroTik. '
+                             'Konfigurasi ulang di halaman Input MikroTik (tombol "Remote ONU").'
+                }), 400
 
-            # 4. Buat NAT rule baru: dst-nat port publik → modem
-            #    Parameter lengkap agar rule presisi & aman:
-            #    - dst-address : hanya match trafik ke IP publik ini
-            #    - in-interface: hanya dari WAN (kalau di-set di device)
-            #    - protocol/dst-port → to-addresses/to-ports
-            nat_params = {
-                'chain':    'dstnat',
-                'action':   'dst-nat',
-                'protocol': 'tcp',
-                'dst-port':     str(public_port),
-                'to-addresses': modem_ip,
-                'to-ports':     str(modem_port),
-                'dst-address':  public_ip,
-                'comment':  tag,
-            }
-            # in-interface hanya ditambahkan jika WAN interface di-set di device
-            wan_iface = (device.get('wan_interface') or '').strip()
-            if wan_iface:
-                nat_params['in-interface'] = wan_iface
+            nat_path.update(**{'.id': rule['.id'], 'to-addresses': modem_ip, 'to-ports': '80'})
 
-            nat_path.add(**nat_params)
-
-            logging.info(f'[remote-modem] {pelanggan["username"]}: {public_ip}:{public_port} '
-                         f'→ {modem_ip}:{modem_port} (wan={wan_iface or "any"})')
+            logging.info(f'[remote-modem] {pelanggan["username"]}: {remote_ip}:{remote_port} → {modem_ip}:80')
 
         return jsonify({
-            'url':         f'http://{public_ip}:{public_port}',
-            'modem_ip':    modem_ip,
-            'public_ip':   public_ip,
-            'public_port': public_port,
-            'modem_port':  modem_port,
-            'message':     f'Remote aktif. Buka link di tab baru untuk akses modem {pelanggan["username"]}.',
+            'url':      f'http://{remote_ip}:{remote_port}',
+            'modem_ip': modem_ip,
+            'message':  f'Remote aktif. Buka link di tab baru untuk akses modem {pelanggan["username"]}.',
         }), 200
 
     except MikroTikError as e:
@@ -2550,39 +2528,6 @@ def remote_modem_on(pelanggan_id):
     except Exception as e:
         import traceback; traceback.print_exc()
         return jsonify({'error': str(e)}), 500
-
-
-@api_bp.route('/pelanggan/<int:pelanggan_id>/remote-off', methods=['POST'])
-def remote_modem_off(pelanggan_id):
-    """Hapus NAT rule remote untuk pelanggan ini."""
-    body              = request.get_json(silent=True) or {}
-    pelanggan, device = _get_pelanggan_device(pelanggan_id)
-    if not pelanggan:
-        return jsonify({'error': 'Pelanggan tidak ditemukan'}), 404
-    if not device:
-        # Fallback: coba resolve device pakai hint device_id dari body
-        device = _resolve_device_with_hint(pelanggan, body.get('device_id'))
-    if not device:
-        return jsonify({'error': 'Perangkat MikroTik tidak ditemukan. Pastikan pelanggan terdaftar di salah satu MikroTik.'}), 404
-
-    try:
-        with MikroTikClient(device) as mt:
-            api      = mt._get_api()
-            tag      = f'remote-modem:{pelanggan["username"]}'
-            nat_path = api.path('/ip/firewall/nat')
-            removed  = 0
-            for r in list(nat_path):
-                if (r.get('comment') or '') == tag:
-                    nat_path.remove(r['.id'])
-                    removed += 1
-
-        return jsonify({
-            'message': f'Remote modem {pelanggan["username"]} dimatikan ({removed} rule dihapus)',
-            'removed': removed,
-        }), 200
-
-    except MikroTikError as e:
-        return jsonify({'error': str(e)}), 502
 
 
 @api_bp.route('/pelanggan/<int:pelanggan_id>/provision', methods=['POST'])
@@ -3045,6 +2990,9 @@ def tambah_keuangan():
     finally:
         conn.close()
 
+    catat_aktivitas('keuangan', tipe, target=username,
+                    pesan=f'{keterangan}', nominal=nominal)
+
     return jsonify({
         'status':    'success',
         'message':   'Transaksi berhasil dicatat',
@@ -3095,6 +3043,9 @@ def update_keuangan(trx_id):
     finally:
         conn.close()
 
+    catat_aktivitas('keuangan', 'edit', target=username,
+                    pesan=f'Edit transaksi: {keterangan}', nominal=nominal)
+
     return jsonify({
         'status':    'success',
         'message':   'Transaksi berhasil diperbarui',
@@ -3105,13 +3056,18 @@ def update_keuangan(trx_id):
 @api_bp.route('/keuangan/<int:trx_id>', methods=['DELETE'])
 def hapus_keuangan(trx_id):
     """Hapus satu transaksi berdasarkan ID."""
-    conn     = get_db()
+    conn = get_db()
+    row  = conn.execute('SELECT * FROM keuangan WHERE id = ?', (trx_id,)).fetchone()
     affected = conn.execute('DELETE FROM keuangan WHERE id = ?', (trx_id,)).rowcount
     conn.commit()
     conn.close()
 
     if affected == 0:
         return jsonify({'status': 'error', 'message': 'Transaksi tidak ditemukan'}), 404
+
+    catat_aktivitas('keuangan', 'hapus', target=(row['username'] or '') if row else '',
+                    pesan=f"Hapus transaksi: {row['keterangan'] if row else trx_id}",
+                    nominal=row['nominal'] if row else None)
 
     return jsonify({'status': 'success', 'message': 'Transaksi berhasil dihapus'}), 200
 
@@ -3151,6 +3107,9 @@ def set_lunas(trx_id):
 
     row = conn.execute('SELECT * FROM keuangan WHERE id = ?', (trx_id,)).fetchone()
     conn.close()
+
+    catat_aktivitas('keuangan', 'lunas', target=username,
+                    pesan=f"Lunas: {row['keterangan']}", nominal=row['nominal'])
 
     return jsonify({
         'status':    'success',
@@ -3614,11 +3573,27 @@ def get_vlans(device_id):
         return jsonify({'error': str(e)}), 500
 
 
+# ── Snapshot rx-byte/tx-byte terakhir per (owner, device, interface) ──
+# Dipakai untuk menghitung bandwidth VLAN dari SELISIH antar polling
+# (frontend polling tiap 4 detik), supaya get_bandwidth tidak perlu
+# time.sleep(1) di setiap request — itu yang sebelumnya membuat tiap
+# polling bandwidth selalu lambat 1 detik + overhead koneksi.
+_IFACE_SNAP_CACHE = {}  # (network_id, device_id, iface) -> (monotonic_ts, rx_byte, tx_byte)
+
+
 @api_bp.route('/mikrotik/<int:device_id>/bandwidth', methods=['GET'])
 def get_bandwidth(device_id):
     """
     Traffic realtime satu interface. ?iface=ether1
-    Coba monitor-traffic → fallback selisih rx-byte/tx-byte.
+
+    Catatan VLAN: pada interface bertipe 'vlan' dengan hardware-switch
+    offloading, /interface/monitor-traffic sering melaporkan rate AGREGAT
+    port fisik induknya (gabungan semua VLAN), bukan rate VLAN itu sendiri.
+    Counter rx-byte/tx-byte di /interface/print dihitung per-interface
+    (software, akurat per-VLAN) — sumber yang sama dengan Tx/Rx Rate &
+    Byte Graph di WinBox. Maka untuk interface VLAN, pakai selisih byte
+    terhadap snapshot polling SEBELUMNYA (_IFACE_SNAP_CACHE), bukan
+    monitor-traffic dan bukan sampel 1 detik dalam request ini.
     """
     iface = request.args.get('iface', '').strip()
     if not iface:
@@ -3636,30 +3611,50 @@ def get_bandwidth(device_id):
             rx_mbps = 0.0
             tx_mbps = 0.0
 
-            # Coba monitor-traffic
-            try:
-                samples = list(api.path('/interface/monitor-traffic')(
-                    **{'interface': iface, 'duration': '1', 'once': ''}
-                ))
-                if samples:
-                    s       = dict(samples[0])
-                    rx_mbps = round(float(s.get('rx-bits-per-second', 0) or 0) / 1_000_000, 3)
-                    tx_mbps = round(float(s.get('tx-bits-per-second', 0) or 0) / 1_000_000, 3)
-            except Exception:
-                # Fallback: selisih rx-byte/tx-byte selang 1 detik
+            def _snap():
+                for r in api.path('/interface'):
+                    rd = dict(r)
+                    if rd.get('name') == iface:
+                        return rd
+                return {}
+
+            s1      = _snap()
+            is_vlan = s1.get('type') == 'vlan'
+
+            got_monitor = False
+            if not is_vlan:
+                # Interface fisik/non-VLAN → monitor-traffic akurat & instan
                 try:
-                    def _snap():
-                        for r in api.path('/interface'):
-                            rd = dict(r)
-                            if rd.get('name') == iface:
-                                return rd
-                        return {}
-                    s1 = _snap(); _time.sleep(1); s2 = _snap()
-                    if s1 and s2:
-                        rx_mbps = round(max(int(s2.get('rx-byte',0)) - int(s1.get('rx-byte',0)), 0) * 8 / 1_000_000, 3)
-                        tx_mbps = round(max(int(s2.get('tx-byte',0)) - int(s1.get('tx-byte',0)), 0) * 8 / 1_000_000, 3)
+                    samples = list(api.path('/interface/monitor-traffic')(
+                        **{'interface': iface, 'duration': '1', 'once': ''}
+                    ))
+                    if samples:
+                        s       = dict(samples[0])
+                        rx_mbps = round(float(s.get('rx-bits-per-second', 0) or 0) / 1_000_000, 3)
+                        tx_mbps = round(float(s.get('tx-bits-per-second', 0) or 0) / 1_000_000, 3)
+                        got_monitor = True
                 except Exception:
                     pass
+
+            if not got_monitor and s1:
+                # VLAN (atau monitor-traffic gagal) → selisih rx-byte/tx-byte
+                # terhadap polling sebelumnya. Polling pertama (belum ada
+                # snapshot sebelumnya) balas 0 — sample berikutnya (~4 detik
+                # kemudian dari frontend) sudah punya selisih yang valid.
+                now      = _time.monotonic()
+                rx_now   = int(s1.get('rx-byte', 0) or 0)
+                tx_now   = int(s1.get('tx-byte', 0) or 0)
+                snap_key = (g.network_id, device_id, iface)
+                prev     = _IFACE_SNAP_CACHE.get(snap_key)
+
+                if prev:
+                    prev_ts, prev_rx, prev_tx = prev
+                    elapsed = now - prev_ts
+                    if elapsed >= 0.5:
+                        rx_mbps = round(max(rx_now - prev_rx, 0) * 8 / elapsed / 1_000_000, 3)
+                        tx_mbps = round(max(tx_now - prev_tx, 0) * 8 / elapsed / 1_000_000, 3)
+
+                _IFACE_SNAP_CACHE[snap_key] = (now, rx_now, tx_now)
 
         return jsonify({
             'iface': iface, 'rx_mbps': rx_mbps, 'tx_mbps': tx_mbps,
@@ -3674,17 +3669,13 @@ def get_bandwidth(device_id):
 
 
 
-# ── Status sinkron per device (in-memory) ────────────────────
-_sync_status = {}
-
-
 @api_bp.route('/stats/<int:device_id>', methods=['GET'])
 def get_stats(device_id):
     """
     Endpoint RINGAN — baca DB lokal saja, tidak sentuh MikroTik.
     Catatan: kolom 'aktif' = akun tidak di-disabled di MikroTik,
     BUKAN berarti sedang online. Angka realtime online/offline
-    tersedia setelah sync selesai via /api/pelanggan/<id>.
+    tersedia via /api/pelanggan/<id>.
     """
     device = cari_device(device_id)
     if not device:
@@ -3700,159 +3691,16 @@ def get_stats(device_id):
         total   = row['total'] or 0
         aktif   = row['aktif'] or 0
         nonaktif = total - aktif
-        sync_key  = (getattr(g, 'network_id', None), device_id)
-        sync_info = _sync_status.get(sync_key, {'status': 'idle', 'msg': '', 'ts': ''})
         return jsonify({
             'total':    total,
             'online':   aktif,    # sementara: aktif = tidak disabled
             'offline':  nonaktif,
             'realtime': False,    # flag: angka ini BUKAN realtime online
-            'sync':     sync_info,
         }), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     finally:
         conn.close()
-
-
-@api_bp.route('/sync/<int:device_id>', methods=['POST'])
-def trigger_sync(device_id):
-    """Jalankan sinkron MikroTik di background thread."""
-    import threading
-    from utils import get_owner_db
-
-    device = cari_device(device_id)
-    if not device:
-        return jsonify({'error': 'Perangkat tidak ditemukan'}), 404
-
-    # Thread terpisah TIDAK punya konteks request/g — get_db() akan fallback
-    # ke MASTER db. Tangkap network_id sekarang (di dalam request) dan pakai
-    # get_owner_db() langsung di dalam thread agar sinkron menulis ke DB
-    # owner yang benar. Juga dipakai sebagai bagian key _sync_status agar
-    # status sync owner satu tidak bocor/ketimpa owner lain dengan device_id sama.
-    network_id = getattr(g, 'network_id', None)
-    if not network_id:
-        return jsonify({'error': 'Konteks owner tidak ditemukan'}), 401
-
-    sync_key = (network_id, device_id)
-    if _sync_status.get(sync_key, {}).get('status') == 'running':
-        return jsonify({'status': 'running', 'msg': 'Sinkron sedang berjalan'}), 202
-
-    def _do_sync():
-        _sync_status[sync_key] = {'status': 'running', 'msg': 'Mengambil data...', 'ts': datetime.now().isoformat()}
-        try:
-            # Dua koneksi terpisah — MikroTikClient tidak thread-safe dalam 1 instance
-            with MikroTikClient(device) as mt:
-                secrets = mt.get_ppp_secrets()
-
-            with MikroTikClient(device) as mt:
-                active_conns = mt.get_active_connections()
-
-            active_names = {a.get('name') for a in active_conns}
-            conn = get_owner_db(network_id)
-
-            rows_lokal = {r['username']: r['password'] for r in conn.execute(
-                'SELECT username, password FROM pelanggan').fetchall()}
-            onu_map = {r['username']: dict(r) for r in conn.execute(
-                'SELECT username, olt_id, slot_port, vlan, sn FROM onu_mapping').fetchall()}
-
-            _empty = {'olt_id': None, 'slot_port': '', 'vlan': None, 'sn': ''}
-            params = []
-            for s in secrets:
-                u = str(s.get('name', '') or '').strip()
-                if not u:
-                    continue
-                pw_mt   = str(s.get('password', '') or '').strip()
-                pw_save = rows_lokal.get(u) or ''
-                onu     = onu_map.get(u, _empty)
-                params.append((
-                    u, s.get('comment') or u, pw_mt or pw_save,
-                    s.get('profile', 'default'), s.get('service', 'pppoe'),
-                    0 if s.get('disabled') == 'true' else 1,
-                    onu.get('olt_id'), onu.get('slot_port') or '',
-                    onu.get('vlan'), onu.get('sn') or '',
-                ))
-
-            if params:
-                # Cek kolom yang tersedia — support row_factory maupun tuple
-                def _get_col_names(conn):
-                    rows = conn.execute("PRAGMA table_info(pelanggan)").fetchall()
-                    try:
-                        return {r['name'] for r in rows}
-                    except (TypeError, IndexError):
-                        return {r[1] for r in rows}  # fallback: index numerik
-
-                col_names = _get_col_names(conn)
-                logging.info(f'[sync] kolom pelanggan: {col_names}')
-
-                # Tambah kolom yang belum ada
-                for col_def in [
-                    ('olt_id',   'INTEGER'),
-                    ('slot_port', "TEXT DEFAULT ''"),
-                    ('vlan',     'INTEGER'),
-                    ('sn',       "TEXT DEFAULT ''"),
-                ]:
-                    if col_def[0] not in col_names:
-                        try:
-                            conn.execute(f"ALTER TABLE pelanggan ADD COLUMN {col_def[0]} {col_def[1]}")
-                            logging.info(f'[sync] ALTER TABLE: tambah kolom {col_def[0]}')
-                        except Exception as ae:
-                            logging.warning(f'[sync] ALTER TABLE {col_def[0]}: {ae}')
-
-                # Pisahkan username yang sudah ada vs baru
-                existing = {r[0] for r in conn.execute(
-                    'SELECT username FROM pelanggan').fetchall()}
-
-                to_insert = [(device_id,u,n,p,pr,sv,ak,oi,sp,vl,sn)
-                             for (u,n,p,pr,sv,ak,oi,sp,vl,sn) in params
-                             if u not in existing]
-                to_update = [(pr,sv,ak,p,n,oi,sp,sp,vl,sn,sn,u)
-                             for (u,n,p,pr,sv,ak,oi,sp,vl,sn) in params
-                             if u in existing]
-
-                if to_insert:
-                    # device_id WAJIB diisi saat insert — tanpa ini, baris yang
-                    # baru ditarik dari router tidak punya pemilik perangkat
-                    # (device_id NULL) sehingga tidak bisa dihapus dari MikroTik
-                    # lewat aplikasi (cari_device(None) gagal) → secret yatim di
-                    # router terus tertarik ulang setiap sync, terlihat seperti
-                    # "secret lama muncul lagi".
-                    conn.executemany(
-                        'INSERT OR IGNORE INTO pelanggan '
-                        '(device_id,username,nama,password,profil,service,aktif,olt_id,slot_port,vlan,sn) '
-                        'VALUES (?,?,?,?,?,?,?,?,?,?,?)',
-                        to_insert)
-
-                if to_update:
-                    # olt_id/slot_port/vlan/sn ikut dipatch dari onu_mapping (mis. saat
-                    # OLT-CANTUK disinkronkan, data ONU pelanggan Cantuk1 ikut terisi) —
-                    # pakai COALESCE/CASE supaya tidak menimpa data manual dgn nilai kosong.
-                    conn.executemany(
-                        'UPDATE pelanggan SET profil=?,service=?,aktif=?,password=?,'
-                        'nama=CASE WHEN nama IS NULL OR nama="" THEN ? ELSE nama END,'
-                        'olt_id=COALESCE(?, olt_id),'
-                        "slot_port=CASE WHEN ? != '' THEN ? ELSE slot_port END,"
-                        'vlan=COALESCE(?, vlan),'
-                        "sn=CASE WHEN ? != '' THEN ? ELSE sn END "
-                        'WHERE username=?',
-                        to_update)
-
-                conn.commit()
-            conn.close()
-
-            _sync_status[sync_key] = {
-                'status': 'done',
-                'msg': f'Selesai · {len(params)} pelanggan',
-                'ts': datetime.now().isoformat(),
-            }
-            logging.info(f'[sync] device {device_id} done — {len(params)} rows')
-
-        except Exception as e:
-            logging.error(f'[sync] device {device_id} error: {e}')
-            _sync_status[sync_key] = {'status': 'error', 'msg': str(e), 'ts': datetime.now().isoformat()}
-
-    threading.Thread(target=_do_sync, daemon=True).start()
-    return jsonify({'status': 'running', 'msg': 'Sinkron dimulai'}), 202
 
 
 @api_bp.route('/mikrotik/<int:device_id>/resource', methods=['GET'])
@@ -3875,6 +3723,11 @@ def get_mikrotik_resource(device_id):
         mem_pct   = round(mem_used / mem_total * 100) if mem_total else 0
         cpu_load  = int(r.get('cpu-load', 0) or 0)
 
+        hdd_total = int(r.get('total-hdd-space', 0) or 0)
+        hdd_free  = int(r.get('free-hdd-space',  0) or 0)
+        hdd_used  = hdd_total - hdd_free
+        hdd_pct   = round(hdd_used / hdd_total * 100) if hdd_total else 0
+
         suhu = r.get('board-temp') or r.get('temperature') or None
         if suhu is not None:
             try: suhu = int(suhu)
@@ -3886,6 +3739,10 @@ def get_mikrotik_resource(device_id):
             'mem_free':     mem_free,
             'mem_used':     mem_used,
             'mem_pct':      mem_pct,
+            'hdd_total':    hdd_total,
+            'hdd_free':     hdd_free,
+            'hdd_used':     hdd_used,
+            'hdd_pct':      hdd_pct,
             'uptime':       r.get('uptime', ''),
             'board_name':   r.get('board-name', ''),
             'architecture': r.get('architecture-name', r.get('cpu', '')),
@@ -3936,38 +3793,33 @@ def get_mikrotik_log(device_id):
 
 @api_bp.route('/log/aktivitas', methods=['GET'])
 def get_log_aktivitas():
-    device_id = request.args.get('device_id')
+    """
+    Feed "Live Aktivitas" dashboard — semua aksi penting (pelanggan,
+    perangkat, keuangan, tagihan) dari tabel aktivitas_log milik owner.
+    """
     try:
         limit = min(int(request.args.get('limit', 40)), 100)
     except (ValueError, TypeError):
         limit = 40
-    conn      = get_db()
+    conn = get_db()
     try:
         logs = []
         for r in conn.execute(
-            'SELECT tanggal, keterangan, tipe, status, nominal, username, created_at '
-            'FROM keuangan ORDER BY id DESC LIMIT ?', (limit,)
+            'SELECT id, tipe, aksi, target, pesan, nominal, aktor, created_at '
+            'FROM aktivitas_log ORDER BY id DESC LIMIT ?', (limit,)
         ).fetchall():
-            tipe, status = r['tipe'] or '', r['status'] or ''
-            topic = 'sukses' if status == 'Lunas' else ('warning' if status == 'Pending' else 'info')
-            msg   = f"[{tipe.upper()}] {r['keterangan'] or ''}"
-            if r['username']: msg += f" — {r['username']}"
-            if r['nominal']:  msg += f" Rp {r['nominal']:,}".replace(',', '.')
-            logs.append({'topic': topic, 'message': msg,
-                         'time': r['tanggal'] or '', 'ts': r['created_at'] or r['tanggal'] or ''})
-
-        if device_id:
-            for r in conn.execute(
-                'SELECT username, profil, tgl_pasang FROM pelanggan '
-                'WHERE device_id=? ORDER BY id DESC LIMIT 20', (device_id,)
-            ).fetchall():
-                if r['tgl_pasang']:
-                    logs.append({'topic': 'tambah',
-                                 'message': f"[PPPoE] {r['username']} — {r['profil'] or 'default'}",
-                                 'time': r['tgl_pasang'], 'ts': r['tgl_pasang']})
-
-        logs.sort(key=lambda x: x.get('ts','') or '', reverse=True)
-        return jsonify(logs[:limit]), 200
+            logs.append({
+                'id':      r['id'],
+                'tipe':    r['tipe'] or '',
+                'aksi':    r['aksi'] or '',
+                'target':  r['target'] or '',
+                'pesan':   r['pesan'] or '',
+                'nominal': r['nominal'],
+                'aktor':   r['aktor'] or '',
+                'time':    r['created_at'] or '',
+                'ts':      r['created_at'] or '',
+            })
+        return jsonify(logs), 200
     except Exception as e:
         logging.error(f'[log/aktivitas] {e}')
         return jsonify([]), 200
@@ -4059,6 +3911,11 @@ def bulk_isolir():
 
     ok  = sum(1 for r in results if r['status'] == 'ok')
     err = sum(1 for r in results if r['status'] == 'error')
+
+    if ok:
+        catat_aktivitas('pelanggan', 'isolir',
+                        pesan=f'Isolir massal: {ok} pelanggan diisolir' + (f', {err} gagal' if err else ''))
+
     return jsonify({
         'message': f'{ok} pelanggan diisolir, {err} gagal',
         'results': results,
@@ -4143,6 +4000,11 @@ def bulk_aktifkan():
 
     ok  = sum(1 for r in results if r['status'] == 'ok')
     err = sum(1 for r in results if r['status'] == 'error')
+
+    if ok:
+        catat_aktivitas('pelanggan', 'aktifkan',
+                        pesan=f'Aktifkan massal: {ok} pelanggan diaktifkan' + (f', {err} gagal' if err else ''))
+
     return jsonify({
         'message': f'{ok} pelanggan diaktifkan, {err} gagal',
         'results': results,

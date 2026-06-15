@@ -315,6 +315,9 @@ def init_owner_schema(conn: sqlite3.Connection) -> None:
         status TEXT NOT NULL DEFAULT 'pending',
         koordinat TEXT DEFAULT '',
         public_ip TEXT DEFAULT '', wan_interface TEXT DEFAULT '',
+        remote_onu_ip TEXT DEFAULT '', remote_onu_port INTEGER DEFAULT NULL,
+        remote_onu_comment TEXT DEFAULT 'Remote-Onu',
+        remote_onu_local_ip TEXT DEFAULT '',
         UNIQUE(ip, port)
     )''')
 
@@ -417,6 +420,12 @@ def init_owner_schema(conn: sqlite3.Connection) -> None:
     )''')
 
     # Migrasi kolom baru ke tabel existing
+    # Slot NAT "Remote ONU" — port forwarding tetap per MikroTik (comment=Remote-Onu di NAT),
+    # to-addresses-nya direpoint ke IP modem pelanggan saat tombol Remote Modem ditekan.
+    _add_column(cur, 'devices', 'remote_onu_ip', "TEXT DEFAULT ''")
+    _add_column(cur, 'devices', 'remote_onu_port', 'INTEGER DEFAULT NULL')
+    _add_column(cur, 'devices', 'remote_onu_comment', "TEXT DEFAULT 'Remote-Onu'")
+    _add_column(cur, 'devices', 'remote_onu_local_ip', "TEXT DEFAULT ''")
     _add_column(cur, 'odc', 'port_terpakai', 'INTEGER DEFAULT 0')
     _add_column(cur, 'odp', 'port_odc', 'INTEGER DEFAULT NULL')
     _add_column(cur, 'odp', 'parent_odp_id', 'INTEGER DEFAULT NULL')
@@ -540,7 +549,51 @@ def init_owner_schema(conn: sqlite3.Connection) -> None:
         updated_at TEXT DEFAULT (datetime('now','localtime'))
     )''')
 
+    # Feed "Live Aktivitas" dashboard — semua aksi penting (pelanggan,
+    # perangkat, keuangan, tagihan), bukan cuma transaksi keuangan.
+    cur.execute('''CREATE TABLE IF NOT EXISTS aktivitas_log (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        tipe       TEXT NOT NULL,            -- pelanggan | perangkat | keuangan | tagihan
+        aksi       TEXT NOT NULL,            -- tambah | edit | hapus | isolir | aktifkan |
+                                              -- nonaktif | pemasukan | pengeluaran | lunas |
+                                              -- piutang | connect | disconnect
+        target     TEXT DEFAULT '',
+        pesan      TEXT NOT NULL DEFAULT '',
+        nominal    INTEGER,
+        aktor      TEXT DEFAULT '',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )''')
+
     conn.commit()
+
+
+def catat_aktivitas(tipe, aksi, target='', pesan='', nominal=None, aktor='', conn=None):
+    """
+    Catat satu baris ke aktivitas_log (sumber feed "Live Aktivitas" dashboard).
+
+    Gagal-aman: error di sini TIDAK boleh menggagalkan aksi utama pemanggil.
+    Jika `conn` diberikan (koneksi owner yang sudah terbuka & akan di-commit
+    oleh caller), insert ikut transaksi itu tanpa membuka koneksi baru.
+    """
+    if not aktor:
+        try:
+            from flask import g
+            cu = getattr(g, 'current_user', None)
+            aktor = (cu or {}).get('username', '') or ''
+        except Exception:
+            aktor = ''
+    try:
+        own_conn = conn is None
+        c = conn or get_db()
+        c.execute(
+            'INSERT INTO aktivitas_log (tipe, aksi, target, pesan, nominal, aktor) VALUES (?,?,?,?,?,?)',
+            (tipe, aksi, target, pesan, nominal, aktor)
+        )
+        if own_conn:
+            c.commit()
+            c.close()
+    except Exception as e:
+        logger.warning(f'[Aktivitas] Gagal mencatat log: {e}')
 
 
 # ══════════════════════════════════════════════════════════════
@@ -562,6 +615,10 @@ def device_to_dict(row) -> dict:
         'koordinat': row['koordinat'] if 'koordinat' in row.keys() else '',
         'public_ip': row['public_ip'] if 'public_ip' in row.keys() else '',
         'wan_interface': row['wan_interface'] if 'wan_interface' in row.keys() else '',
+        'remote_onu_ip': row['remote_onu_ip'] if 'remote_onu_ip' in row.keys() else '',
+        'remote_onu_port': row['remote_onu_port'] if 'remote_onu_port' in row.keys() else None,
+        'remote_onu_comment': (row['remote_onu_comment'] if 'remote_onu_comment' in row.keys() else '') or 'Remote-Onu',
+        'remote_onu_local_ip': row['remote_onu_local_ip'] if 'remote_onu_local_ip' in row.keys() else '',
     }
 
 
@@ -879,13 +936,19 @@ def parse_generic_rx(cli_output: str) -> dict:
 # 10. AMBIL DATA ONU DARI DATABASE
 # ══════════════════════════════════════════════════════════════
 
-def get_onu_data(username: str) -> dict:
+def get_onu_data(username: str, conn: sqlite3.Connection = None) -> dict:
     """
     Ambil data ONU dari onu_mapping berdasarkan username.
     Fallback: cari via slot_port_onu atau sn dari tabel pelanggan
     (untuk EPON yang sync pakai MAC, bukan PPPoE username).
+
+    Jika `conn` diberikan (koneksi yang sudah terbuka), dipakai langsung —
+    penting saat dipanggil dalam loop per-pelanggan agar tidak membuka
+    koneksi baru (+ init_owner_schema) untuk setiap baris.
     """
-    conn = get_db()
+    own_conn = conn is None
+    if own_conn:
+        conn = get_db()
     row  = conn.execute(
         '''SELECT slot_port, vlan, sn, olt_id,
                   rx_power, tx_power, tcont_profile
@@ -934,14 +997,17 @@ def get_onu_data(username: str) -> dict:
                     'UPDATE onu_mapping SET username=? WHERE username=?',
                     (username, best['username'])
                 )
-                conn.commit()
+                if own_conn:
+                    conn.commit()
             except sqlite3.IntegrityError:
                 # username sudah dipakai baris lain (UNIQUE) — biarkan baris lama,
                 # tetap pakai data 'best' untuk response kali ini
-                conn.rollback()
+                if own_conn:
+                    conn.rollback()
             row = best
 
-    conn.close()
+    if own_conn:
+        conn.close()
 
     if row:
         return {

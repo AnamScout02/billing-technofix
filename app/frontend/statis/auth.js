@@ -120,6 +120,16 @@ async function submitLogin(event) {
 
     if (res.ok && data.status === 'success') {
       saveStoredUser(data.user);
+
+      // Minta browser simpan kredensial (Credential Management API) supaya
+      // prompt "Simpan Password?" muncul & autofill aktif di login berikutnya.
+      // Hanya tersedia di secure context (HTTPS/localhost) — aman di-skip kalau tidak didukung.
+      if (window.PasswordCredential) {
+        try {
+          await navigator.credentials.store(new PasswordCredential({ id: username, password, name: username }));
+        } catch (_) { /* abaikan - tidak kritikal */ }
+      }
+
       showAlert('login', 'success', `Selamat datang, ${escHtml(data.user.username)}! Mengalihkan...`);
       // Kembali ke halaman yang diminta sebelum diarahkan ke login (?next=)
       const _nextRaw = new URLSearchParams(location.search).get('next') || '';

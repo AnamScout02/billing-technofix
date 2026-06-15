@@ -36,6 +36,8 @@
 .filter-select:hover { border-color: var(--border-2, #cbd5e1); }
 .filter-select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
 
+.filter-group { display: flex; gap: 8px; }
+
 /* ── Tabel (match tema Pelanggan) ── */
 .table-wrap {
   background: var(--bg); border: 1px solid var(--border);
@@ -178,5 +180,13 @@
 @media (max-width: 600px) {
   .toolbar { gap: 8px; }
   .search-wrap { max-width: 100%; flex: 1 1 100%; }
-  .filter-select { flex: 1; }
+}
+
+@media (max-width: 480px) {
+  .toolbar { flex-direction: column; align-items: stretch; }
+  /* 2 dropdown filter ("Semua Role"/"Semua Status") dibagi rata 1 baris,
+     proporsional terhadap lebar layar (lihat pola yang sama di
+     pelanggan.css - .filter-group .tf-select). */
+  .filter-group { flex-wrap: wrap; gap: 10px; }
+  .filter-group .tf-select { flex: 1 1 0; }
 }

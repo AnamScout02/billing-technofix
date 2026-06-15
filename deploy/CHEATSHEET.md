@@ -140,6 +140,7 @@ free -h       # memory
 | 403 Forbidden di `/` | Normal — akses path spesifik, mis. `/app/frontend/auth/auth.html` |
 | Setelah `git pull`, error `unable to open database file` | Pastikan folder `/opt/technofix/app/database/owners` ada: `mkdir -p /opt/technofix/app/database/owners` |
 | Setelah update JS/CSS, tampilan tidak berubah | Hard-refresh: `Ctrl+Shift+R` |
+| Log `journalctl` penuh "Address already in use" / backend crash-loop terus | Ada proses `input.py` lama yang masih pegang port 5000 — lihat §13 |
 
 ---
 
@@ -192,3 +193,38 @@ sudo reboot
 ```
 
 Setelah reboot (~1 menit), semua service (Apache + `technofix-backend`) akan **otomatis menyala lagi** (sudah `systemctl enable`). Tunggu sebentar lalu cek halaman login seperti biasa.
+
+---
+
+## 13. Backend crash-loop: "Address already in use"
+
+Penyebab paling umum: ada proses `python input.py` LAMA (sisa dev manual,
+lihat bagian "Menjalankan" di `CLAUDE.md`) yang masih memegang port 5000,
+sehingga service systemd gagal start dan terus restart-loop —
+`journalctl -u technofix-backend -f` penuh:
+```
+Address already in use
+Port 5000 is in use by another program...
+```
+
+**Cara cek & fix:**
+```bash
+# 1. Cari semua proses input.py yang masih hidup
+ps aux | grep input.py | grep -v grep
+
+# 2. Matikan proses LAMA (bukan yang baru di-spawn systemd — biasanya
+#    "STARTED" jauh lebih lama / PPID bukan proses systemd)
+kill <PID>
+
+# 3. Tunggu ~5 detik, systemd otomatis restart & ambil alih port 5000
+sleep 5 && systemctl status technofix-backend --no-pager
+```
+
+**Verifikasi sudah sehat:**
+```bash
+# Restart counter harus diam (tidak nambah lagi)
+systemctl show technofix-backend -p NRestarts
+
+# API merespons (404 di "/" itu normal)
+curl -s -o /dev/null -w "HTTP %{http_code}\n" http://127.0.0.1:5000/
+```

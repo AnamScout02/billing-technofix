@@ -91,6 +91,8 @@
 .filter-select:focus { border-color: var(--primary); }
 
 .filter-group { display: flex; gap: 8px; }
+.select-group { display: flex; gap: 8px; }
+.btn-group    { display: flex; gap: 8px; }
 
 
 /* ── Tabel Transaksi ── */
@@ -336,4 +338,12 @@
   .toolbar          { flex-direction: column; align-items: stretch; }
   .table-footer     { flex-direction: column; align-items: flex-start; }
   .keuangan-table   { font-size: 12px; }
+  /* 2 dropdown ("25 baris"/"Semua Status") dibagi rata 1 baris,
+     proporsional terhadap lebar layar (lihat pola yang sama di
+     pelanggan.css - .filter-group .tf-select). */
+  .select-group { flex-wrap: wrap; gap: 10px; }
+  .select-group .tf-select { flex: 1 1 0; }
+  /* Tombol "Ekspor CSV"/"Ekspor PDF" dibagi rata 1 baris juga. */
+  .btn-group { gap: 10px; }
+  .btn-group .btn { flex: 1 1 0; justify-content: center; }
 }

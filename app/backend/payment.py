@@ -35,7 +35,7 @@ import urllib.request
 import urllib.parse
 from datetime import date, datetime
 from flask import Blueprint, request, jsonify, g
-from utils import get_db, get_owner_db, get_master_db
+from utils import get_db, get_owner_db, get_master_db, catat_aktivitas
 
 log = logging.getLogger(__name__)
 payment_bp = Blueprint('payment', __name__)
@@ -262,6 +262,10 @@ def _mark_paid(conn, pay_row, channel='online'):
         # (pembayaran online/webhook tidak melalui alur loket/tagihan manual)
         from tagihan import _restore_isolir_if_needed
         _restore_isolir_if_needed(conn, t['username'] or '')
+
+        catat_aktivitas('tagihan', 'lunas', target=t['username'] or '',
+                        pesan='{} {} - {}'.format(keterangan_prefix, t['periode'], t['username'] or t['nama']),
+                        nominal=t['nominal'], conn=conn)
 
 
 @payment_bp.route('/mark-paid', methods=['POST'])

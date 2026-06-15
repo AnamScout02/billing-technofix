@@ -22,11 +22,29 @@ import librouteros
 from librouteros import connect
 from librouteros.query import Key
 import logging
+import threading
 
 
 # ── Setup Logging ──────────────────────────────────────────────
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+# ── Connection pool ─────────────────────────────────────────────
+# Setiap `with MikroTikClient(device) as mt:` sebelumnya login lalu
+# logout dari MikroTik (terlihat di /log sebagai "user X logged
+# in/out via api" berulang-ulang tiap sync/klik halaman pelanggan).
+# Simpan koneksi idle per device (key = ip+port+username+password)
+# supaya dipakai ulang — tanpa login/logout lagi selama koneksi
+# masih hidup (dicek lewat ping ringan saat diambil dari pool).
+_POOL_MAX_IDLE = 2
+_pool_lock: threading.Lock = threading.Lock()
+_connection_pool: dict = {}
+
+
+# Comment NAT rule "slot" Remote ONU — satu per MikroTik, to-addresses-nya
+# direpoint ke IP modem pelanggan saat tombol Remote Modem ditekan.
+REMOTE_ONU_COMMENT = 'Remote-Onu'
 
 
 # ══════════════════════════════════════════════════════════════
@@ -96,6 +114,7 @@ class MikroTikClient:
         self.username = device['username']
         self.password = device['password']
         self._api     = None
+        self._pool_key = (self.ip, self.port, self.username, self.password)
 
     # ── Context manager agar koneksi auto-close ──
     def __enter__(self):
@@ -106,7 +125,17 @@ class MikroTikClient:
         self.close()
 
     def _connect(self):
-        """Membuka koneksi ke MikroTik."""
+        """Membuka koneksi ke MikroTik — pakai koneksi idle dari pool dulu
+        kalau ada & masih hidup (cek lewat ping ringan), baru login baru
+        kalau tidak ada/sudah mati."""
+        pooled = self._take_from_pool()
+        if pooled is not None:
+            try:
+                list(pooled.path('/system/identity'))  # ping ringan
+                self._api = pooled
+                return
+            except Exception:
+                self._safe_close(pooled)
         try:
             logger.info(f"Menghubungkan ke MikroTik {self.ip}:{self.port}...")
             self._api = connect(
@@ -127,16 +156,34 @@ class MikroTikClient:
             self._connect()
         return self._api
 
-    def close(self):
-        """Tutup koneksi API jika ada."""
+    def _take_from_pool(self):
+        """Ambil 1 koneksi idle dari pool untuk device ini, kalau ada."""
+        with _pool_lock:
+            bucket = _connection_pool.get(self._pool_key)
+            if bucket:
+                return bucket.pop()
+        return None
+
+    @staticmethod
+    def _safe_close(api_obj):
         try:
-            if self._api is not None:
-                self._api.close()
-                logger.info(f"Koneksi ke MikroTik {self.ip} ditutup.")
-        except Exception as e:
-            logger.warning(f"Gagal menutup koneksi: {e}")
-        finally:
-            self._api = None
+            api_obj.close()
+        except Exception:
+            pass
+
+    def close(self):
+        """Kembalikan koneksi ke pool supaya bisa dipakai ulang tanpa
+        login/logout lagi (lihat _connection_pool); tutup beneran kalau
+        pool device ini sudah penuh."""
+        if self._api is None:
+            return
+        api_obj, self._api = self._api, None
+        with _pool_lock:
+            bucket = _connection_pool.setdefault(self._pool_key, [])
+            if len(bucket) < _POOL_MAX_IDLE:
+                bucket.append(api_obj)
+                return
+        self._safe_close(api_obj)
 
     # ══════════════════════════════════════════════════════════
     # PPP SECRETS

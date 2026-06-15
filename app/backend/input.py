@@ -21,7 +21,7 @@ import logging
 import os
 
 # ── Shared helpers ─────────────────────────────────────────────
-from utils import get_db, device_to_dict, try_connect_mikrotik
+from utils import get_db, device_to_dict, try_connect_mikrotik, catat_aktivitas
 
 # ── Blueprints ─────────────────────────────────────────────────
 from api    import api_bp
@@ -307,6 +307,10 @@ def add_device():
         conn.commit()
         row = conn.execute('SELECT * FROM devices WHERE id=?', (existing['id'],)).fetchone()
         conn.close()
+
+        catat_aktivitas('perangkat', 'edit', target=name,
+                        pesan=f'Edit perangkat: {name} ({ip}:{port})')
+
         return jsonify({
             'status':  'success' if ok else 'warning',
             'message': msg + ' (perangkat sudah ada, data diperbarui)',
@@ -322,6 +326,9 @@ def add_device():
 
     row = conn.execute('SELECT * FROM devices WHERE id = ?', (new_id,)).fetchone()
     conn.close()
+
+    catat_aktivitas('perangkat', 'tambah', target=name,
+                    pesan=f'Perangkat baru: {name} ({ip}:{port})')
 
     return jsonify({
         'status':  'success' if ok else 'warning',
@@ -369,13 +376,17 @@ def update_device(device_id):
     row = conn.execute('SELECT * FROM devices WHERE id = ?', (device_id,)).fetchone()
     conn.close()
 
+    catat_aktivitas('perangkat', 'edit', target=name,
+                    pesan=f'Edit perangkat: {name} ({ip}:{port})')
+
     return jsonify({'status': 'success', 'device': device_to_dict(row)}), 200
 
 
 @app.route('/devices/<int:device_id>', methods=['DELETE'])
 def delete_device(device_id):
     """Hapus perangkat dari database berdasarkan ID."""
-    conn     = get_db()
+    conn   = get_db()
+    device = conn.execute('SELECT name FROM devices WHERE id = ?', (device_id,)).fetchone()
     affected = conn.execute('DELETE FROM devices WHERE id = ?', (device_id,)).rowcount
     conn.commit()
     conn.close()
@@ -383,12 +394,24 @@ def delete_device(device_id):
     if affected == 0:
         return jsonify({'status': 'error', 'message': 'Perangkat tidak ditemukan.'}), 404
 
+    catat_aktivitas('perangkat', 'hapus', target=device['name'] if device else '',
+                    pesan=f"Hapus perangkat: {device['name'] if device else device_id}")
+
     return jsonify({'status': 'success', 'message': 'Perangkat berhasil dihapus.'}), 200
 
 
 @app.route('/devices/<int:device_id>/sync', methods=['POST'])
 def sync_device(device_id):
-    """Coba koneksi ke MikroTik dan update status di database."""
+    """
+    Coba koneksi ke MikroTik, update status di database, DAN sekaligus
+    ambil jumlah PPP Profile dalam satu koneksi live yang sama.
+
+    Sebelumnya halaman Perangkat memanggil endpoint ini DAN
+    /profile-count secara terpisah untuk tiap perangkat saat dimuat —
+    masing-masing membuka koneksi RouterOS API sendiri (2x koneksi live
+    per perangkat). Digabung di sini jadi 1x koneksi agar halaman
+    Perangkat tidak "muter-muter" lama saat dimuat.
+    """
     conn   = get_db()
     device = conn.execute('SELECT * FROM devices WHERE id = ?', (device_id,)).fetchone()
 
@@ -396,23 +419,161 @@ def sync_device(device_id):
         conn.close()
         return jsonify({'status': 'error', 'message': 'Perangkat tidak ditemukan.'}), 404
 
-    ok, msg = try_connect_mikrotik(
-        device['ip'], device['port'],
-        device['username'], device['password']
-    )
-    status = 'connected' if ok else 'failed'
+    profile_count  = None
+    profile_source = None
+    try:
+        from mikrotik import MikroTikClient
+        with MikroTikClient(dict(device)) as mt:
+            profile_count = len(mt.get_ppp_profiles())
+        ok, msg, profile_source = True, 'Koneksi berhasil.', 'mikrotik'
+    except Exception as e:
+        ok, msg = False, 'Gagal terhubung. Periksa IP, port, username, dan password.'
+        logging.error(f"[MikroTik] Sync gagal ke {device['ip']}:{device['port']} — {e}")
 
+    status     = 'connected' if ok else 'failed'
+    status_lama = device['status']
     conn.execute('UPDATE devices SET status=? WHERE id=?', (status, device_id))
     conn.commit()
+
+    if status != status_lama and status_lama in ('connected', 'failed'):
+        if status == 'connected':
+            catat_aktivitas('perangkat', 'connect', target=device['name'],
+                            pesan=f"Perangkat {device['name']} ({device['ip']}) terhubung kembali")
+        elif status == 'failed':
+            catat_aktivitas('perangkat', 'disconnect', target=device['name'],
+                            pesan=f"Perangkat {device['name']} ({device['ip']}) terputus")
+
+    # Gagal konek live → fallback hitung profil dari DB lokal (sama seperti /profile-count)
+    if profile_count is None:
+        row = conn.execute(
+            'SELECT COUNT(*) as cnt FROM profil_harga WHERE device_id = ?', (device_id,)
+        ).fetchone()
+        profile_count, profile_source = (row['cnt'] if row else 0), 'local'
+
     conn.close()
 
     return jsonify({
-        'status':    'success' if ok else 'error',
-        'message':   msg,
-        'connected': ok
+        'status':         'success' if ok else 'error',
+        'message':        msg,
+        'connected':      ok,
+        'profile_count':  profile_count,
+        'profile_source': profile_source,
     }), 200
 
 
+# ══════════════════════════════════════════════════════════════
+# ENDPOINT — POST /devices/<id>/remote-onu
+# Atur slot NAT "Remote ONU" (port forwarding tetap) di MikroTik.
+# Dipakai oleh fitur Remote Modem (lihat api.py: remote_modem_on) —
+# to-addresses rule ini direpoint ke IP modem pelanggan saat dipakai.
+# ══════════════════════════════════════════════════════════════
+
+@app.route('/devices/<int:device_id>/remote-onu', methods=['POST'])
+def set_remote_onu(device_id):
+    """
+    Body JSON: { "ip": "103.194.175.174", "port": 1234, "comment": "Remote-Onu", "local_ip": "172.100.1.2" }
+
+    Membuat/memperbarui NAT rule dst-nat di MikroTik perangkat ini:
+      chain=dstnat action=dst-nat protocol=tcp
+      dst-address=<local_ip atau ip> dst-port=<port> to-addresses=0.0.0.0 to-ports=80
+      comment=<comment>
+
+    "local_ip" (opsional) dipakai untuk topologi 2 router: router ini
+    ("Cantuk") adalah router DISTRIBUSI di belakang router utama/gateway
+    ("Gendoh") yang punya IP publik. Gateway sudah di-set manual sekali oleh
+    owner: dst-nat <ip>:<port> → <local_ip>:<port>. Rule di perangkat ini
+    harus menangkap paket yang sudah di-dst-nat oleh gateway tsb, jadi
+    dst-address-nya = local_ip (IP perangkat ini dari sudut pandang gateway),
+    bukan IP publik.
+
+    Jika "local_ip" dikosongkan (kasus 1 router yang juga punya IP publik
+    langsung), dst-address = "ip" (IP publik) seperti semula.
+
+    Rule lama dicari berdasarkan comment yang TERSIMPAN sebelumnya
+    (remote_onu_comment) — jika ditemukan, di-update (termasuk comment
+    barunya bila diganti). Jika tidak ada, dibuat rule baru.
+
+    to-addresses akan direpoint otomatis ke IP modem pelanggan saat
+    tombol "Remote Modem" ditekan di halaman detail pelanggan
+    (lihat api.py: remote_modem_on, dicari berdasarkan remote_onu_comment).
+    """
+    import re
+    from mikrotik import MikroTikClient, MikroTikError, REMOTE_ONU_COMMENT
+    from utils import get_network_package
+    from packages import package_has_feature
+
+    pkg = get_network_package(g.network_id)
+    if not package_has_feature(pkg, 'remote_modem'):
+        return jsonify({
+            'status': 'error',
+            'message': 'Fitur Remote Akses Modem tidak tersedia di paket Anda. Upgrade ke paket Lanjutan atau lebih tinggi untuk mengaktifkan.',
+            'code': 'feature_locked',
+        }), 403
+
+    data     = request.json or {}
+    ip       = (data.get('ip') or '').strip()
+    port     = data.get('port')
+    comment  = (data.get('comment') or '').strip() or REMOTE_ONU_COMMENT
+    local_ip = (data.get('local_ip') or '').strip()
+
+    if not re.match(r'^(\d{1,3}\.){3}\d{1,3}$', ip):
+        return jsonify({'status': 'error', 'message': 'IP publik tidak valid.'}), 400
+    if local_ip and not re.match(r'^(\d{1,3}\.){3}\d{1,3}$', local_ip):
+        return jsonify({'status': 'error', 'message': 'IP lokal router tidak valid.'}), 400
+    try:
+        port = int(port)
+        if not (1 <= port <= 65535):
+            raise ValueError
+    except (TypeError, ValueError):
+        return jsonify({'status': 'error', 'message': 'Port harus angka 1-65535.'}), 400
+
+    conn   = get_db()
+    device = conn.execute('SELECT * FROM devices WHERE id = ?', (device_id,)).fetchone()
+    if not device:
+        conn.close()
+        return jsonify({'status': 'error', 'message': 'Perangkat tidak ditemukan.'}), 404
+
+    old_comment = (device['remote_onu_comment'] if 'remote_onu_comment' in device.keys() else '') or REMOTE_ONU_COMMENT
+    dst_address = local_ip or ip
+
+    try:
+        with MikroTikClient(dict(device)) as mt:
+            api      = mt._get_api()
+            nat_path = api.path('/ip/firewall/nat')
+            existing = next(
+                (r for r in nat_path if (r.get('comment') or '') == old_comment),
+                None
+            )
+            params = {
+                'dst-address':  dst_address,
+                'dst-port':     str(port),
+                'to-addresses': '0.0.0.0',
+                'to-ports':     '80',
+                'comment':      comment,
+            }
+            if existing:
+                nat_path.update(**{'.id': existing['.id'], **params})
+            else:
+                nat_path.add(
+                    chain='dstnat', action='dst-nat', protocol='tcp', **params,
+                )
+    except MikroTikError as e:
+        conn.close()
+        return jsonify({'status': 'error', 'message': str(e)}), 502
+    except Exception as e:
+        conn.close()
+        logging.error(f"[Remote ONU] Gagal set slot di {device['ip']}:{device['port']} — {e}")
+        return jsonify({'status': 'error', 'message': f'Gagal mengatur Remote ONU: {e}'}), 500
+
+    conn.execute('UPDATE devices SET remote_onu_ip=?, remote_onu_port=?, remote_onu_comment=?, remote_onu_local_ip=? WHERE id=?', (ip, port, comment, local_ip, device_id))
+    conn.commit()
+    row = conn.execute('SELECT * FROM devices WHERE id = ?', (device_id,)).fetchone()
+    conn.close()
+
+    catat_aktivitas('perangkat', 'edit', target=device['name'],
+                    pesan=f'Atur Remote ONU {device["name"]}: {ip}:{port} (comment={comment})')
+
+    return jsonify({'status': 'success', 'message': 'Slot Remote ONU berhasil diatur.', 'device': device_to_dict(row)}), 200
 
 
 # ══════════════════════════════════════════════════════════════

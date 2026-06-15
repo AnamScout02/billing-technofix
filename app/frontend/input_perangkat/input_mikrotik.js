@@ -53,7 +53,7 @@ function updateStats() {
   animNum('stat-failed',    devices.filter(d => d.status === 'failed').length);
   animNum('stat-total',     devices.length);
   const el = document.getElementById('device-count');
-  if (el) el.textContent = `${devices.length} perangkat`;
+  if (el) el.textContent = `${devices.length} Perangkat MikroTik`;
 }
 
 
@@ -125,6 +125,16 @@ function invalidateProfileCount(deviceId) {
   profileCountCache.delete(deviceId);
 }
 
+/** Terapkan profile_count dari hasil /devices/<id>/sync (1 koneksi live gabungan) */
+function applyProfileCount(deviceId, data) {
+  if (typeof data.profile_count === 'number') {
+    profileCountCache.set(deviceId, { count: data.profile_count, loading: false, error: false });
+  } else {
+    invalidateProfileCount(deviceId);
+    fetchProfileCount(deviceId);
+  }
+}
+
 
 // ── API CALLS ──────────────────────────────────────────────────
 
@@ -135,12 +145,11 @@ async function loadDevices() {
     const data = await res.json();
     devices = Array.isArray(data) ? data : [];
     renderDevices();
-    devices
-      .filter(d => d.status === 'connected')
-      .forEach(d => fetchProfileCount(d.id));
     // Cek ulang koneksi live — status di DB bisa basi (mis. perangkat baru saja
     // mati lampu/terputus setelah sync terakhir). Tanpa ini, badge "Terhubung"
     // bisa menyesatkan padahal perangkat sudah tidak bisa dihubungi.
+    // Sync sekaligus mengambil jumlah PPP Profile dalam 1 koneksi live
+    // (lihat backend /devices/<id>/sync) — tidak perlu fetchProfileCount terpisah lagi.
     if (devices.length) syncAll(true);
   } catch (e) {
     document.getElementById('device-list').innerHTML = `
@@ -255,7 +264,7 @@ async function syncDevice(id) {
     if (d) {
       d.status = data.connected ? 'connected' : 'failed';
       toast(data.message, d.status === 'connected' ? 'success' : 'danger');
-      if (d.status === 'connected') invalidateProfileCount(id);
+      applyProfileCount(id, data);
     }
   } catch (e) {
     const d = devices.find(x => x.id === id);
@@ -265,8 +274,6 @@ async function syncDevice(id) {
 
   syncingIds.delete(id);
   renderDevices();
-  const updated = devices.find(x => x.id === id);
-  if (updated?.status === 'connected') fetchProfileCount(id);
 }
 
 async function syncAll(silent) {
@@ -287,10 +294,10 @@ async function syncAll(silent) {
       const res  = await _post(`${API_BASE}/devices/${d.id}/sync`, {});
       const data = await res.json();
       d.status   = data.connected ? 'connected' : 'failed';
+      applyProfileCount(d.id, data);
     } catch (e) { d.status = 'failed'; }
     syncingIds.delete(d.id);
     renderDevices();
-    if (d.status === 'connected') { invalidateProfileCount(d.id); fetchProfileCount(d.id); }
     // Beri tahu kalau perangkat baru saja terputus (beda dari status sebelumnya)
     if (silent && statusSebelum === 'connected' && d.status === 'failed') {
       toast(`Perangkat "${d.name}" terputus — tidak bisa dihubungi saat ini.`, 'danger');
@@ -360,10 +367,6 @@ function renderDevices() {
               <span class="material-symbols-outlined">person</span>
               ${escHtml(d.username)}
             </span>
-            <span class="device-meta-item">
-              <span class="material-symbols-outlined">api</span>
-              RouterOS API
-            </span>
             ${koordinat ? `
             <a href="${escHtml(mapsUrl(koordinat))}" target="_blank"
                class="koordinat-badge" title="Buka di Google Maps">
@@ -393,6 +396,9 @@ function renderDevices() {
             Sinkron
           </button>
           ${canManage ? `
+          <button class="btn btn-sm" data-feature-lock="remote_modem" onclick="configRemoteOnu(${d.id})" title="Atur slot port forwarding Remote ONU">
+            <span class="material-symbols-outlined">settings_remote</span> Remote ONU
+          </button>
           <button class="btn btn-amber btn-sm" onclick="editDevice(${d.id})">
             <span class="material-symbols-outlined">edit</span> Edit
           </button>
@@ -403,6 +409,8 @@ function renderDevices() {
 
       </div>`;
   }).join('');
+
+  if (typeof applyFeatureLocks === 'function') applyFeatureLocks();
 
   updateStats();
 }
@@ -566,6 +574,99 @@ function cancelForm() { editingId = null; closeModalForm(); }
 function editDevice(id) {
   const d = devices.find(x => x.id === id);
   if (d) showForm(d);
+}
+
+
+// ── REMOTE ONU MODAL ───────────────────────────────────────────
+
+/** Buka modal konfigurasi slot NAT "Remote ONU" (port forwarding) untuk satu MikroTik */
+function configRemoteOnu(id) {
+  const d = devices.find(x => x.id === id);
+  if (!d) return;
+
+  openModalForm(`
+    <div class="modal">
+      <div class="hapus-icon-wrap" style="background:var(--primary-light)">
+        <span class="material-symbols-outlined hapus-icon" style="color:var(--primary)">settings_remote</span>
+      </div>
+      <div class="hapus-title">Konfigurasi Remote ONU</div>
+      <div class="hapus-sub">
+        Atur IP publik &amp; port yang sudah di-port-forward ke router ini.
+        Tombol <strong>Remote Modem</strong> di halaman pelanggan akan otomatis
+        diarahkan ke sini, lalu diteruskan ke modem pelanggan (port 80).
+      </div>
+
+      <div class="form-group full" style="margin-top:16px">
+        <label class="form-label">IP Publik <span class="req">*</span></label>
+        <input class="form-input" type="text" id="f-remote-ip"
+               placeholder="103.194.175.174" value="${escHtml(d.remote_onu_ip || '')}">
+      </div>
+      <div class="form-group full" style="margin-top:12px">
+        <label class="form-label">Port <span class="req">*</span></label>
+        <input class="form-input" type="text" id="f-remote-port"
+               placeholder="1234" value="${escHtml(d.remote_onu_port ? String(d.remote_onu_port) : '')}">
+        <span class="form-hint">Port di IP publik yang sudah diarahkan ke router ini.</span>
+      </div>
+      <div class="form-group full" style="margin-top:12px">
+        <label class="form-label">Comment NAT</label>
+        <input class="form-input" type="text" id="f-remote-comment"
+               placeholder="Remote-Onu" value="${escHtml(d.remote_onu_comment || 'Remote-Onu')}">
+        <span class="form-hint">Ganti hanya jika perlu.</span>
+      </div>
+      <div class="form-group full" style="margin-top:12px">
+        <label class="form-label">IP Lokal Router <span style="font-weight:400;color:var(--text-dim)">(opsional)</span></label>
+        <input class="form-input" type="text" id="f-remote-local-ip"
+               placeholder="Kosongkan jika router ini punya IP publik langsung" value="${escHtml(d.remote_onu_local_ip || '')}">
+        <span class="form-hint">
+          Isi jika router ini berada di belakang router utama lain.
+          Isi dengan IP router ini di sisi router utama (misal 172.100.1.2) —
+          router utama harus sudah diarahkan ke IP Lokal &amp; Port yang sama.
+        </span>
+      </div>
+
+      <div class="modal-actions" style="margin-top:20px">
+        <button class="btn" onclick="closeModalForm()">Batal</button>
+        <button class="btn-primary" id="btn-simpan-remote-onu" onclick="saveRemoteOnu(${id})">
+          <span class="material-symbols-outlined">check</span> Simpan
+        </button>
+      </div>
+    </div>`);
+
+  requestAnimationFrame(() => document.getElementById('f-remote-ip')?.focus());
+}
+
+/** Simpan konfigurasi slot Remote ONU ke backend (langsung membuat/update rule NAT) */
+async function saveRemoteOnu(id) {
+  const ip       = val('f-remote-ip');
+  const port     = val('f-remote-port');
+  const comment  = val('f-remote-comment') || 'Remote-Onu';
+  const local_ip = val('f-remote-local-ip');
+
+  if (!ip || !port) {
+    toast('IP publik dan port wajib diisi.', 'warning'); return;
+  }
+
+  const btn = document.getElementById('btn-simpan-remote-onu');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="material-symbols-outlined spin">refresh</span> Menyimpan...'; }
+
+  try {
+    const res  = await _post(`${API_BASE}/devices/${id}/remote-onu`, { ip, port, comment, local_ip });
+    const data = await res.json();
+
+    if (res.ok) {
+      const idx = devices.findIndex(x => x.id === id);
+      if (idx !== -1) devices[idx] = data.device;
+      closeModalForm();
+      renderDevices();
+      toast(data.message || 'Slot Remote ONU berhasil diatur.', 'success');
+    } else {
+      toast(data.message || 'Gagal mengatur Remote ONU.', 'danger');
+      if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-outlined">check</span> Simpan'; }
+    }
+  } catch (e) {
+    toast('Tidak bisa menghubungi server.', 'danger');
+    if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-outlined">check</span> Simpan'; }
+  }
 }
 
 

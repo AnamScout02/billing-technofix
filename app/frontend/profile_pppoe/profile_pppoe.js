@@ -66,7 +66,7 @@ async function loadDevices() {
     deviceList = Array.isArray(data) ? data : [];
 
     const sel = document.getElementById('select-device');
-    sel.innerHTML = '<option value="">— Pilih Perangkat —</option>';
+    sel.innerHTML = '<option value="">Pilih Perangkat</option>';
     deviceList.forEach(d => {
       const opt = new Option(
         `${d.name}  (${d.ip})${d.status !== 'connected' ? ' — Offline' : ''}`,
@@ -135,7 +135,11 @@ async function loadProfiles() {
 
   localStorage.setItem('lastSelectedDevice', deviceId);
 
-  // Tampilkan loading
+  // Tampilkan loading — baris spinner di dalam tabel
+  const tbodyLoading = document.getElementById('tbody-profile');
+  if (tbodyLoading) {
+    tbodyLoading.innerHTML = '<tr><td colspan="10"><div class="state-box"><div class="spinner"></div><p class="state-title">Mengambil data dari MikroTik...</p></div></td></tr>';
+  }
   showState('loading');
   const icon = document.getElementById('refresh-icon');
   if (icon) icon.style.animation = 'spinAnim .7s linear infinite';
@@ -176,10 +180,11 @@ async function loadProfiles() {
 
 function showState(state) {
   // state: 'loading' | 'empty' | 'error' | 'table'
-  document.getElementById('state-loading').style.display = state === 'loading' ? 'flex' : 'none';
+  // 'loading' & 'table' sama-sama menampilkan tabel — saat loading, tbody
+  // berisi baris spinner (lihat loadProfiles), lalu diisi data oleh renderTable().
   document.getElementById('state-empty').style.display   = state === 'empty'   ? 'flex' : 'none';
   document.getElementById('state-error').style.display   = state === 'error'   ? 'flex' : 'none';
-  document.getElementById('table-scroll').style.display  = state === 'table'   ? 'block' : 'none';
+  document.getElementById('table-scroll').style.display  = (state === 'table' || state === 'loading') ? 'block' : 'none';
   document.getElementById('table-footer').style.display  = state === 'table'   ? 'flex' : 'none';
 }
 
@@ -281,10 +286,10 @@ function renderTable() {
 
     return `
       <tr>
-        <td style="color:var(--text-dim);font-size:11px;text-align:center">${idx + 1}</td>
+        <td class="sticky-col-0" style="color:var(--text-dim);font-size:11px">${idx + 1}</td>
 
-        <td>
-          <div style="font-weight:700;color:var(--text)">${escHtml(p.name)}</div>
+        <td class="sticky-col-1">
+          <span class="badge-profil">${escHtml(p.name)}</span>
           ${p.comment ? `<div style="font-size:11px;color:var(--text-dim);margin-top:2px">${escHtml(p.comment)}</div>` : ''}
         </td>
 
@@ -304,7 +309,7 @@ function renderTable() {
           </span>
         </td>
 
-        <td style="font-size:11px;color:var(--text-dim);font-family:monospace">
+        <td style="font-size:11px;color:var(--text-muted);font-family:var(--sans);font-weight:600">
           ${p.rate_limit ? escHtml(p.rate_limit) : '—'}
         </td>
 

@@ -12,7 +12,7 @@
    7.  closeModal()
    8.  toggleProfileMenu()
    9.  togglePwd()
-   10. initBottomNav()
+   10. initBottomNav()        — tandai item aktif saat membuka sheet
    11. initHeaderCanvas()  — animasi partikel jaringan di header
    12. initDateBadge()
    13. openPerangkatSheet() / closePerangkatSheet()
@@ -26,42 +26,11 @@
 
 
 /* ══════════════════════════════════════════════════════════
-   0. DARK MODE — inisialisasi AWAL sebelum render untuk
-      hindari flash of wrong color
+   0. Refresh selalu mulai dari paling atas — matikan
+      restorasi posisi scroll otomatis bawaan browser.
 ══════════════════════════════════════════════════════════ */
-(function _initThemeEarly() {
-  var saved = localStorage.getItem('tf_theme');
-  if (saved === 'dark' || saved === 'light') {
-    document.documentElement.dataset.theme = saved;
-  } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-    document.documentElement.dataset.theme = 'dark';
-  }
-})();
-
-function toggleDarkMode() {
-  var current = document.documentElement.dataset.theme;
-  var next = (current === 'dark') ? 'light' : 'dark';
-  document.documentElement.dataset.theme = next;
-  localStorage.setItem('tf_theme', next);
-  document.querySelectorAll('.dark-toggle-icon').forEach(function (el) {
-    el.textContent = (next === 'dark') ? 'light_mode' : 'dark_mode';
-  });
-}
-
-function _getDarkToggleIcon() {
-  return document.documentElement.dataset.theme === 'dark' ? 'light_mode' : 'dark_mode';
-}
-
-/* Ikut system preference jika user belum pilih manual */
-if (window.matchMedia) {
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function (e) {
-    if (!localStorage.getItem('tf_theme')) {
-      document.documentElement.dataset.theme = e.matches ? 'dark' : 'light';
-      document.querySelectorAll('.dark-toggle-icon').forEach(function (el) {
-        el.textContent = e.matches ? 'light_mode' : 'dark_mode';
-      });
-    }
-  });
+if ('scrollRestoration' in history) {
+  history.scrollRestoration = 'manual';
 }
 
 
@@ -249,61 +218,19 @@ function togglePwd(inputId = 'f-pass', iconId = 'pwd-eye') {
 
 
 /* ══════════════════════════════════════════════════════════
-   10. initBottomNav — sliding indicator + ripple
+   10. initBottomNav — tandai item aktif saat membuka sheet
 ══════════════════════════════════════════════════════════ */
 function initBottomNav() {
-  const indicator = document.getElementById('bottom-nav-indicator');
-  const inner     = document.querySelector('.bottom-nav-inner');
-  if (!indicator || !inner) return;
-
-  function moveIndicator(item) {
-    const icon = item.querySelector('.bottom-nav-icon') || item;
-    const iR = icon.getBoundingClientRect();
-    const nR = inner.getBoundingClientRect();
-    const pad = 16; /* lebar pil = ikon + bantalan kiri/kanan */
-    indicator.style.left  = (iR.left - nR.left - pad) + 'px';
-    indicator.style.width = (iR.width + pad * 2) + 'px';
-  }
-
-  function addRipple(item, e) {
-    const rect = item.getBoundingClientRect();
-    const size = Math.max(rect.width, rect.height);
-    const r    = document.createElement('span');
-    r.className = 'bottom-nav-ripple';
-    r.style.cssText =
-      'width:'  + size + 'px;'
-      + 'height:' + size + 'px;'
-      + 'left:'   + (e.clientX - rect.left - size / 2) + 'px;'
-      + 'top:'    + (e.clientY - rect.top  - size / 2) + 'px;';
-    item.appendChild(r);
-    r.addEventListener('animationend', function () { r.remove(); });
-  }
-
   document.querySelectorAll('.bottom-nav-item').forEach(function (item) {
-    item.addEventListener('click', function (e) {
+    item.addEventListener('click', function () {
       const href    = item.getAttribute('href');
       const isSheet = item.getAttribute('onclick');
       if ((href && href !== '#') || isSheet) {
         document.querySelectorAll('.bottom-nav-item')
           .forEach(function (el) { el.classList.remove('active'); });
         item.classList.add('active');
-        moveIndicator(item);
       }
-      addRipple(item, e);
     });
-  });
-
-  requestAnimationFrame(function () {
-    const active = document.querySelector('.bottom-nav-item.active');
-    if (!active) return;
-    indicator.style.transition = 'none';
-    moveIndicator(active);
-    requestAnimationFrame(function () { indicator.style.transition = ''; });
-  });
-
-  window.addEventListener('resize', function () {
-    const active = document.querySelector('.bottom-nav-item.active');
-    if (active) moveIndicator(active);
   });
 }
 
@@ -910,6 +837,41 @@ function closeModalForm() {
 
 
 /* ══════════════════════════════════════════════════════════
+   16b. openRemoteLinksModal — pilihan link Remote ONU
+   Tampilkan 2 pilihan akses modem: jaringan lokal (IP PPPoE,
+   jalan kalau perangkat satu jaringan dengan MikroTik) atau
+   internet (IP publik via port forward).
+
+   @param {string} modemIp     — IP lokal modem (dari /ppp/active)
+   @param {string} internetUrl — URL publik hasil port forward
+   @param {string} username    — nama pelanggan, untuk judul modal
+══════════════════════════════════════════════════════════ */
+function openRemoteLinksModal(modemIp, internetUrl, username) {
+  const localUrl = modemIp ? `http://${modemIp}` : '';
+
+  openModalForm(`
+    <div class="modal">
+      <div class="hapus-icon-wrap" style="background:var(--primary-light)">
+        <span class="material-symbols-outlined hapus-icon" style="color:var(--primary)">settings_remote</span>
+      </div>
+      <div class="hapus-title">Remote Aktif</div>
+      <div class="hapus-sub">Pilih akses modem ${escHtml(username || '')} sesuai jaringan Anda saat ini.</div>
+
+      <div class="modal-actions" style="flex-direction:column;gap:8px;margin-top:18px">
+        ${localUrl ? `
+        <a class="btn-primary" style="width:100%;justify-content:center;text-decoration:none" href="${escHtml(localUrl)}" target="_blank" rel="noopener noreferrer">
+          <span class="material-symbols-outlined">lan</span> Lokal (${escHtml(modemIp)})
+        </a>` : ''}
+        <a class="btn" style="width:100%;justify-content:center;text-decoration:none" href="${escHtml(internetUrl)}" target="_blank" rel="noopener noreferrer">
+          <span class="material-symbols-outlined">public</span> Internet
+        </a>
+        <button class="btn" style="width:100%;justify-content:center" onclick="closeModalForm()">Tutup</button>
+      </div>
+    </div>`);
+}
+
+
+/* ══════════════════════════════════════════════════════════
    DETEKSI LOKASI (geolocation) — SATU fungsi untuk semua form
    Mengisi input #f-koordinat dengan "lat, lng" dari GPS browser.
 
@@ -986,7 +948,6 @@ document.addEventListener('DOMContentLoaded', function () {
   initBottomNav();
   initHeaderCanvas();
   initFiberStreaks('.header', 'header-fiber', { count: 4, speed: 0.9, hue: 198, alpha: 0.55 });
-  initFiberStreaks('.bottom-nav', 'bnav-fiber', { count: 3, speed: 0.6, hue: 195, alpha: 0.7, insertFirst: true });
   initDateBadge();
 
   var _path = window.location.pathname;
@@ -1015,6 +976,7 @@ document.addEventListener('DOMContentLoaded', function () {
     initDropdownHeader();
     applyRbacUi();
     applyUIPermissions();
+    applyFeatureLocks();
     checkSubscriptionLock();
     _loadTiketBadgeNav();
     /* Refresh badge tiket berkala (setiap 60 detik) supaya tetap akurat
@@ -1345,29 +1307,6 @@ function closeModalLogout(e) {
 
 
 /* ══════════════════════════════════════════════════════════
-   27. Inject Dark Mode Toggle ke header-actions
-══════════════════════════════════════════════════════════ */
-document.addEventListener('DOMContentLoaded', function () {
-  var actions = document.querySelector('.header-actions');
-  if (!actions) return;
-  /* Hindari inject ganda */
-  if (document.querySelector('.dark-toggle')) return;
-  var btn = document.createElement('button');
-  btn.className = 'dark-toggle';
-  btn.title = 'Ganti tema terang/gelap';
-  btn.setAttribute('onclick', 'toggleDarkMode()');
-  btn.innerHTML = '<span class="material-symbols-outlined dark-toggle-icon">' + _getDarkToggleIcon() + '</span>';
-  /* Sisipkan sebelum profile-wrap */
-  var profileWrap = document.getElementById('profile-wrap');
-  if (profileWrap) {
-    actions.insertBefore(btn, profileWrap);
-  } else {
-    actions.appendChild(btn);
-  }
-});
-
-
-/* ══════════════════════════════════════════════════════════
    initDropdownHeader sudah digabungkan ke blok DOMContentLoaded
    tunggal di atas. Tidak perlu blok terpisah.
 ══════════════════════════════════════════════════════════ */
@@ -1493,6 +1432,90 @@ function applyUIPermissions() {
   }
 }
 
+/* ══════════════════════════════════════════════════════════
+   applyFeatureLocks() — kunci tombol fitur berbayar sesuai paket
+   ══════════════════════════════════════════════════════════
+   Cara kerja:
+   - fetch /api/usage sekali → cache `features` paket aktif di
+     window._tfFeatures
+   - terapkan ke semua [data-feature-lock="<nama_fitur>"] yang ada
+     di DOM saat ini (termasuk konten yang baru dirender)
+
+   Elemen yang fitur-nya TIDAK aktif di paket sekarang akan:
+     - dibungkus .tf-lockwrap
+     - diberi class .tf-locked (dim, cursor not-allowed, tidak bisa diklik)
+     - diberi badge gembok kuning → klik badge = toast info upgrade
+
+   Cara tandai elemen di HTML/JS:
+     <button data-feature-lock="remote_modem" ...>Remote Modem</button>
+
+   Halaman yang merender konten dinamis (popup maps, kartu device)
+   harus memanggil ulang applyFeatureLocks() setelah elemen baru
+   disisipkan ke DOM — cache window._tfFeatures membuat panggilan
+   berikutnya tidak fetch ulang (kecuali forceRefresh=true).
+══════════════════════════════════════════════════════════ */
+function applyFeatureLocks(forceRefresh) {
+  var els = document.querySelectorAll('[data-feature-lock]');
+  if (!els.length) return;
+
+  if (window._tfFeatures && !forceRefresh) {
+    _applyFeatureLockEls(els, window._tfFeatures);
+    return;
+  }
+
+  var base = (typeof API_BASE !== 'undefined') ? API_BASE : '';
+  fetch(base + '/api/usage', { headers: getAuthHeaders(), credentials: 'include' })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) {
+      if (!d || !d.features) return;
+      window._tfFeatures = d.features;
+      _applyFeatureLockEls(document.querySelectorAll('[data-feature-lock]'), d.features);
+    })
+    .catch(function () {});
+}
+
+function _applyFeatureLockEls(els, features) {
+  els.forEach(function (el) {
+    var feature = el.getAttribute('data-feature-lock');
+    if (!feature) return;
+    if (features[feature]) {
+      _unlockFeatureEl(el);
+    } else {
+      _lockFeatureEl(el);
+    }
+  });
+}
+
+function _lockFeatureEl(el) {
+  if (el.classList.contains('tf-locked')) return;
+
+  el.classList.add('tf-locked');
+  el.setAttribute('title', 'Fitur ini butuh paket Lanjutan atau lebih tinggi. Buka menu Langganan untuk upgrade.');
+  if ('disabled' in el) el.disabled = true;
+
+  var badge = document.createElement('span');
+  badge.className = 'tf-lockbadge';
+  badge.innerHTML = '<span class="material-symbols-outlined">lock</span>';
+  badge.title = 'Fitur berbayar — perlu upgrade paket';
+  badge.addEventListener('click', function (ev) {
+    ev.preventDefault();
+    ev.stopPropagation();
+    if (typeof toast === 'function') {
+      toast('Fitur ini butuh paket Lanjutan atau lebih tinggi. Buka menu Langganan untuk upgrade.', 'warning');
+    }
+  });
+  el.appendChild(badge);
+}
+
+function _unlockFeatureEl(el) {
+  if (!el.classList.contains('tf-locked')) return;
+  el.classList.remove('tf-locked');
+  el.removeAttribute('title');
+  if ('disabled' in el) el.disabled = false;
+  var badge = el.querySelector('.tf-lockbadge');
+  if (badge) badge.remove();
+}
+
 /* Simpan permissions ke localStorage setelah login berhasil.
    Panggil dari auth.js: savePermissions(data.user.permissions) */
 function savePermissions(permissions) {
@@ -1517,5 +1540,340 @@ function hasPerm(token) {
 }
 
 window.applyUIPermissions = applyUIPermissions;
+window.applyFeatureLocks = applyFeatureLocks;
 window.hasPerm = hasPerm;
 window.savePermissions    = savePermissions;
+
+/* ════════════════════════════════════════════════════════════
+   Custom dropdown & date/month picker — premium, tidak ikut
+   tampilan bawaan browser/device (terutama picker mobile).
+   Semua <select> dan <input type="date"/"month"> di seluruh
+   halaman otomatis "dibungkus" dengan UI custom ini saat
+   dimuat ATAU saat dirender ulang lewat innerHTML (lewat
+   MutationObserver) — tidak perlu ubah kode per halaman.
+   Elemen asli tetap ada di DOM (disembunyikan via .tf-native-hidden)
+   sebagai sumber kebenaran value & event onchange/oninput.
+══════════════════════════════════════════════════════════════ */
+(function () {
+  var MONTHS_ID = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+  var MONTHS_SHORT = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
+  var DOW_ID = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
+
+  function pad2(n) { return n < 10 ? '0' + n : '' + n; }
+
+  var activePop = null, activeTrigger = null;
+
+  function closeAll() {
+    if (activePop) activePop.classList.remove('open');
+    if (activeTrigger) activeTrigger.classList.remove('open');
+    activePop = null; activeTrigger = null;
+  }
+
+  function openPop(pop, trigger) {
+    closeAll();
+    pop.classList.add('open');
+    trigger.classList.add('open');
+    activePop = pop; activeTrigger = trigger;
+
+    // Cegah panel overlay (dropdown/kalender) meluber keluar tepi kanan
+    // viewport - kalau lebar panel (menyesuaikan konten, lihat .tf-pop
+    // di global.css) membuat tepi kanannya lewat tepi layar, geser jadi
+    // rata-kanan terhadap trigger (tumbuh ke kiri) lewat class tf-pop-end.
+    pop.classList.remove('tf-pop-end');
+    if (pop.getBoundingClientRect().right > window.innerWidth) {
+      pop.classList.add('tf-pop-end');
+    }
+  }
+
+  document.addEventListener('click', function (e) {
+    if (!activePop) return;
+    if (activePop.contains(e.target) || activeTrigger.contains(e.target)) return;
+    closeAll();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closeAll();
+  });
+  window.addEventListener('resize', closeAll);
+
+  function navBtn(icon, onClick) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'tf-dp-nav';
+    b.innerHTML = '<span class="material-symbols-outlined">' + icon + '</span>';
+    b.addEventListener('click', function (e) { e.stopPropagation(); onClick(); });
+    return b;
+  }
+
+  /* ── Custom <select> ─────────────────────────────────── */
+  function enhanceSelect(select) {
+    if (select.dataset.tfEnhanced || select.multiple) return;
+    select.dataset.tfEnhanced = '1';
+
+    var origClass = select.className;
+    var wrap = document.createElement('div');
+    wrap.className = 'tf-select' + (select.classList.contains('form-input') ? ' tf-block' : '');
+    if (select.style.width) wrap.style.width = select.style.width;
+    if (select.style.minWidth) wrap.style.minWidth = select.style.minWidth;
+    if (select.style.maxWidth) wrap.style.maxWidth = select.style.maxWidth;
+    if (select.style.margin) wrap.style.margin = select.style.margin;
+
+    select.parentNode.insertBefore(wrap, select);
+    wrap.appendChild(select);
+    select.classList.add('tf-native-hidden');
+    select.setAttribute('tabindex', '-1');
+    select.setAttribute('aria-hidden', 'true');
+
+    var trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'tf-sel-trigger ' + origClass;
+    trigger.innerHTML = '<span class="tf-sel-trigger-text"></span><span class="material-symbols-outlined tf-sel-chevron">expand_more</span>';
+    wrap.appendChild(trigger);
+
+    var pop = document.createElement('div');
+    pop.className = 'tf-pop tf-sel-panel';
+    wrap.appendChild(pop);
+
+    var textEl = trigger.querySelector('.tf-sel-trigger-text');
+
+    function syncText() {
+      var opt = select.options[select.selectedIndex];
+      textEl.textContent = opt ? opt.textContent.trim() : '';
+      trigger.disabled = select.disabled;
+    }
+    syncText();
+
+    function renderOptions() {
+      pop.innerHTML = '';
+      var opts = select.querySelectorAll('option');
+      if (!opts.length) {
+        var empty = document.createElement('div');
+        empty.className = 'tf-sel-empty';
+        empty.textContent = 'Tidak ada pilihan';
+        pop.appendChild(empty);
+        return;
+      }
+      opts.forEach(function (opt) {
+        var row = document.createElement('div');
+        row.className = 'tf-sel-opt' + (opt.selected ? ' selected' : '');
+        if (opt.disabled) row.setAttribute('aria-disabled', 'true');
+        var label = opt.textContent.trim() || ' ';
+        row.innerHTML = '<span>' + label + '</span>' + (opt.selected ? '<span class="material-symbols-outlined tf-sel-check">check</span>' : '');
+        row.addEventListener('click', function () {
+          if (opt.disabled) return;
+          select.value = opt.value;
+          syncText();
+          closeAll();
+          select.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+        pop.appendChild(row);
+      });
+    }
+
+    trigger.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (select.disabled) return;
+      if (pop.classList.contains('open')) { closeAll(); return; }
+      renderOptions();
+      openPop(pop, trigger);
+    });
+
+    /* Sinkronkan teks trigger kalau opsi <select> dirender ulang
+       lewat innerHTML (mis. ganti daftar ODP/OLT) tanpa event 'change'. */
+    var optsObserver = new MutationObserver(syncText);
+    optsObserver.observe(select, { childList: true, subtree: true, attributes: true, attributeFilter: ['selected', 'disabled'] });
+  }
+
+  /* ── Custom <input type="date"/"month"> ─────────────────── */
+  function fmtDate(value) {
+    var p = value.split('-');
+    return parseInt(p[2], 10) + ' ' + MONTHS_ID[parseInt(p[1], 10) - 1] + ' ' + p[0];
+  }
+  function fmtMonth(value) {
+    var p = value.split('-');
+    return MONTHS_ID[parseInt(p[1], 10) - 1] + ' ' + p[0];
+  }
+
+  function enhanceDateInput(input) {
+    if (input.dataset.tfEnhanced) return;
+    input.dataset.tfEnhanced = '1';
+    var isMonth = input.type === 'month';
+
+    var origClass = input.className;
+    var wrap = document.createElement('div');
+    wrap.className = 'tf-dp' + (input.classList.contains('form-input') ? ' tf-dp-block' : '');
+    if (input.style.width) wrap.style.width = input.style.width;
+    if (input.style.minWidth) wrap.style.minWidth = input.style.minWidth;
+    if (input.style.margin) wrap.style.margin = input.style.margin;
+
+    input.parentNode.insertBefore(wrap, input);
+    wrap.appendChild(input);
+    input.classList.add('tf-native-hidden');
+    input.setAttribute('tabindex', '-1');
+    input.setAttribute('aria-hidden', 'true');
+
+    var trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'tf-dp-trigger ' + origClass;
+    trigger.innerHTML = '<span class="material-symbols-outlined tf-dp-icon">' + (isMonth ? 'calendar_month' : 'event') + '</span><span class="tf-dp-trigger-text"></span>';
+    wrap.appendChild(trigger);
+
+    var pop = document.createElement('div');
+    pop.className = 'tf-pop tf-dp-panel';
+    wrap.appendChild(pop);
+
+    var textEl = trigger.querySelector('.tf-dp-trigger-text');
+
+    function syncText() {
+      var placeholder = isMonth ? 'Pilih bulan' : 'Pilih tanggal';
+      textEl.textContent = input.value ? (isMonth ? fmtMonth(input.value) : fmtDate(input.value)) : placeholder;
+      trigger.disabled = input.disabled;
+    }
+    syncText();
+
+    function setValue(value) {
+      input.value = value;
+      syncText();
+      closeAll();
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    var viewY, viewM;
+    function resetView() {
+      var now = new Date();
+      if (input.value) {
+        var p = input.value.split('-');
+        viewY = parseInt(p[0], 10);
+        viewM = parseInt(p[1], 10) - 1;
+      } else {
+        viewY = now.getFullYear();
+        viewM = now.getMonth();
+      }
+    }
+
+    function renderMonthPicker() {
+      pop.innerHTML = '';
+      var head = document.createElement('div');
+      head.className = 'tf-dp-head';
+      var label = document.createElement('div');
+      label.className = 'tf-dp-label';
+      label.textContent = viewY;
+      head.appendChild(navBtn('chevron_left', function () { viewY--; renderMonthPicker(); }));
+      head.appendChild(label);
+      head.appendChild(navBtn('chevron_right', function () { viewY++; renderMonthPicker(); }));
+      pop.appendChild(head);
+
+      var grid = document.createElement('div');
+      grid.className = 'tf-dp-mgrid';
+      var now = new Date();
+      var curVal = input.value;
+      MONTHS_SHORT.forEach(function (label, i) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'tf-dp-month';
+        btn.textContent = label;
+        var val = viewY + '-' + pad2(i + 1);
+        if (val === curVal) btn.classList.add('tf-dp-selected');
+        else if (viewY === now.getFullYear() && i === now.getMonth()) btn.classList.add('tf-dp-today');
+        btn.addEventListener('click', function () { setValue(val); });
+        grid.appendChild(btn);
+      });
+      pop.appendChild(grid);
+    }
+
+    function renderDatePicker() {
+      pop.innerHTML = '';
+      var head = document.createElement('div');
+      head.className = 'tf-dp-head';
+      var label = document.createElement('div');
+      label.className = 'tf-dp-label';
+      label.textContent = MONTHS_ID[viewM] + ' ' + viewY;
+      head.appendChild(navBtn('chevron_left', function () {
+        viewM--; if (viewM < 0) { viewM = 11; viewY--; } renderDatePicker();
+      }));
+      head.appendChild(label);
+      head.appendChild(navBtn('chevron_right', function () {
+        viewM++; if (viewM > 11) { viewM = 0; viewY++; } renderDatePicker();
+      }));
+      pop.appendChild(head);
+
+      var grid = document.createElement('div');
+      grid.className = 'tf-dp-grid';
+      DOW_ID.forEach(function (d) {
+        var e = document.createElement('div');
+        e.className = 'tf-dp-dow';
+        e.textContent = d;
+        grid.appendChild(e);
+      });
+
+      var first = new Date(viewY, viewM, 1);
+      var startOffset = first.getDay();
+      var daysInMonth = new Date(viewY, viewM + 1, 0).getDate();
+      var daysInPrev = new Date(viewY, viewM, 0).getDate();
+      var today = new Date();
+      var todayStr = today.getFullYear() + '-' + pad2(today.getMonth() + 1) + '-' + pad2(today.getDate());
+      var curVal = input.value;
+
+      for (var i = 0; i < startOffset; i++) {
+        var out = document.createElement('div');
+        out.className = 'tf-dp-day tf-dp-out';
+        out.textContent = daysInPrev - startOffset + 1 + i;
+        grid.appendChild(out);
+      }
+      for (var d = 1; d <= daysInMonth; d++) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'tf-dp-day';
+        btn.textContent = d;
+        var ds = viewY + '-' + pad2(viewM + 1) + '-' + pad2(d);
+        if (ds === curVal) btn.classList.add('tf-dp-selected');
+        else if (ds === todayStr) btn.classList.add('tf-dp-today');
+        btn.dataset.ds = ds;
+        btn.addEventListener('click', function () { setValue(this.dataset.ds); });
+        grid.appendChild(btn);
+      }
+      pop.appendChild(grid);
+
+      var foot = document.createElement('div');
+      foot.className = 'tf-dp-foot';
+      var todayBtn = document.createElement('button');
+      todayBtn.type = 'button';
+      todayBtn.className = 'tf-dp-today-btn';
+      todayBtn.textContent = 'Hari ini';
+      todayBtn.addEventListener('click', function () { setValue(todayStr); });
+      foot.appendChild(todayBtn);
+      pop.appendChild(foot);
+    }
+
+    trigger.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (input.disabled) return;
+      if (pop.classList.contains('open')) { closeAll(); return; }
+      resetView();
+      if (isMonth) renderMonthPicker(); else renderDatePicker();
+      openPop(pop, trigger);
+    });
+  }
+
+  function enhanceAll(root) {
+    root = root || document;
+    root.querySelectorAll('select:not([multiple])').forEach(enhanceSelect);
+    root.querySelectorAll('input[type="date"], input[type="month"]').forEach(enhanceDateInput);
+  }
+
+  document.addEventListener('DOMContentLoaded', function () { enhanceAll(document); });
+
+  var mo = new MutationObserver(function (mutations) {
+    for (var i = 0; i < mutations.length; i++) {
+      mutations[i].addedNodes.forEach(function (node) {
+        if (node.nodeType !== 1) return;
+        if (node.matches && node.matches('select:not([multiple])')) enhanceSelect(node);
+        if (node.matches && node.matches('input[type="date"], input[type="month"]')) enhanceDateInput(node);
+        if (node.querySelectorAll) enhanceAll(node);
+      });
+    }
+  });
+  mo.observe(document.documentElement, { childList: true, subtree: true });
+
+  window.tfEnhanceForms = enhanceAll;
+})();

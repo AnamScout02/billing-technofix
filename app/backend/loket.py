@@ -22,7 +22,7 @@ Endpoint (prefix /api/loket):
 import logging
 from datetime import date, datetime
 from flask import Blueprint, request, jsonify, g
-from utils import get_db, is_isolir_profil
+from utils import get_db, is_isolir_profil, catat_aktivitas
 
 log = logging.getLogger(__name__)
 loket_bp = Blueprint('loket', __name__)
@@ -281,6 +281,12 @@ def bayar():
 
     conn.commit(); conn.close()
     log.info('[Loket] Bayar tagihan #%s oleh %s, komisi %s', tid, kolektor, komisi)
+
+    catat_aktivitas('tagihan', 'lunas', target=t['username'] or '',
+                    pesan='{} {} - {} (via loket, kolektor {})'.format(
+                        keterangan_prefix, t['periode'], t['username'] or t['nama'], kolektor or '-'),
+                    nominal=t['nominal'])
+
     return jsonify({
         'status':  'success',
         'message': 'Pembayaran diterima. Komisi Rp{:,}'.format(komisi).replace(',', '.'),

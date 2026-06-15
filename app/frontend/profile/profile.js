@@ -124,8 +124,4 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!btn) return;
     if (prefs[key]) btn.classList.add('on'); else btn.classList.remove('on');
   });
-  // Sync dark mode icon
-  const cur  = localStorage.getItem('tf_theme') || 'light';
-  const icon = document.getElementById('dark-mode-icon');
-  if (icon) icon.textContent = cur === 'dark' ? 'light_mode' : 'dark_mode';
 });

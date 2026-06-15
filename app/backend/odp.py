@@ -266,7 +266,7 @@ def _update_odp_usage_from_children(parent_odp_id):
             'SELECT COUNT(*) FROM odp WHERE parent_odp_id=? AND port_parent_odp IS NOT NULL', (parent_odp_id,)
         ).fetchone()[0]
         cnt_pel = conn.execute(
-            'SELECT COUNT(*) FROM pelanggan WHERE odp_id=? AND port_odp IS NOT NULL AND aktif=1', (parent_odp_id,)
+            'SELECT COUNT(*) FROM pelanggan WHERE odp_id=? AND port_odp IS NOT NULL', (parent_odp_id,)
         ).fetchone()[0]
         conn.execute('UPDATE odp SET port_terpakai=? WHERE id=?', (cnt_child + cnt_pel, parent_odp_id))
         conn.commit(); conn.close()
@@ -287,8 +287,10 @@ def get_odp_ports(odp_id):
 
     jumlah = int(odp['jumlah_port'] or 0)
     # Cari pelanggan yang sudah pakai port di ODP ini
+    # (TANPA filter aktif=1 — pelanggan yang di-disable di MikroTik tetap
+    # menempati port fisik ODP selama record & port_odp-nya masih ada)
     rows = conn.execute(
-        'SELECT username, nama, port_odp FROM pelanggan WHERE odp_id=? AND port_odp IS NOT NULL AND aktif=1',
+        'SELECT username, nama, port_odp FROM pelanggan WHERE odp_id=? AND port_odp IS NOT NULL',
         (odp_id,)
     ).fetchall()
     conn.close()
@@ -329,8 +331,10 @@ def get_odp_child_ports(odp_id):
         (odp_id,)
     ).fetchall()
     # Port yang dipakai oleh pelanggan
+    # (TANPA filter aktif=1 — pelanggan yang di-disable di MikroTik tetap
+    # menempati port fisik ODP selama record & port_odp-nya masih ada)
     rows_pel = conn.execute(
-        'SELECT username, nama, port_odp FROM pelanggan WHERE odp_id=? AND port_odp IS NOT NULL AND aktif=1',
+        'SELECT username, nama, port_odp FROM pelanggan WHERE odp_id=? AND port_odp IS NOT NULL',
         (odp_id,)
     ).fetchall()
     conn.close()

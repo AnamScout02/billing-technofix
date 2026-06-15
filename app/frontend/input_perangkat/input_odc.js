@@ -63,7 +63,7 @@ function updateStats() {
   animNum('stat-odp-total',  totalOdp);
 
   const cnt = document.getElementById('odc-count');
-  if (cnt) cnt.textContent = `${_allData.length} ODC`;
+  if (cnt) cnt.textContent = `${_allData.length} Perangkat ODC`;
 }
 
 
@@ -171,7 +171,7 @@ async function showForm(prefill = null) {
   const v      = k => prefill ? escHtml(String(prefill[k] || '')) : '';
 
   // Load opsi OLT
-  let oltOptions = '<option value="">— Tidak terhubung —</option>';
+  let oltOptions = '<option value="">Tidak terhubung</option>';
   try {
     const res  = await fetch(`${API_BASE}/olt`, { credentials: 'include', headers: getAuthHeaders() });
     const data = await res.json();

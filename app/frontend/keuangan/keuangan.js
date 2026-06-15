@@ -24,7 +24,7 @@ let _filterTipe    = '';     // '' | 'pemasukan' | 'pengeluaran'
 let _sortKey       = 'tanggal';
 let _sortAsc       = false;
 let _currentPage   = 1;
-const PAGE_SIZE    = 25;
+let PAGE_SIZE      = 25;
 
 // ID yang sedang ditunggu konfirmasi hapus
 let _hapusId       = null;
@@ -56,6 +56,11 @@ document.addEventListener('DOMContentLoaded', () => {
 ══════════════════════════════════════════════════════════ */
 
 async function loadKeuangan() {
+  // Tampilkan loading — baris spinner di dalam tabel
+  const tbodyLoading = document.getElementById('tbody-keuangan');
+  if (tbodyLoading) {
+    tbodyLoading.innerHTML = '<tr><td colspan="8"><div class="state-box"><div class="spinner"></div><p class="state-title">Mengambil data keuangan...</p></div></td></tr>';
+  }
   showState('loading');
   spinRefresh(true);
 
@@ -1028,6 +1033,14 @@ function goPage(p) {
   document.getElementById('table-wrap')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+function ubahJumlahTampilKeuangan() {
+  const select = document.getElementById('kg-per-page');
+  if (select) PAGE_SIZE = parseInt(select.value) || 25;
+  _currentPage = 1;
+  renderTabel();
+  renderPaginasi();
+}
+
 
 /* ══════════════════════════════════════════════════════════
    11. HELPER — UI STATE
@@ -1038,8 +1051,9 @@ function goPage(p) {
  * @param {'loading'|'empty'|'error'|'table'} state
  */
 function showState(state) {
+  // 'loading' & 'table' sama-sama menampilkan tabel — saat loading, tbody
+  // berisi baris spinner (lihat loadKeuangan), lalu diisi data oleh renderTabel().
   const states = {
-    loading: document.getElementById('state-loading'),
     empty:   document.getElementById('state-empty'),
     error:   document.getElementById('state-error'),
     table:   document.getElementById('table-scroll'),
@@ -1047,7 +1061,7 @@ function showState(state) {
   Object.entries(states).forEach(([k, el]) => {
     if (!el) return;
     if (k === 'table') {
-      el.style.display = state === 'table' ? '' : 'none';
+      el.style.display = (state === 'table' || state === 'loading') ? '' : 'none';
     } else {
       el.style.display = k === state ? 'flex' : 'none';
     }

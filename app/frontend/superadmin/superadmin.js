@@ -17,6 +17,30 @@ let _modalNid = null;
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 function fmtTgl(iso){ if(!iso) return '-'; try{return new Date(iso).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});}catch{return '-';} }
 
+/* Sel password perangkat — disamarkan, klik ikon mata untuk lihat/sembunyikan */
+function pwCell(pw){
+  return `<span class="sa-pw-wrap">
+    <span class="sa-pw-mask" data-pw="${esc(pw)}">••••••••</span>
+    <button class="sa-ico sa-ico-xs" onclick="togglePw(this)" title="Tampilkan/sembunyikan password">
+      <span class="material-symbols-outlined">visibility</span>
+    </button>
+  </span>`;
+}
+function togglePw(btn){
+  const span = btn.previousElementSibling;
+  const icon = btn.querySelector('.material-symbols-outlined');
+  const shown = span.dataset.shown === '1';
+  if(shown){
+    span.textContent = '••••••••';
+    span.dataset.shown = '0';
+    icon.textContent = 'visibility';
+  }else{
+    span.textContent = span.dataset.pw;
+    span.dataset.shown = '1';
+    icon.textContent = 'visibility_off';
+  }
+}
+
 /* ── Auth check ── */
 async function init(){
   try{
@@ -36,6 +60,8 @@ async function init(){
   loadStats();
   loadSuperadmins();
   loadLogs();
+  loadDevicesOverview();
+  loadUsersAll();
 }
 
 /* ── Permintaan upgrade ── */
@@ -85,6 +111,8 @@ async function loadOwners(){
     _owners = d.networks || [];
     renderStats();
     renderTable(_owners);
+    renderExpiringSoon();
+    renderDevicesTab();
   }catch{
     document.getElementById('sa-tbody').innerHTML =
       '<tr><td colspan="7" class="sa-loading">Gagal memuat data.</td></tr>';
@@ -98,6 +126,46 @@ function renderStats(){
   document.getElementById('st-active').textContent = c.active;
   document.getElementById('st-trial').textContent  = c.trial;
   document.getElementById('st-locked').textContent = c.locked;
+}
+
+/* ── Owner akan segera expired (≤7 hari) ── */
+function renderExpiringSoon(){
+  const wrap  = document.getElementById('sa-expiring-wrap');
+  const list  = document.getElementById('sa-expiring-list');
+  const badge = document.getElementById('sa-expiring-badge');
+  if (!wrap || !list) return;
+
+  const now = Date.now();
+  const soon = [];
+  _owners.forEach(o=>{
+    const s = o.status_efektif;
+    if (s !== 'active' && s !== 'trial') return;
+    const tgl = s === 'trial' ? o.trial_end : o.expired_at;
+    if (!tgl) return;
+    const sisaHari = Math.ceil((new Date(tgl).getTime() - now) / 86400000);
+    if (sisaHari >= 0 && sisaHari <= 7) soon.push({ o, s, sisaHari });
+  });
+  soon.sort((a,b)=>a.sisaHari-b.sisaHari);
+
+  if (!soon.length){ wrap.style.display = 'none'; return; }
+  wrap.style.display = '';
+  if (badge) badge.textContent = soon.length;
+
+  list.innerHTML = soon.map(({o,s,sisaHari})=>{
+    const nid = esc(o.network_id);
+    const label = s === 'trial' ? 'Trial' : 'Paket ' + esc(o.paket_nama||o.paket);
+    const sisaTxt = sisaHari === 0 ? 'berakhir hari ini' : `${sisaHari} hari lagi`;
+    const action = s === 'trial'
+      ? `<button class="sa-btn sa-btn-ghost" onclick="extendTrial('${nid}')"><span class="material-symbols-outlined">more_time</span>Perpanjang Trial</button>`
+      : `<button class="sa-btn sa-btn-primary" onclick="openActivate('${nid}')"><span class="material-symbols-outlined">bolt</span>Perpanjang Paket</button>`;
+    return `<div class="sa-req sa-req-expiring">
+      <div class="sa-req-info">
+        <div class="sa-req-isp">${esc(o.isp_name)}</div>
+        <div class="sa-req-sub">${label} · berakhir ${fmtTgl(s==='trial'?o.trial_end:o.expired_at)} · <b>${sisaTxt}</b></div>
+      </div>
+      <div class="sa-req-actions">${action}</div>
+    </div>`;
+  }).join('');
 }
 
 function renderTable(list){
@@ -124,6 +192,7 @@ function renderTable(list){
         ${ s==='suspended'
           ? `<button class="sa-ico green" title="Cabut suspend" onclick="unsuspend('${nid}')"><span class="material-symbols-outlined">lock_open</span></button>`
           : `<button class="sa-ico" title="Suspend" onclick="suspend('${nid}')"><span class="material-symbols-outlined">block</span></button>` }
+        <button class="sa-ico" title="Reset password owner" onclick="resetPassword('${nid}','${esc(o.isp_name)}')"><span class="material-symbols-outlined">key</span></button>
         <button class="sa-ico red" title="Hapus owner" onclick="hapus('${nid}','${esc(o.isp_name)}')"><span class="material-symbols-outlined">delete</span></button>
       </div></td>
     </tr>`;
@@ -187,6 +256,135 @@ async function hapus(nid, nama){
   if(!confirm(`Hapus owner "${nama}" beserta SEMUA datanya? Tindakan ini permanen.`)) return;
   const r = await fetch(`${ADMIN_API}/networks/${nid}`, { method:'DELETE', credentials:'include' });
   toast(r.ok?'Owner dihapus':'Gagal menghapus', r.ok?'success':'danger'); if(r.ok) loadOwners();
+}
+
+/* ── Export daftar owner ke CSV ── */
+function exportOwnersCSV(){
+  if(!_owners.length){ toast('Belum ada data owner untuk diexport','danger'); return; }
+  const header = ['ISP','Network ID','Paket','Status','Status Efektif','Jumlah Tim','Tim Aktif','Jumlah Pelanggan','Trial Sampai','Berlaku Sampai','Terdaftar'];
+  const csvEsc = v => `"${String(v==null?'':v).replace(/"/g,'""')}"`;
+  const rows = _owners.map(o => [
+    o.isp_name, o.network_id, o.paket_nama||o.paket, o.status, o.status_efektif,
+    o.jumlah_user, o.jumlah_user_aktif, o.jumlah_pelanggan ?? 0,
+    o.trial_end||'', o.expired_at||'', o.created_at||'',
+  ].map(csvEsc).join(','));
+  const csv = '﻿' + [header.map(csvEsc).join(','), ...rows].join('\r\n');
+  const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `owners-technofix-${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/* ── Reset password owner ── */
+let _lastResetPw = '';
+async function resetPassword(nid, nama){
+  if(!confirm(`Reset password akun owner "${nama}"? Sesi login owner ini di semua perangkat akan dihapus.`)) return;
+  const r = await fetch(`${ADMIN_API}/networks/${nid}/reset-password`, { method:'POST', credentials:'include' });
+  const d = await r.json();
+  if(!r.ok){ toast(d.message||'Gagal reset password','danger'); return; }
+  _lastResetPw = d.password;
+  document.getElementById('sa-resetpw-username').textContent = d.username;
+  document.getElementById('sa-resetpw-password').textContent = d.password;
+  document.getElementById('sa-resetpw-modal').classList.add('open');
+  loadLogs();
+}
+function closeResetPwModal(e){ if(e && e.target!==e.currentTarget) return; document.getElementById('sa-resetpw-modal').classList.remove('open'); }
+async function copyResetPw(){
+  try{ await navigator.clipboard.writeText(_lastResetPw); toast('Password disalin','success'); }
+  catch{ toast('Gagal menyalin','danger'); }
+}
+
+/* ── Perangkat (MikroTik & OLT) + User — diambil sekali, ditampilkan per-ISP ── */
+let _devMikrotik = [];
+let _devOlt      = [];
+let _devUsers    = [];
+
+async function loadDevicesOverview(){
+  try{
+    const r = await fetch(`${ADMIN_API}/devices-overview`, { credentials:'include' });
+    const d = await r.json();
+    if(!r.ok) return;
+    _devMikrotik = d.mikrotik || [];
+    _devOlt      = d.olt || [];
+    renderDevicesTab();
+  }catch{
+    document.getElementById('dv-mikrotik-tbody').innerHTML = '<tr><td colspan="3" class="sa-loading">Gagal memuat data.</td></tr>';
+    document.getElementById('dv-olt-tbody').innerHTML = '<tr><td colspan="4" class="sa-loading">Gagal memuat data.</td></tr>';
+  }
+}
+
+async function loadUsersAll(){
+  try{
+    const r = await fetch(`${ADMIN_API}/users`, { credentials:'include' });
+    const d = await r.json();
+    if(!r.ok) return;
+    _devUsers = d.users || [];
+    renderDevicesTab();
+  }catch{
+    document.getElementById('dv-users-tbody').innerHTML = '<tr><td colspan="4" class="sa-loading">Gagal memuat data.</td></tr>';
+  }
+}
+
+/* Isi dropdown ISP (mempertahankan pilihan jika masih valid) lalu render */
+function renderDevicesTab(){
+  const sel = document.getElementById('dv-owner-select');
+  if(!sel || !_owners.length) return;
+  const current = sel.value;
+  const sorted = [..._owners].sort((a,b)=>(a.isp_name||'').localeCompare(b.isp_name||''));
+  sel.innerHTML = sorted.map(o=>`<option value="${esc(o.network_id)}">${esc(o.isp_name)}</option>`).join('');
+  sel.value = (current && sorted.some(o=>o.network_id===current)) ? current : sorted[0].network_id;
+  filterDevicesByOwner();
+}
+
+/* Tampilkan perangkat & user untuk ISP yang dipilih saja */
+function filterDevicesByOwner(){
+  const sel = document.getElementById('dv-owner-select');
+  const nid = sel ? sel.value : '';
+  const owner = _owners.find(o=>o.network_id===nid);
+
+  const mt    = _devMikrotik.filter(m=>m.network_id===nid);
+  const olt   = _devOlt.filter(o=>o.network_id===nid);
+  const users = _devUsers.filter(u=>u.network_id===nid);
+
+  document.getElementById('dv-mikrotik').textContent  = mt.length;
+  document.getElementById('dv-olt').textContent       = olt.length;
+  document.getElementById('dv-users').textContent     = users.length;
+  document.getElementById('dv-pelanggan').textContent = owner ? (owner.jumlah_pelanggan ?? 0) : 0;
+
+  const mtTb = document.getElementById('dv-mikrotik-tbody');
+  mtTb.innerHTML = mt.length ? mt.map(m => `
+    <tr>
+      <td>${esc(m.name)}</td>
+      <td>${esc(m.ip)}</td>
+      <td>${esc(m.port)}</td>
+      <td>${esc(m.username)}</td>
+      <td>${pwCell(m.password)}</td>
+      <td><span class="sa-badge ${esc(m.status)}"><span class="dot"></span>${esc(m.status)}</span></td>
+    </tr>`).join('') : '<tr><td colspan="6" class="sa-loading">Belum ada perangkat MikroTik.</td></tr>';
+
+  const oltTb = document.getElementById('dv-olt-tbody');
+  oltTb.innerHTML = olt.length ? olt.map(o => `
+    <tr>
+      <td>${esc(o.name)}</td>
+      <td>${esc(o.tipe)||'-'}</td>
+      <td>${esc(o.ip)}</td>
+      <td>${esc(o.port)}</td>
+      <td>${esc(o.username)}</td>
+      <td>${pwCell(o.password)}</td>
+      <td><span class="sa-badge ${esc(o.status)}"><span class="dot"></span>${esc(o.status)}</span></td>
+    </tr>`).join('') : '<tr><td colspan="7" class="sa-loading">Belum ada perangkat OLT.</td></tr>';
+
+  const usersTb = document.getElementById('dv-users-tbody');
+  usersTb.innerHTML = users.length ? users.map(u => `
+    <tr>
+      <td>${esc(u.username)}</td>
+      <td>${esc(u.nama)||'-'}</td>
+      <td>${esc(u.role)}</td>
+      <td>${(u.aktif===null||u.aktif===1) ? 'Aktif' : 'Nonaktif'}</td>
+    </tr>`).join('') : '<tr><td colspan="4" class="sa-loading">Belum ada user.</td></tr>';
 }
 
 /* ── Statistik pendapatan & distribusi paket ── */

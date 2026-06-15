@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,0..200" rel="stylesheet"/>
 <style>
 /* â”€â”€ Reset â”€â”€ */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -200,15 +200,23 @@ body::before{
   width:7px;height:7px;border-radius:50%;background:var(--primary);
   animation:pulse 1.8s ease-in-out infinite;
 }
-/* Dark mode */
-@media (prefers-color-scheme: dark) {
-  html:not([data-theme="light"]) .card { background: #161b22; }
+
+/* ── Indikator memuat data ── */
+.data-loading{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  padding-bottom:16px;
+  font-size:12px;color:var(--text-muted);
 }
-[data-theme="dark"] .card { background: #161b22; }
-[data-theme="dark"] .card-body { background: #161b22; }
+.spinner-sm{
+  width:14px;height:14px;flex-shrink:0;
+  border:2px solid var(--border);border-top-color:var(--primary);
+  border-radius:50%;
+  animation:spin .6s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
 
 </style>
-<script>(function(){ var t=localStorage.getItem("tf_theme"); if(t) document.documentElement.dataset.theme=t; else if(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches) document.documentElement.dataset.theme="dark"; })();</script>
+
 </head>
 <body>
 
@@ -241,6 +249,11 @@ body::before{
 
   <!-- Body -->
   <div class="card-body">
+
+    <!-- Indikator memuat data -->
+    <div class="data-loading" id="data-loading">
+      <span class="spinner-sm"></span> Memuat data…
+    </div>
 
     <!-- Data pelanggan -->
     <ul class="info-list">
@@ -314,7 +327,8 @@ const _API = (function(){
   const h = window.location.hostname;
   if (h === 'localhost' || h === '127.0.0.1') return 'http://127.0.0.1:5000';
   if (h === '192.168.70.7')                   return 'http://192.168.70.7:5000';
-  if (h === '103.194.175.54')                 return 'http://103.194.175.54:5000';
+  // 172.15.0.11, 103.194.175.54, technofix-bill.com & lainnya -> same-origin
+  // (Apache reverse proxy /api ke port 5000; port 5000 diblokir dari luar)
   return '';
 })() + '/api/portal';
 
@@ -327,6 +341,7 @@ function fmtRp(n){
   return n > 0 ? 'Rp ' + Number(n).toLocaleString('id-ID') + '/bln' : '—';
 }
 function setText(id, val){ const e=document.getElementById(id); if(e)e.textContent=val||'—'; }
+function hideDataLoading(){ const e=document.getElementById('data-loading'); if(e) e.remove(); }
 
 /* â”€â”€â”€ Load data dari portal session â”€â”€â”€ */
 async function loadData(){
@@ -391,6 +406,8 @@ async function init(){
     setInterval(checkStatus, 30000);
   }catch(_){
     // Server tidak terjangkau — tampil halaman default saja
+  }finally{
+    hideDataLoading();
   }
 }
 

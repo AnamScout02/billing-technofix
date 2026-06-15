@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+﻿﻿<!DOCTYPE html>
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,0..200" rel="stylesheet" />
 
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -247,23 +247,7 @@
       .login-body   { padding: 24px; }
       .login-footer { padding: 12px 24px 20px; }
     }
-    /* Dark mode */
-    @media (prefers-color-scheme: dark) {
-      html:not([data-theme="light"]) .login-card   { background: #161b22; }
-      html:not([data-theme="light"]) .login-body   { background: #161b22; }
-      html:not([data-theme="light"]) .login-footer { background: #1c2128; border-color: #30363d; }
-      html:not([data-theme="light"]) input { background: #1c2128 !important; border-color: #30363d !important; color: #e6edf3 !important; }
-      html:not([data-theme="light"]) input::placeholder { color: #6e7681 !important; }
-      html:not([data-theme="light"]) label { color: #b1bac4 !important; }
-    }
-    [data-theme="dark"] .login-card   { background: #161b22; }
-    [data-theme="dark"] .login-body   { background: #161b22; }
-    [data-theme="dark"] .login-footer { background: #1c2128; border-color: #30363d; }
-    [data-theme="dark"] input { background: #1c2128 !important; border-color: #30363d !important; color: #e6edf3 !important; }
-    [data-theme="dark"] input::placeholder { color: #6e7681 !important; }
-    [data-theme="dark"] label { color: #b1bac4 !important; }
   </style>
-  <script>(function(){ var t=localStorage.getItem('tf_theme'); if(t) document.documentElement.dataset.theme=t; else if(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme='dark'; })();</script>
 </head>
 
 <body>
@@ -347,7 +331,8 @@
       var base = '';
       if (h === 'localhost' || h === '127.0.0.1') base = 'http://127.0.0.1:5000';
       else if (h === '192.168.70.7')              base = 'http://192.168.70.7:5000';
-      else if (h === '103.194.175.54')            base = 'http://103.194.175.54:5000';
+      // 172.15.0.11, 103.194.175.54, technofix-bill.com & lainnya -> same-origin
+      // (Apache reverse proxy /api ke port 5000; port 5000 diblokir dari luar)
       return base + '/api/portal';
     })();
 

@@ -114,7 +114,7 @@ async function loadDevices() {
     var data = await res.json();
     var list = Array.isArray(data) ? data : (data.data || []);
 
-    sel.innerHTML = '<option value="">— Pilih Perangkat —</option>';
+    sel.innerHTML = '<option value="">Pilih Perangkat</option>';
     list.forEach(function (d) {
       var opt = document.createElement('option');
       opt.value       = d.id;
@@ -135,7 +135,7 @@ async function loadDevices() {
       _deviceName = list[0].name;
     }
 
-    _setStatus('', 'Pilih perangkat...');
+    _setSyncBadge('', 'Pilih perangkat...');
 
     if (_deviceId) {
       _afterDeviceSelect();
@@ -143,8 +143,8 @@ async function loadDevices() {
 
   } catch (err) {
     console.error('[dash] loadDevices:', err);
-    _setStatus('offline', 'Gagal memuat daftar perangkat');
-    if (sel) sel.innerHTML = '<option value="">— Gagal memuat —</option>';
+    _setSyncBadge('error', 'Gagal');
+    if (sel) sel.innerHTML = '<option value="">Gagal memuat</option>';
     _showToast('Gagal memuat daftar perangkat MikroTik', 'error');
   }
 }
@@ -188,15 +188,7 @@ function _afterDeviceSelect() {
    3. STATISTIK PELANGGAN
    GET /api/pelanggan/<device_id>
 ══════════════════════════════════════════════════════════ */
-/* ── polling handle sync ── */
-var _syncPollTimer = null;
-
-function _stopSyncPoll() {
-  if (_syncPollTimer) { clearInterval(_syncPollTimer); _syncPollTimer = null; }
-}
-
 async function _loadStats(id) {
-  _setStatus('pending', 'Memuat...');
   _setSyncBadge('syncing', 'Memuat...');
 
   /* 1. Tampilkan data DB lokal SEKARANG (instan) */
@@ -208,69 +200,36 @@ async function _loadStats(id) {
 
     /* Angka lokal: total akurat, online/offline = aktif/nonaktif (bukan realtime) */
     _updateStatCards(d.total || 0, d.online || 0, d.offline || 0, true);
-    _setStatus('online', 'Terhubung');
-    _setSyncBadge('syncing', 'Menyinkron...');
+    _setSyncBadge('syncing', 'Memperbarui...');
 
   } catch (err) {
     console.error('[dash] _loadStats (lokal):', err);
-    _setStatus('offline', 'Gagal');
     _setSyncBadge('error', 'Gagal');
     ['stat-total','stat-online','stat-offline'].forEach(function(i){ _setText(i,'—'); });
   }
 
-  /* 2. Minta sinkron MikroTik di background */
+  /* 2. Ambil data realtime — /api/pelanggan/<id> sudah sekaligus sinkron
+        MikroTik + auto-save ke DB, dan hasilnya di-cache 15 detik (dipakai
+        bersama halaman Pelanggan). Jadi tidak perlu lagi /api/sync terpisah
+        yang membuat tiap buka dashboard menarik ulang seluruh PPP secret. */
   try {
-    await fetch(BASE + '/api/sync/' + id, {
-      method: 'POST', credentials: 'include', headers: _authH()
-    });
-  } catch (_) { /* senyap */ }
-
-  /* 3. Polling sampai sinkron selesai, lalu refresh angka realtime */
-  _stopSyncPoll();
-  var _pollCount = 0;
-  _syncPollTimer = setInterval(async function() {
-    _pollCount++;
-    if (_pollCount > 40) { _stopSyncPoll(); _setSyncBadge('ok', 'Tersinkron'); return; }
-
-    try {
-      var r2 = await fetch(BASE + '/api/stats/' + id, { credentials: 'include', headers: _authH() });
-      if (!r2.ok) return;
-      var d2 = await r2.json();
-      var sync = d2.sync || {};
-
-      if (sync.status === 'running') {
-        _setSyncBadge('syncing', 'Menyinkron...');
-        return;
-      }
-
-      if (sync.status === 'done' || sync.status === 'error') {
-        _stopSyncPoll();
-
-        if (sync.status === 'done') {
-          /* Fetch /api/pelanggan — sama persis seperti pelanggan.js */
-          _setSyncBadge('syncing', 'Memperbarui...');
-          var r3 = await fetch(BASE + '/api/pelanggan/' + id, { credentials: 'include', headers: _authH() });
-          if (r3.ok) {
-            var data = await r3.json();
-            _allPel = Array.isArray(data) ? data : (data.data || []);
-            var total  = _allPel.length;
-            /* Hitung online SAMA seperti pelanggan.js: p.status === 'Online' */
-            var online = _allPel.filter(_isOnline).length;
-            var off    = total - online;
-            _updateStatCards(total, online, off, false);
-            _renderOffline(_allPel.filter(function(p){ return !_isOnline(p); }));
-            _buildTrend(online, off, total);
-            _updateOnuAlertCard(_allPel);
-            _setSyncBadge('ok', 'Tersinkron');
-          }
-        } else {
-          /* Sync error — tetap tampil data lokal, tapi tandai */
-          _setSyncBadge('error', sync.msg || 'Sinkron gagal');
-        }
-      }
-    } catch(_) { /* senyap */ }
-
-  }, 2000);
+    var r3 = await fetch(BASE + '/api/pelanggan/' + id, { credentials: 'include', headers: _authH() });
+    if (!r3.ok) throw new Error('HTTP ' + r3.status);
+    var data = await r3.json();
+    _allPel = Array.isArray(data) ? data : (data.data || []);
+    var total  = _allPel.length;
+    /* Hitung online SAMA seperti pelanggan.js: p.status === 'Online' */
+    var online = _allPel.filter(_isOnline).length;
+    var off    = total - online;
+    _updateStatCards(total, online, off, false);
+    _renderOffline(_allPel.filter(function(p){ return !_isOnline(p); }));
+    _buildTrend(online, off, total);
+    _updateOnuAlertCard(_allPel);
+    _setSyncBadge('ok', 'Terhubung');
+  } catch (err) {
+    console.error('[dash] _loadStats (realtime):', err);
+    _setSyncBadge('error', 'Sinkron gagal');
+  }
 }
 
 /* ── Alert card sinyal ONU lemah/kritis ── */
@@ -322,7 +281,7 @@ function _updateOnuAlertCard(pelList) {
     if (icon) icon.style.color = crit > 0 ? 'var(--red,#dc2626)' : 'var(--amber,#d97706)';
   }
   if (alertSub) {
-    alertSub.textContent = parts.join(', ') + ' — klik untuk cek halaman OLT';
+    alertSub.textContent = parts.join(', ') + ' — klik untuk lihat daftar pelanggan terdampak';
   }
 
   alertWrap.style.display = '';
@@ -362,7 +321,6 @@ function _animProgBar(id, pct) {
    GET /api/profile/<device_id>
 ══════════════════════════════════════════════════════════ */
 async function _loadProfil(id) {
-  var stateLoading = document.getElementById('profile-state-loading');
   var stateEmpty   = document.getElementById('profile-state-empty');
   var tableWrap    = document.getElementById('profile-table-wrap');
   var tbody        = document.getElementById('tbody-profile');
@@ -370,10 +328,10 @@ async function _loadProfil(id) {
 
   if (!tbody) return;
 
-  /* Loading */
-  if (stateLoading) stateLoading.style.display = '';
-  if (stateEmpty)   stateEmpty.style.display   = 'none';
-  if (tableWrap)    tableWrap.style.display     = 'none';
+  /* Loading — baris spinner di dalam tabel */
+  tbody.innerHTML = '<tr><td colspan="5"><div class="state-box"><div class="spinner"></div><p class="state-title">Mengambil profil dari MikroTik...</p></div></td></tr>';
+  if (stateEmpty) stateEmpty.style.display = 'none';
+  if (tableWrap)  tableWrap.style.display  = '';
 
   try {
     var res = await fetch(BASE + '/api/profile/' + id, { credentials: 'include', headers: _authH() });
@@ -382,8 +340,8 @@ async function _loadProfil(id) {
     if (!Array.isArray(list)) list = list.profiles || list.data || [];
 
     if (!list.length) {
-      if (stateLoading) stateLoading.style.display = 'none';
       if (stateEmpty)   stateEmpty.style.display   = '';
+      if (tableWrap)    tableWrap.style.display     = 'none';
       if (countLabel)   countLabel.textContent = 'Tidak ada profil untuk perangkat ini';
       return;
     }
@@ -426,14 +384,13 @@ async function _loadProfil(id) {
         + '</tr>';
     }).join('');
 
-    if (stateLoading) stateLoading.style.display = 'none';
     if (stateEmpty)   stateEmpty.style.display   = 'none';
     if (tableWrap)    tableWrap.style.display     = '';
-    if (countLabel)   countLabel.textContent = list.length + ' profil aktif dari ' + (_deviceName || 'MikroTik');
+    if (countLabel)   countLabel.textContent = list.length + ' profil aktif';
 
   } catch (err) {
     console.error('[dash] _loadProfil:', err);
-    if (stateLoading) stateLoading.style.display = 'none';
+    if (tableWrap) tableWrap.style.display = 'none';
     if (stateEmpty) {
       stateEmpty.style.display = '';
       stateEmpty.innerHTML =
@@ -487,7 +444,7 @@ async function _loadInterfaces(id) {
   var bwE   = document.getElementById('bw-empty');
 
   if (!sel) return;
-  sel.innerHTML = '<option value="">— Memuat interface... —</option>';
+  sel.innerHTML = '<option value="">Memuat interface...</option>';
 
   try {
     var res = await fetch(BASE + '/api/mikrotik/' + id + '/interfaces', { credentials: 'include', headers: _authH() });
@@ -498,7 +455,7 @@ async function _loadInterfaces(id) {
     var list = Array.isArray(data) ? data : (data.interfaces || data.data || []);
     if (!list.length) throw new Error('Tidak ada interface');
 
-    sel.innerHTML = '<option value="">— Pilih Interface —</option>';
+    sel.innerHTML = '<option value="">Pilih Interface</option>';
     list.forEach(function (item) {
       var name = (typeof item === 'string') ? item : (item.name || '');
       if (!name) return;
@@ -526,7 +483,7 @@ async function _loadInterfaces(id) {
 
   } catch (err) {
     console.warn('[dash] interfaces:', err.message);
-    sel.innerHTML = '<option value="">— Interface tidak tersedia —</option>';
+    sel.innerHTML = '<option value="">Interface tidak tersedia</option>';
     if (label) label.textContent = 'Gagal mengambil interface dari ' + (_deviceName || 'MikroTik');
     if (bwE) {
       bwE.classList.remove('hidden');
@@ -769,8 +726,8 @@ function _buildTrend(online, off, total) {
 
 
 /* ══════════════════════════════════════════════════════════
-   11. AKTIVITAS TERBARU
-   GET /api/mikrotik/<id>/log  +  /api/log/aktivitas
+   11. AKTIVITAS TERBARU — khusus log asli MikroTik
+   GET /api/mikrotik/<id>/log
 ══════════════════════════════════════════════════════════ */
 function loadActivityLog() {
   var id  = _deviceId;
@@ -783,53 +740,33 @@ function loadActivityLog() {
     return;
   }
 
-  if (lbl) lbl.textContent = 'Aktivitas terbaru — ' + (_deviceName || 'MikroTik');
+  if (lbl) lbl.textContent = 'Log MikroTik';
   box.innerHTML = '<div class="dash-log-item" style="grid-column:1/-1;justify-content:center">'
     + '<span class="material-symbols-outlined" style="animation:spin 1s linear infinite;font-size:16px;color:var(--text-dim)">refresh</span>'
     + '<span class="dash-log-msg">Memuat log...</span>'
     + '</div>';
 
-  Promise.allSettled([
-    fetch(BASE + '/api/mikrotik/' + id + '/log?limit=30', { credentials: 'include', headers: _authH() })
-      .then(function (r) { return r.ok ? r.json() : []; })
-      .catch(function () { return []; }),
+  fetch(BASE + '/api/mikrotik/' + id + '/log?limit=30', { credentials: 'include', headers: _authH() })
+    .then(function (r) { return r.ok ? r.json() : []; })
+    .catch(function () { return []; })
+    .then(function (raw) {
+      var all = _normLog(raw);
 
-    fetch(BASE + '/api/log/aktivitas?device_id=' + id + '&limit=30', { credentials: 'include', headers: _authH() })
-      .then(function (r) { return r.ok ? r.json() : []; })
-      .catch(function () { return []; }),
-  ]).then(function (results) {
-    var mtLog  = _normLog(results[0].value || []);
-    var bilLog = _normLog(results[1].value || []);
+      if (!all.length) {
+        box.innerHTML = _emptyHtml('empty', 'Belum ada log untuk perangkat ini');
+        return;
+      }
 
-    /* Tag sumber */
-    mtLog.forEach(function (e)  { e._src = 'MikroTik'; });
-    bilLog.forEach(function (e) { e._src = 'Billing';  });
-
-    var all = mtLog.concat(bilLog);
-    all.sort(function (a, b) {
-      return String(b.ts || '').localeCompare(String(a.ts || ''));
+      box.innerHTML = all.slice(0, 60).map(function (e) {
+        var cls = _logDot(e.topic);
+        var msg = escHtml(e.message || '').replace(/^\[(\w+)\]/, '<strong>[$1]</strong>');
+        return '<div class="dash-log-item">'
+          + '<span class="dash-log-dot ' + cls + '"></span>'
+          + '<span class="dash-log-msg">' + msg + '</span>'
+          + '<span class="dash-log-time">' + escHtml(e.time || '') + '</span>'
+          + '</div>';
+      }).join('');
     });
-
-    if (!all.length) {
-      box.innerHTML = _emptyHtml('empty', 'Belum ada aktivitas untuk perangkat ini');
-      return;
-    }
-
-    box.innerHTML = all.slice(0, 60).map(function (e) {
-      var cls  = _logDot(e.topic);
-      var msg  = escHtml(e.message || '').replace(/^\[(\w+)\]/, '<strong>[$1]</strong>');
-      var src  = e._src
-        ? '<span style="font-size:9.5px;font-weight:700;color:var(--text-dim);'
-          + 'background:var(--surface);border:1px solid var(--border);'
-          + 'padding:1px 5px;border-radius:4px;margin-left:4px">' + escHtml(e._src) + '</span>'
-        : '';
-      return '<div class="dash-log-item">'
-        + '<span class="dash-log-dot ' + cls + '"></span>'
-        + '<span class="dash-log-msg">' + msg + src + '</span>'
-        + '<span class="dash-log-time">' + escHtml(e.time || '') + '</span>'
-        + '</div>';
-    }).join('');
-  });
 }
 
 function _normLog(raw) {
@@ -1199,10 +1136,8 @@ function _resetDash() {
   ['stat-total', 'stat-online', 'stat-offline', 'stat-pendapatan']
     .forEach(function (id) { _setText(id, '—'); });
 
-  _setStatus('', 'Pilih perangkat...');
-  _setSyncBadge('', '');
+  _setSyncBadge('', 'Pilih perangkat...');
   _stopBW();
-  _stopSyncPoll();
   _resetBWChart();
 
   /* BW section */
@@ -1217,7 +1152,7 @@ function _resetDash() {
   _setText('bw-iface-label', 'Pilih MikroTik terlebih dahulu');
 
   var ifSel = document.getElementById('bw-iface-select');
-  if (ifSel) ifSel.innerHTML = '<option value="">— Interface —</option>';
+  if (ifSel) ifSel.innerHTML = '<option value="">Interface</option>';
 
   /* Offline list */
   var offBox = document.getElementById('offline-list');
@@ -1237,10 +1172,8 @@ function _resetDash() {
   }
 
   /* Profil */
-  var stL = document.getElementById('profile-state-loading');
   var stE = document.getElementById('profile-state-empty');
   var tW  = document.getElementById('profile-table-wrap');
-  if (stL) stL.style.display = 'none';
   if (stE) stE.style.display = '';
   if (tW)  tW.style.display  = 'none';
   _setText('profile-count-label', '—');
@@ -1295,16 +1228,6 @@ function _isOnline(p) {
 function _setText(id, v) {
   var el = document.getElementById(id);
   if (el) el.textContent = (v === null || v === undefined) ? '—' : v;
-}
-
-function _setStatus(cls, label) {
-  var dot  = document.getElementById('mt-status-dot');
-  var text = document.getElementById('mt-status-text');
-  if (dot)  dot.className  = 'dash-status-dot'  + (cls ? ' ' + cls : '');
-  if (text) {
-    text.className  = 'dash-status-text' + (cls ? ' ' + cls : '');
-    text.textContent = label;
-  }
 }
 
 function _setSyncBadge(cls, label) {
@@ -1383,25 +1306,48 @@ async function loadResource() {
     var mt = Math.round((d.mem_total || 0) / 1024 / 1024);
     _resStatus('res-mem-status', d.mem_pct || 0, 70, 90, mu + ' / ' + mt + ' MB');
 
+    /* Storage */
+    var hddUnit = document.getElementById('res-hdd-unit');
+    if (d.hdd_total) {
+      _setText('res-hdd', d.hdd_pct || 0);
+      _resDonut('res-hdd-donut', d.hdd_pct || 0);
+      if (hddUnit) hddUnit.style.display = '';
+      var hu = (d.hdd_used  / 1024 / 1024 / 1024).toFixed(1);
+      var ht = (d.hdd_total / 1024 / 1024 / 1024).toFixed(1);
+      _resStatus('res-hdd-status', d.hdd_pct || 0, 80, 95, hu + ' / ' + ht + ' GB');
+    } else {
+      _setText('res-hdd', '–');
+      if (hddUnit) hddUnit.style.display = 'none';
+      _resDonut('res-hdd-donut', 0);
+      var hddSt = document.getElementById('res-hdd-status');
+      if (hddSt) { hddSt.textContent = 'Tidak tersedia'; hddSt.className = 'dash-res-status'; }
+    }
+
     /* Uptime */
     var up = _formatUptime(d.uptime || '');
     var upEl = document.getElementById('res-uptime');
     if (upEl) upEl.textContent = up || d.uptime || '—';
     var upBar = document.getElementById('res-uptime-bar');
-    if (upBar) { upBar.style.width = '100%'; upBar.className = 'dash-res-bar ok'; }
+    if (upBar) upBar.className = 'dash-res-bar ok';
     var upSt = document.getElementById('res-uptime-status');
     if (upSt) { upSt.textContent = 'Berjalan stabil'; upSt.className = 'dash-res-status ok'; }
 
     /* Suhu */
-    var suhuCard = document.getElementById('res-suhu-card');
-    if (d.suhu !== null && d.suhu !== undefined) {
+    var suhuCard    = document.getElementById('res-suhu-card');
+    var suhuVisible = (d.suhu !== null && d.suhu !== undefined);
+    if (suhuVisible) {
       if (suhuCard) suhuCard.style.display = '';
       _setText('res-suhu', d.suhu);
-      _resBar('res-suhu-bar', d.suhu, 100);
+      _resBarVertical('res-suhu-bar', d.suhu, 100);
       _resStatus('res-suhu-status', d.suhu, 65, 80);
     } else {
       if (suhuCard) suhuCard.style.display = 'none';
     }
+
+    /* RouterOS: kalau Suhu Board tampil (jadi 7 card), card ini sendirian
+       di baris terakhir → buat penuh 1 baris */
+    var verCard = document.getElementById('res-version-card');
+    if (verCard) verCard.style.gridColumn = suhuVisible ? '1 / -1' : '';
 
     /* Tipe Board */
     var boardEl = document.getElementById('res-board');
@@ -1444,6 +1390,24 @@ function _resBar(barId, val, max) {
   el.className   = 'dash-res-bar ' + (pct >= 90 ? 'danger' : pct >= 70 ? 'warn' : 'ok');
 }
 
+/* Bar vertikal (thermometer): isi dari bawah pakai height */
+function _resBarVertical(barId, val, max) {
+  var el = document.getElementById(barId);
+  if (!el) return;
+  var pct = Math.min(Math.round(val / max * 100), 100);
+  el.style.height = pct + '%';
+  el.className    = 'dash-res-therm-fill ' + (pct >= 90 ? 'danger' : pct >= 70 ? 'warn' : 'ok');
+}
+
+/* Donut/ring gauge: isi via custom property --pct (conic-gradient) */
+function _resDonut(donutId, pct) {
+  var el = document.getElementById(donutId);
+  if (!el) return;
+  pct = Math.min(Math.round(pct), 100);
+  el.style.setProperty('--pct', pct);
+  el.className = 'dash-res-donut ' + (pct >= 90 ? 'danger' : pct >= 70 ? 'warn' : 'ok');
+}
+
 function _resStatus(statusId, val, warnAt, dangerAt, override) {
   var el = document.getElementById(statusId);
   if (!el) return;
@@ -1483,25 +1447,18 @@ async function loadTicker() {
 
 async function _fetchTicker(id) {
   try {
-    var res = await fetch(BASE + '/api/log/aktivitas?device_id=' + id + '&limit=20', { credentials: 'include', headers: _authH() });
+    var res = await fetch(BASE + '/api/log/aktivitas?limit=8', { credentials: 'include', headers: _authH() });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     var logs = await res.json();
     if (!Array.isArray(logs) || !logs.length) return;
 
-    var filtered = logs.filter(function (e) {
-      var m = (e.message || '').toLowerCase();
-      var t = (e.topic   || '').toLowerCase();
-      return /lunas|bayar|tambah|pppoe|connect|isolir|sukses|pending/.test(m + t);
-    }).slice(0, 8);
-    if (!filtered.length) return;
-
-    var newestTs = filtered[0].ts || filtered[0].time || '';
+    var newestTs = logs[0].ts || logs[0].time || '';
     if (newestTs && newestTs === _tickLastTs) return;
     _tickLastTs = newestTs;
 
     var box = document.getElementById('ticker-list');
     if (!box) return;
-    box.innerHTML = filtered.map(function (e) {
+    box.innerHTML = logs.map(function (e) {
       var info = _tickerParse(e);
       return '<div class="dash-ticker-item">'
         + '<div class="dash-ticker-icon ' + info.type + '"><span class="material-symbols-outlined">' + info.icon + '</span></div>'
@@ -1512,16 +1469,31 @@ async function _fetchTicker(id) {
   } catch (_) { /* senyap */ }
 }
 
+/* Pemetaan tipe+aksi (dari aktivitas_log) → ikon & warna ticker.
+   5 kelas CSS yang tersedia: add, warning, disconnect, connect, payment */
+var _TICKER_ICON_MAP = {
+  tambah:      { type:'add',        icon:'add_circle' },
+  edit:        { type:'add',        icon:'edit' },
+  hapus:       { type:'warning',    icon:'delete' },
+  isolir:      { type:'disconnect', icon:'block' },
+  aktifkan:    { type:'connect',    icon:'wifi' },
+  nonaktif:    { type:'disconnect', icon:'wifi_off' },
+  pemasukan:   { type:'payment',    icon:'trending_up' },
+  pengeluaran: { type:'warning',    icon:'trending_down' },
+  lunas:       { type:'payment',    icon:'payments' },
+  piutang:     { type:'warning',    icon:'hourglass_top' },
+  connect:     { type:'connect',    icon:'wifi' },
+  disconnect:  { type:'disconnect', icon:'wifi_off' },
+};
+
 function _tickerParse(e) {
-  var raw = (e.message || '').toLowerCase();
-  var tp  = (e.topic   || '').toLowerCase();
-  var msg = escHtml(e.message || '').replace(/\[(\w+)\]/g, '<strong>[$1]</strong>');
-  if (/lunas|bayar/.test(raw)  || /sukses/.test(tp))          return { type:'payment',    icon:'payments',   msg:msg };
-  if (/tambah|add/.test(raw + tp))                             return { type:'add',        icon:'person_add', msg:msg };
-  if (/isolir|block|disconnect/.test(raw + tp))                return { type:'disconnect', icon:'wifi_off',   msg:msg };
-  if (/connect|online/.test(raw + tp))                         return { type:'connect',    icon:'wifi',       msg:msg };
-  if (/pending|warning/.test(raw + tp))                        return { type:'warning',    icon:'warning',    msg:msg };
-  return { type:'add', icon:'info', msg:msg };
+  var info = _TICKER_ICON_MAP[(e.aksi || '').toLowerCase()] || { type:'add', icon:'info' };
+
+  var msg = escHtml(e.pesan || '');
+  if (e.target && msg.indexOf(e.target) === -1) msg += ' — ' + escHtml(e.target);
+  if (e.nominal) msg += ' (Rp ' + Number(e.nominal).toLocaleString('id-ID') + ')';
+
+  return { type: info.type, icon: info.icon, msg: msg };
 }
 
 function _tickerTime(raw) {

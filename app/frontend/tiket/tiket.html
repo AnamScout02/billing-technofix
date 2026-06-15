@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-<meta charset="UTF-8"/><script>(function(){var t=localStorage.getItem("tf_theme");if(t)document.documentElement.dataset.theme=t;else if(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)document.documentElement.dataset.theme="dark";})();</script>
+<meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Tiket Laporan — TechnoFix</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet"/>
-<link rel="stylesheet" href="/app/frontend/statis/global.css?v=48"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,0..200" rel="stylesheet"/>
+<link rel="stylesheet" href="/app/frontend/statis/global.css?v=87"/>
 <style>
 /* ── Tiket-specific ────────────────────────────────────── */
 /* Filter chip — selaras dengan pola .filter-chip di keuangan.css */
@@ -18,8 +18,6 @@
 .filter-chip.blue.active{background:#eff6ff;border-color:rgba(37,99,235,.2);color:#2563eb}
 .filter-chip.amber.active{background:#fffbeb;border-color:rgba(217,119,6,.2);color:#d97706}
 .filter-chip.green.active{background:var(--green-bg);border-color:var(--green-border);color:var(--green)}
-[data-theme="dark"] .filter-chip.blue.active{background:#0d1f3c;color:#388bfd;border-color:rgba(56,139,253,.25)}
-[data-theme="dark"] .filter-chip.amber.active{background:#271f0d;color:#d29922;border-color:rgba(210,153,34,.25)}
 
 /* Search box — selaras dengan pola .search-wrap di keuangan.css */
 .search-wrap{display:flex;align-items:center;background:var(--bg);border:1.5px solid var(--border);border-radius:var(--r-md);padding:0 12px;gap:8px;flex:1;min-width:180px;max-width:320px}
@@ -32,7 +30,6 @@
 .filter-tabs{display:flex;gap:6px;flex-wrap:wrap}
 
 .badge-baru-tk{background:#fef2f2;color:#dc2626;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;margin-left:6px;vertical-align:1px}
-[data-theme="dark"] .badge-baru-tk{background:#2d1117;color:#f85149}
 
 /* Tiket cards */
 .tiket-list{display:flex;flex-direction:column;gap:10px}
@@ -53,9 +50,6 @@
 .tk-badge.Baru{background:#eff6ff;color:#2563eb}
 .tk-badge.Diproses{background:#fffbeb;color:#d97706}
 .tk-badge.Selesai{background:#f0fdf4;color:#16a34a}
-[data-theme="dark"] .tk-badge.Baru{background:#0d1f3c;color:#388bfd}
-[data-theme="dark"] .tk-badge.Diproses{background:#271f0d;color:#d29922}
-[data-theme="dark"] .tk-badge.Selesai{background:#0d2118;color:#3fb950}
 /* Dot status — pulsing untuk tiket "Baru" (perlu perhatian), statis untuk lainnya */
 .tk-badge .dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
 .tk-badge.Baru .dot{animation:pulseSignal 1.6s ease-in-out infinite}
@@ -106,7 +100,7 @@
       <a href="/app/frontend/dashboard/dashboard.html"><span class="material-symbols-outlined">dashboard</span>Dashboard</a>
       <a href="/app/frontend/pelanggan/pelanggan.html"><span class="material-symbols-outlined">group</span>Pelanggan</a>
       <a href="#" onclick="openPerangkatSheet(event)" data-perm="perangkat"><span class="material-symbols-outlined">router</span>Perangkat</a>
-      <a href="#" onclick="openKeuanganSheet(event)" data-perm="keuangan"><span class="material-symbols-outlined">payments</span>Layanan</a>
+      <a href="#" onclick="openKeuanganSheet(event)" class="active" data-perm="keuangan"><span class="material-symbols-outlined">credit_card_gear</span>Layanan</a>
       <a href="/app/frontend/maps/maps.html" data-perm="maps"><span class="material-symbols-outlined">map</span>Maps</a>
     </nav>
     <div class="header-actions">
@@ -142,7 +136,6 @@
 <!-- ══ BOTTOM NAV (mobile) ══ -->
 <nav class="bottom-nav">
   <div class="bottom-nav-inner">
-    <div class="bottom-nav-indicator" id="bottom-nav-indicator"></div>
     <a href="/app/frontend/dashboard/dashboard.html" class="bottom-nav-item">
       <div class="bottom-nav-icon"><span class="material-symbols-outlined">dashboard</span></div>
       <span class="bottom-nav-label">Dashboard</span>
@@ -155,8 +148,8 @@
       <div class="bottom-nav-icon"><span class="material-symbols-outlined">router</span></div>
       <span class="bottom-nav-label">Perangkat</span>
     </a>
-    <a href="#" class="bottom-nav-item" onclick="openKeuanganSheet(event)" data-perm="keuangan">
-      <div class="bottom-nav-icon"><span class="material-symbols-outlined">payments</span></div>
+    <a href="#" class="bottom-nav-item active" onclick="openKeuanganSheet(event)" data-perm="keuangan">
+      <div class="bottom-nav-icon"><span class="material-symbols-outlined">credit_card_gear</span></div>
       <span class="bottom-nav-label">Fitur</span>
     </a>
     <a href="/app/frontend/maps/maps.html" class="bottom-nav-item" data-perm="maps">
@@ -325,12 +318,12 @@
     <a href="/app/frontend/tagihan/tagihan.html" class="psheet-item psheet-tagihan" data-perm="keuangan"><div class="psheet-item-icon"><span class="material-symbols-outlined">receipt_long</span></div><div class="psheet-item-body"><div class="psheet-item-name">Tagihan</div><div class="psheet-item-desc">Tagihan bulanan pelanggan</div></div><div class="psheet-item-badge">Invoice</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
     <a href="/app/frontend/loket/loket.html" class="psheet-item psheet-loket" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">point_of_sale</span></div><div class="psheet-item-body"><div class="psheet-item-name">Loket / Kasir</div><div class="psheet-item-desc">Terima bayar + komisi</div></div><div class="psheet-item-badge">Kasir</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
     <a href="/app/frontend/notifikasi/wa.html" class="psheet-item psheet-wa" data-perm="pelanggan_manage"><div class="psheet-item-icon"><span class="material-symbols-outlined">chat</span></div><div class="psheet-item-body"><div class="psheet-item-name">Notifikasi WA</div><div class="psheet-item-desc">Pengingat tagihan WhatsApp</div></div><div class="psheet-item-badge">Reminder</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
-    <a href="/app/frontend/pembayaran/payment.html" class="psheet-item psheet-payment" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">credit_card</span></div><div class="psheet-item-body"><div class="psheet-item-name">Bayar Online</div><div class="psheet-item-desc">Midtrans / Xendit</div></div><div class="psheet-item-badge">Gateway</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+    <a href="/app/frontend/pembayaran/payment.html" class="psheet-item psheet-payment" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">account_balance_wallet</span></div><div class="psheet-item-body"><div class="psheet-item-name">Bayar Online</div><div class="psheet-item-desc">Midtrans / Xendit</div></div><div class="psheet-item-badge">Gateway</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
     <a href="/app/frontend/tiket/tiket.html" class="psheet-item psheet-tiket" data-perm="pelanggan"><div class="psheet-item-icon"><span class="material-symbols-outlined">support_agent</span></div><div class="psheet-item-body"><div class="psheet-item-name">Tiket Laporan <span id="tiket-badge-nav" style="display:none;background:#dc2626;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:6px;vertical-align:1px"></span></div><div class="psheet-item-desc">Laporan gangguan pelanggan</div></div><div class="psheet-item-badge">Support</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
   </div>
 </div>
 
-<script src="/app/frontend/statis/global.js?v=46"></script>
+<script src="/app/frontend/statis/global.js?v=56"></script>
 <script>
 var API = window.API_BASE || 'http://localhost:5000';
 var currentFilter = 'semua';

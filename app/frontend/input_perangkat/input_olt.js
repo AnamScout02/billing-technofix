@@ -97,7 +97,7 @@ function updateStats() {
   animNum('stat-pending',   devices.filter(d => d.status === 'pending').length);
 
   const el = _countEl();
-  if (el) el.textContent = `${devices.length} perangkat`;
+  if (el) el.textContent = `${devices.length} Perangkat OLT`;
 }
 
 
@@ -516,7 +516,7 @@ function showForm(prefill = null) {
         <div class="form-group full">
           <label class="form-label">Tipe / Merk OLT <span class="req">*</span></label>
           <select class="form-input" id="f-tipe">
-            <option value="">— Pilih Tipe OLT —</option>
+            <option value="">Pilih Tipe OLT</option>
             <optgroup label="GPON">
               <option value="zte"    ${v('tipe')==='zte'    ?'selected':''}>ZTE GPON (C300 / C600 / C650)</option>
               <option value="huawei" ${v('tipe')==='huawei' ?'selected':''}>Huawei GPON (MA5800 / MA5600)</option>
@@ -830,14 +830,14 @@ function renderUplinkRows() {
         Jalur Uplink ${i + 1}${i === 0 ? ' (utama)' : ''}
       </div>
       <select class="form-input" id="f-uplink-router-${u.idx}" onchange="onUplinkRouterChange(${u.idx}, this.value)">
-        <option value="">— Tidak terhubung —</option>
+        <option value="">Tidak terhubung</option>
         ${routers.map(r => `<option value="${r.id}" ${String(u.router_id) === String(r.id) ? 'selected' : ''}>${escHtml(r.name)} (${r.ip})</option>`).join('')}
       </select>
       <div style="display:flex;gap:8px;margin-top:6px">
         <div style="flex:1;position:relative">
           <div class="g-select-wrap" id="f-uplink-iface-sel-wrap-${u.idx}" style="display:none;width:100%">
             <select class="g-select" id="f-uplink-iface-sel-${u.idx}" style="width:100%">
-              <option value="">— Pilih interface —</option>
+              <option value="">Pilih interface</option>
             </select>
             <span class="material-symbols-outlined g-select-icon">expand_more</span>
           </div>
@@ -886,7 +886,7 @@ async function onUplinkRouterChange(idx, routerId) {
     const data = await res.json();
     const ifaces = Array.isArray(data) ? data : (data.interfaces || []);
 
-    sel.innerHTML = '<option value="">— Pilih interface —</option>' +
+    sel.innerHTML = '<option value="">Pilih interface</option>' +
       ifaces.map(i => `<option value="${escHtml(i.name)}">${escHtml(i.name)}${i.comment ? ' — ' + escHtml(i.comment) : ''}</option>`).join('');
 
     /* Pertahankan nilai lama (edit mode) */

@@ -10,6 +10,8 @@ let _bayarQueue   = [];   // ids untuk bulk bayar
 let _bayarSingle  = null; // { id, nama, nominal, komisi } untuk bayar satuan
 let _lkPage       = 0;
 let _LK_PER_PAGE  = 50;
+let _lkSortKey    = null;
+let _lkSortAsc    = true;
 
 function _hdr()  { return (typeof getAuthHeaders === 'function') ? getAuthHeaders() : {}; }
 function _jhdr() { return Object.assign({ 'Content-Type': 'application/json' }, _hdr()); }
@@ -139,15 +141,16 @@ function renderTagihan() {
     return;
   }
   const pNow = periodeNow();
-  const ini  = _tagihan.filter(t => !t.tunggakan);
-  const tung = _tagihan.filter(t => t.tunggakan);
-  const total = _tagihan.length;
+  const list = _sortedTagihan();
+  const ini  = list.filter(t => !t.tunggakan);
+  const tung = list.filter(t => t.tunggakan);
+  const total = list.length;
 
   // Paginasi seluruh daftar (ini + tung disatukan)
   const totalPages = Math.ceil(total / _LK_PER_PAGE) || 1;
   _lkPage = Math.min(_lkPage, totalPages - 1);
   const offset = _lkPage * _LK_PER_PAGE;
-  const slice  = _tagihan.slice(offset, offset + _LK_PER_PAGE);
+  const slice  = list.slice(offset, offset + _LK_PER_PAGE);
 
   if (cnt) cnt.textContent = total + ' tagihan belum lunas' + (tung.length ? ` (${tung.length} tunggakan)` : '')
     + (total > _LK_PER_PAGE ? ` · tampil ${offset + 1}–${Math.min(offset + _LK_PER_PAGE, total)}` : '');
@@ -188,6 +191,32 @@ function lkGotoPage(p) {
 function ubahLkPerPage() {
   const s = document.getElementById('lk-per-page');
   if (s) _LK_PER_PAGE = parseInt(s.value) || 50;
+  _lkPage = 0;
+  renderTagihan();
+}
+
+// Urutkan, tapi tetap pertahankan grouping "Bulan Ini" sebelum "Tunggakan"
+function _sortedTagihan() {
+  let list = _tagihan.slice();
+  if (_lkSortKey) {
+    list.sort((a, b) => {
+      if (!!a.tunggakan !== !!b.tunggakan) return a.tunggakan ? 1 : -1;
+      const va = Number(a[_lkSortKey]) || 0;
+      const vb = Number(b[_lkSortKey]) || 0;
+      const cmp = va < vb ? -1 : va > vb ? 1 : 0;
+      return _lkSortAsc ? cmp : -cmp;
+    });
+  }
+  return list;
+}
+
+function sortLoket(key) {
+  if (_lkSortKey === key) {
+    _lkSortAsc = !_lkSortAsc;
+  } else {
+    _lkSortKey = key;
+    _lkSortAsc = false; // terbesar dulu
+  }
   _lkPage = 0;
   renderTagihan();
 }

@@ -3,8 +3,10 @@
 
 const PG_API = (typeof API_BASE !== 'undefined' ? API_BASE : '') + '/api/payment';
 const LK_API = (typeof API_BASE !== 'undefined' ? API_BASE : '') + '/api/loket';
+const TG_API = (typeof API_BASE !== 'undefined' ? API_BASE : '') + '/api/tagihan';
 let _cfg = {};
 let _debTimer = null;
+let _selectedBtIds = new Set();
 
 function _hdr() { return (typeof getAuthHeaders === 'function') ? getAuthHeaders() : {}; }
 function _jhdr() { return Object.assign({ 'Content-Type': 'application/json' }, _hdr()); }
@@ -113,16 +115,22 @@ async function loadUnpaid() {
   const q = (document.getElementById('bt-search').value || '').trim();
   const periode = document.getElementById('bt-periode').value || '';
   const tb = document.getElementById('bt-tbody');
-  tb.innerHTML = '<tr><td colspan="7"><div class="state-box"><div class="spinner"></div><p class="state-title">Memuat…</p></div></td></tr>';
+  tb.innerHTML = '<tr><td colspan="8"><div class="state-box"><div class="spinner"></div><p class="state-title">Memuat…</p></div></td></tr>';
+  _selectedBtIds.clear();
+  _updateBtBulkToolbar();
+  const cbAll = document.getElementById('bt-cb-all');
+  if (cbAll) cbAll.checked = false;
   try {
     const qs = new URLSearchParams(); if (q) qs.set('q', q); if (periode) qs.set('periode', periode);
     const r = await fetch(`${LK_API}/tagihan?${qs}`, { credentials: 'include', headers: _hdr() });
-    if (r.status === 403) { tb.innerHTML = stateRow(7, 'Anda tidak punya akses.'); return; }
+    if (r.status === 403) { tb.innerHTML = stateRow(8, 'Anda tidak punya akses.'); return; }
     const d = await r.json(); const list = d.tagihan || [];
     const cnt = document.getElementById('bt-count');
-    if (!list.length) { tb.innerHTML = stateRow(7, 'Tidak ada tagihan belum lunas.'); if (cnt) cnt.textContent = '0 tagihan'; return; }
+    if (!list.length) { tb.innerHTML = stateRow(8, 'Tidak ada tagihan belum lunas.'); if (cnt) cnt.textContent = '0 tagihan'; return; }
     if (cnt) cnt.textContent = list.length + ' tagihan';
     tb.innerHTML = list.map((t, i) => `<tr>
+      <td class="sticky-col-0"><input type="checkbox" class="bt-cb-row" data-id="${t.id}" data-nominal="${t.nominal}"
+        onchange="toggleBtSelect(${t.id},this.checked)" /></td>
       <td class="sticky-col-1">${i + 1}</td>
       <td class="sticky-col-2"><div class="pg-name">${esc(t.nama)}</div><div class="pg-sub">@${esc(t.username)}</div></td>
       <td><span class="pg-chip">${esc(t.profil || '-')}</span></td>
@@ -131,7 +139,89 @@ async function loadUnpaid() {
       <td>${esc(fmtTgl(t.jatuh_tempo))}</td>
       <td><button class="btn-link" onclick="createLink(${t.id})"><span class="material-symbols-outlined">add_link</span>Buat Link</button></td>
     </tr>`).join('');
-  } catch { tb.innerHTML = stateRow(7, 'Gagal memuat tagihan.'); }
+    _injectBtBulkToolbar();
+  } catch { tb.innerHTML = stateRow(8, 'Gagal memuat tagihan.'); }
+}
+
+// ── Bulk select & bayar massal (Cash) ──────────────────────────
+function toggleBtSelect(id, checked) {
+  if (checked) _selectedBtIds.add(Number(id));
+  else {
+    _selectedBtIds.delete(Number(id));
+    const cbAll = document.getElementById('bt-cb-all');
+    if (cbAll) cbAll.checked = false;
+  }
+  _updateBtBulkToolbar();
+}
+
+function toggleBtSelectAll(checked) {
+  document.querySelectorAll('.bt-cb-row').forEach(cb => {
+    cb.checked = checked;
+    const id = Number(cb.dataset.id);
+    if (checked) _selectedBtIds.add(id);
+    else _selectedBtIds.delete(id);
+  });
+  _updateBtBulkToolbar();
+}
+
+function clearBtSelection() {
+  _selectedBtIds.clear();
+  document.querySelectorAll('.bt-cb-row').forEach(cb => cb.checked = false);
+  const cbAll = document.getElementById('bt-cb-all');
+  if (cbAll) cbAll.checked = false;
+  _updateBtBulkToolbar();
+}
+
+function _updateBtBulkToolbar() {
+  const count   = _selectedBtIds.size;
+  const toolbar = document.getElementById('bt-bulk-toolbar');
+  if (!toolbar) return;
+  toolbar.style.display = count > 0 ? 'flex' : 'none';
+  const lbl = document.getElementById('bt-bulk-label');
+  if (lbl) {
+    const total = [...document.querySelectorAll('.bt-cb-row')]
+      .filter(cb => _selectedBtIds.has(Number(cb.dataset.id)))
+      .reduce((s, cb) => s + Number(cb.dataset.nominal), 0);
+    lbl.textContent = `${count} tagihan · ${rp(total)}`;
+  }
+}
+
+function _injectBtBulkToolbar() {
+  if (document.getElementById('bt-bulk-toolbar')) return;
+  const t = document.createElement('div');
+  t.id = 'bt-bulk-toolbar';
+  t.style.cssText = 'display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);' +
+    'background:var(--text);color:#fff;border-radius:99px;padding:10px 16px;' +
+    'box-shadow:0 4px 20px rgba(0,0,0,.3);align-items:center;gap:10px;z-index:200;' +
+    'font-size:13px;font-weight:600;white-space:nowrap;';
+  t.innerHTML = `
+    <span class="material-symbols-outlined" style="font-size:18px">checklist</span>
+    <span id="bt-bulk-label">0 dipilih</span>
+    <div style="width:1px;height:20px;background:rgba(255,255,255,.25)"></div>
+    <button onclick="bayarMassal()" style="background:var(--green);color:#fff;border:none;border-radius:99px;
+      padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:var(--sans)">
+      <span class="material-symbols-outlined" style="font-size:14px">payments</span>Bayar Massal (Cash)
+    </button>
+    <button onclick="clearBtSelection()" style="background:rgba(255,255,255,.15);color:#fff;border:none;
+      border-radius:99px;padding:6px 10px;cursor:pointer;display:flex;align-items:center;font-family:var(--sans)">
+      <span class="material-symbols-outlined" style="font-size:16px">close</span>
+    </button>`;
+  document.body.appendChild(t);
+}
+
+async function bayarMassal() {
+  const ids = [..._selectedBtIds];
+  if (!ids.length) return;
+  if (!confirm(`Tandai ${ids.length} tagihan terpilih sebagai LUNAS (Cash)?`)) return;
+  try {
+    const r = await fetch(`${TG_API}/bayar-multi`, {
+      method: 'POST', credentials: 'include', headers: _jhdr(),
+      body: JSON.stringify({ tagihan_ids: ids, metode: 'Cash' })
+    });
+    const d = await r.json();
+    toast(d.message || (r.ok ? 'Tagihan lunas' : 'Gagal'), r.ok ? 'success' : 'danger');
+    if (r.ok) loadUnpaid();
+  } catch { toast('Tidak bisa menghubungi server', 'danger'); }
 }
 
 async function createLink(tid) {

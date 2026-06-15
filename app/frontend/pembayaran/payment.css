@@ -30,6 +30,13 @@
 .pg-table .sticky-col-2, .pg-table thead .sticky-col-2 { position: sticky; left: 44px; z-index: 4; background: var(--bg); min-width: 160px; border-right: 1px solid var(--border); }
 .pg-table thead .sticky-col-2 { background: var(--header-bg); color: rgba(255,255,255,.85); z-index: 6; }
 .pg-table tbody tr:hover .sticky-col-1, .pg-table tbody tr:hover .sticky-col-2 { background: var(--surface); }
+
+/* Tabel "Buat Pembayaran" — kolom checkbox bulk, geser col-1/col-2 */
+.pg-table-bt .sticky-col-0, .pg-table-bt thead .sticky-col-0 { position: sticky; left: 0; z-index: 4; background: var(--bg); width: 36px; min-width: 36px; max-width: 36px; padding: 8px 6px; text-align: center; box-sizing: border-box; border-right: 1px solid var(--border); }
+.pg-table-bt thead .sticky-col-0 { background: var(--header-bg); z-index: 6; border-right-color: rgba(255,255,255,.12); }
+.pg-table-bt .sticky-col-1, .pg-table-bt thead .sticky-col-1 { left: 36px; }
+.pg-table-bt .sticky-col-2, .pg-table-bt thead .sticky-col-2 { left: 80px; }
+.pg-table-bt tbody tr:hover .sticky-col-0 { background: var(--surface); }
 .pg-name { font-weight: 700; } .pg-sub { font-size: 11.5px; color: var(--text-dim); }
 .pg-nominal { font-weight: 700; } .pg-mono { font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; color: var(--text-muted); }
 .pg-chip { display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 6px; font-size: 11.5px; font-weight: 600; background: var(--surface); border: 1px solid var(--border); color: var(--text-muted); }

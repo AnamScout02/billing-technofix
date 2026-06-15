@@ -49,6 +49,23 @@
    (dipakai bersama oleh dashboard, pelanggan, profile_pppoe)
 ══════════════════════════════════════════════════════════ */
 
+/* Pengecualian: dropdown pilih interface (bw-head) — panel pilihan melayang
+   di atas konten (overlay), TIDAK mendorong layout seperti .tf-pop bawaan
+   (position:static) di global.css. Card jadi tetap pendek saat dropdown ini
+   dibuka. (Pengecualian untuk .dash-device-bar sendiri sudah jadi rule
+   global di global.css, dipakai bersama dashboard/pelanggan/profile_pppoe) */
+.dash-bw-head .tf-pop {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 30;
+  margin-top: 0;
+}
+.dash-bw-head .tf-pop.open {
+  margin-top: 4px;
+}
+
 
 /* ══════════════════════════════════════════════════════════
    3. STAT CARD OVERRIDE
@@ -72,6 +89,18 @@
   color: rgba(255,255,255,.92) !important;
 }
 
+/* Trend/badge di samping angka+label, bukan di bawah — card lebih ramping */
+.stat-row-4 .stat-card .stat-body {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: "num trend" "label trend";
+  align-items: center;
+  column-gap: 10px;
+}
+.stat-row-4 .stat-card .stat-num   { grid-area: num; }
+.stat-row-4 .stat-card .stat-label { grid-area: label; margin-top: 0; }
+.stat-row-4 .stat-card .stat-trend { grid-area: trend; margin-top: 0; }
+
 
 /* ══════════════════════════════════════════════════════════
    4. g-select DI HEADER SECTION NAVY (bandwidth controls)
@@ -81,9 +110,6 @@
   background-color: rgba(255,255,255,.14) !important;
   border: 1px solid rgba(255,255,255,.28) !important;
   color: #fff !important;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2.2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
-  height: 34px !important;
-  font-size: 12px !important;
 }
 .dash-g-select-navy option { background: #003f88; color: #fff; }
 .dash-g-select-navy:focus  {
@@ -180,11 +206,12 @@
 ══════════════════════════════════════════════════════════ */
 .dash-offline-list {
   display: flex; flex-direction: column;
-  max-height: 290px; overflow-y: auto;
+  height: 290px; overflow-y: auto;
   scrollbar-width: thin; scrollbar-color: var(--border-2) transparent;
 }
 .dash-offline-list::-webkit-scrollbar       { width: 4px; }
 .dash-offline-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.dash-offline-list .dash-empty-state { flex: 1; }
 
 /* Zebra strip — identik global.css .info-row */
 .dash-offline-item:nth-child(odd)  { background: #fff; }
@@ -305,6 +332,12 @@
    12. TABEL PROFIL PPPoE — pakai dash-section-table dari global
    Tambahan: row zebra sesuai global, badge profil & pakai
 ══════════════════════════════════════════════════════════ */
+/* Semua kolom rata tengah (header & isi) */
+.dash-section-table th,
+.dash-section-table td {
+  text-align: center;
+}
+
 .dash-profile-count {
   display: inline-flex; align-items: center;
   font-size: 11.5px; font-weight: 600;
@@ -350,6 +383,22 @@
   .dash-offline-item  { padding: 9px 14px; }
   .dash-offline-more  { padding: 9px 14px; }
   .dash-log-item      { padding: 9px 14px; }
+
+  /* Section head: judul kiri, aksi/badge/pill kanan sejajar judul — bukan baris baru */
+  .dash-section-head {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "left right" "left .";
+    align-items: start;
+    gap: 2px 8px;
+  }
+  .dash-section-head > div:first-child { grid-area: left; }
+  .dash-section-head > a.dash-head-btn,
+  .dash-section-head > button.dash-head-btn,
+  .dash-section-head > .dash-ticker-live,
+  .dash-section-head > div:last-child:not(:first-child) {
+    grid-area: right; align-self: center; justify-self: end;
+  }
 }
 
 @media (max-width: 480px) {
@@ -380,6 +429,9 @@
 }
 .dash-bw-title .material-symbols-outlined { font-size: 16px; opacity: .8; }
 .dash-bw-sub { font-size: 10px; color: rgba(255,255,255,.45); margin: 2px 0 0; }
+
+/* Sudah dipilih lewat dropdown di atas — tidak perlu diulang di sini */
+#bw-iface-label, #resource-device-label { display: none; }
 .dash-bw-head-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .dash-bw-live {
   display: flex; align-items: center; gap: 5px;
@@ -526,18 +578,20 @@
 .dash-res-status.warn   { color: var(--amber); }
 .dash-res-status.danger { color: var(--red); }
 
+/* Garis pemisah antar card via grid gap (immune dari nth-child/DOM quirks) */
 .dash-res-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
+  gap: 1px;
+  background: var(--border);
 }
 
 .dash-res-card {
   display: flex; align-items: flex-start; gap: 10px;
   padding: 14px var(--section-pad-h);
-  border-right: 1px solid var(--border);
+  background: var(--bg);
   min-width: 0;
 }
-.dash-res-card:last-child { border-right: none; }
 
 .dash-res-icon {
   width: 34px; height: 34px; flex-shrink: 0;
@@ -567,18 +621,92 @@
   font-size: 11px; font-weight: 500; color: var(--text-dim); margin-left: 1px;
 }
 .dash-res-bar-wrap {
-  height: 4px; border-radius: 2px; background: var(--border);
+  height: 7px; border-radius: 2px; background: var(--border);
   margin: 7px 0 4px; overflow: hidden;
 }
+/* Bar dasar — CPU & Suhu: segmen ala indikator baterai/sinyal */
 .dash-res-bar {
-  height: 100%; border-radius: 2px; width: 0%;
-  background: var(--primary);
-  transition: width .7s ease, background .3s;
+  height: 100%; width: 0%;
+  background-color: transparent;
+  background-image: repeating-linear-gradient(
+    to right, currentColor 0 8px, transparent 8px 12px
+  );
+  color: var(--primary);
+  transition: width .7s ease, color .3s;
 }
-.dash-res-bar--full { width: 100%; background: var(--green); }
-.dash-res-bar.ok     { background: var(--green); }
-.dash-res-bar.warn   { background: var(--amber); }
-.dash-res-bar.danger { background: var(--red); }
+.dash-res-bar.ok     { color: var(--green); }
+.dash-res-bar.warn   { color: var(--amber); }
+.dash-res-bar.danger { color: var(--red); }
+
+/* Memory: bar solid penuh (tanpa segmen) */
+#res-mem-bar {
+  background-image: none;
+  background-color: currentColor;
+  border-radius: 2px;
+}
+
+/* Storage: donut/ring gauge — pengganti ikon + bar */
+.dash-res-donut {
+  width: 48px; height: 48px; flex-shrink: 0;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+  background: conic-gradient(currentColor calc(var(--pct, 0) * 1%), var(--border) 0);
+  color: var(--primary);
+  transition: background .7s ease, color .3s;
+}
+.dash-res-donut::before {
+  content: '';
+  position: absolute; inset: 5px;
+  border-radius: 50%;
+  background: var(--bg);
+}
+.dash-res-donut-val {
+  position: relative; z-index: 1;
+  font-size: 13px; font-weight: 700; letter-spacing: -.03em;
+  font-family: var(--heading); color: var(--text); line-height: 1;
+}
+.dash-res-donut-unit { font-size: 10px; font-weight: 600; color: var(--text-dim); }
+.dash-res-donut.ok     { color: var(--green); }
+.dash-res-donut.warn   { color: var(--amber); }
+.dash-res-donut.danger { color: var(--red); }
+
+/* Suhu Board: thermometer vertikal — pengganti ikon + bar */
+.dash-res-therm {
+  width: 14px; height: 34px; flex-shrink: 0;
+  border-radius: 7px; background: var(--border);
+  display: flex; align-items: flex-end; overflow: hidden;
+}
+.dash-res-therm-fill {
+  width: 100%; height: 0%;
+  border-radius: 7px;
+  background-color: var(--green);
+  transition: height .7s ease, background-color .3s;
+}
+.dash-res-therm-fill.ok     { background-color: var(--green); }
+.dash-res-therm-fill.warn   { background-color: var(--amber); }
+.dash-res-therm-fill.danger { background-color: var(--red); }
+
+/* Uptime: bar "marquee" berjalan — selalu penuh, melambangkan proses berjalan */
+#res-uptime-bar {
+  width: 100%;
+  background-image: repeating-linear-gradient(
+    -45deg, currentColor 0 6px, transparent 6px 14px
+  );
+  background-size: 200% 100%;
+  animation: dashResMarquee 1.6s linear infinite;
+}
+@keyframes dashResMarquee {
+  from { background-position: 0 0; }
+  to   { background-position: -28px 0; }
+}
+
+/* Warna khas per resource saat status normal — biar tiap bar beda */
+#res-cpu-bar.ok    { color: var(--primary); }  /* biru */
+#res-mem-bar.ok    { color: #7c3aed; }         /* ungu */
+#res-hdd-donut.ok  { color: #db2777; }         /* pink */
+#res-uptime-bar.ok { color: #ea580c; }         /* oranye */
+#res-suhu-bar.ok   { background-color: #0891b2; }  /* cyan */
 
 .dash-res-status {
   font-size: 11px; font-weight: 600; color: var(--text-dim);
@@ -589,51 +717,35 @@
 .dash-res-status.danger { color: var(--red); }
 .dash-res-updated { font-size: 10px; color: rgba(255,255,255,.4); }
 
-/* Tablet landscape 1024px: 3 kolom */
+/* Tablet landscape 1024px: 3 kolom (garis pemisah ikut dari .dash-res-grid gap) */
 @media (max-width: 1100px) {
   .dash-res-grid { grid-template-columns: repeat(3, 1fr); }
-  .dash-res-card {
-    border-right: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
-  }
-  .dash-res-card:nth-child(3n) { border-right: none; }
-  .dash-res-card:nth-last-child(-n+3):nth-child(3n+1),
-  .dash-res-card:nth-last-child(-n+3):nth-child(3n+2),
-  .dash-res-card:nth-last-child(-n+3) { border-bottom: none; }
-  .dash-res-card:last-child { border-bottom: none; }
 }
 
 /* Tablet portrait 768px: 2 kolom */
 @media (max-width: 768px) {
   .dash-res-grid { grid-template-columns: repeat(2, 1fr); }
-  .dash-res-card {
-    border-right: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
-  }
-  .dash-res-card:nth-child(2n) { border-right: none; }
-  .dash-res-card:nth-last-child(-n+2) { border-bottom: none; }
-  .dash-res-card:last-child { border-bottom: none; }
-  /* Card sendirian di baris terakhir */
-  .dash-res-card:last-child:nth-child(odd) { grid-column: span 2; }
 
-  /* BW base responsive */
-  .dash-bw-head { flex-wrap: wrap; gap: 8px; }
-  .dash-bw-head-right { width: 100%; justify-content: space-between; }
+  /* BW base responsive — header grid 2 kolom: judul kiri, live/dropdown kanan sejajar */
+  .dash-bw-head {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "left right" "left .";
+    align-items: start;
+    gap: 2px 8px;
+  }
+  .dash-bw-head-left  { grid-area: left; }
+  .dash-bw-head-right { grid-area: right; align-self: center; width: auto; }
+  .dash-bw-head-right .g-select-wrap,
+  .dash-bw-head-right .dash-g-select-navy { width: auto; }
   .dash-bw-metric-info { min-width: 130px; max-width: 160px; padding-right: 12px; }
   .dash-bw-stats   { grid-template-columns: repeat(3,1fr); }
-
-  .dash-res-section .dash-bw-head        { flex-wrap: wrap; gap: 6px; }
 }
 
-/* Mobile 480px: 1 kolom */
+/* Mobile 480px: 2 kolom */
 @media (max-width: 480px) {
-  .dash-res-grid { grid-template-columns: 1fr; }
-  .dash-res-card {
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-    padding: 11px 14px;
-  }
-  .dash-res-card:last-child { border-bottom: none; }
+  .dash-res-grid { grid-template-columns: repeat(2, 1fr); }
+  .dash-res-card { padding: 11px 14px; }
   .dash-res-val     { font-size: 18px; }
   .dash-res-val--sm { font-size: 13px; }
   .dash-res-stats   { grid-template-columns: repeat(2, 1fr) !important; }
@@ -779,13 +891,17 @@
   .dash-bw-section .dash-bw-stat         { padding-top: 6px; padding-bottom: 6px; }
 }
 
-/* Mobile 480px: kompak maksimal */
+/* Mobile 480px: kompak maksimal, Download & Upload bersebelahan */
 @media (max-width: 480px) {
   .dash-bw-section .dash-bw-head         { padding: 8px 12px; }
-  .dash-bw-section .dash-bw-head-right   { width: 100%; justify-content: space-between; }
+  .dash-bw-section .dash-bw-metrics      { grid-template-columns: 1fr 1fr !important; }
   .dash-bw-section .dash-bw-metric       { padding: 10px 12px 8px; }
-  .dash-bw-section .dash-bw-metric-val   { font-size: 22px; }
-  .dash-bw-section .bw-val-unit          { font-size: 12px; }
+  .dash-bw-section .dash-bw-metric--right {
+    border-left: 1px solid var(--border);
+    border-top: none;
+  }
+  .dash-bw-section .dash-bw-metric-val   { font-size: 18px; }
+  .dash-bw-section .bw-val-unit          { font-size: 11px; }
   .dash-bw-section .dash-bw-sparkwrap    { flex: none; height: 32px; margin-top: 6px; }
   .dash-bw-section .dash-bw-metric-lbl   { font-size: 10px; margin-bottom: 2px; }
   .dash-bw-section .dash-bw-metric-sub   { font-size: 10px; margin-top: 2px; }
@@ -808,10 +924,10 @@
 ══════════════════════════════════════════════════════════ */
 .dash-ticker-live {
   display: inline-flex; align-items: center; gap: 5px;
-  font-size: 11px; font-weight: 700; color: var(--green);
+  font-size: 11px; font-weight: 700; color: var(--bw-live-dot);
 }
 .dash-ticker-live-dot {
-  width: 7px; height: 7px; border-radius: 50%; background: var(--green);
+  width: 7px; height: 7px; border-radius: 50%; background: var(--bw-live-dot);
   animation: bwPulse .9s infinite;
 }
 .dash-ticker-list {
@@ -849,20 +965,29 @@
   font-size: 10.5px; color: var(--text-dim); white-space: nowrap; flex-shrink: 0;
 }
 /* ── Freeze kolom profile PPPoE table ── */
-#profile-table-wrap { overflow-x: auto; }
+/* Batasi tinggi ~5-6 baris, sisanya scroll vertikal — header ikut sticky
+   supaya tetap terlihat saat scroll (kombinasi dgn freeze kolom di bawah). */
+#profile-table-wrap {
+  overflow-x: auto; overflow-y: auto;
+  max-height: 360px;
+}
+#profile-table-wrap thead th {
+  position: sticky; top: 0; z-index: 5;
+}
+/* Background TIDAK di-hardcode untuk tbody supaya warna zebra-striping
+   bawaan global.css (tbody tr:nth-child odd/even) tetap kepakai di kolom
+   freeze, sama seperti perbaikan di profile_pppoe.html. */
 .dash-section-table .dash-sticky-0,
 .dash-section-table thead .dash-sticky-0 {
-  position: sticky; left: 0; z-index: 4; background: var(--bg);
+  position: sticky; left: 0; z-index: 4;
   width: 44px; min-width: 44px; max-width: 44px;
   padding: 8px 6px; text-align: center; box-sizing: border-box;
 }
 .dash-section-table thead .dash-sticky-0 { background: var(--surface); z-index: 6; }
 .dash-section-table .dash-sticky-1,
 .dash-section-table thead .dash-sticky-1 {
-  position: sticky; left: 44px; z-index: 4; background: var(--bg);
+  position: sticky; left: 44px; z-index: 4;
   min-width: 140px; border-right: 1px solid var(--border);
   box-shadow: 2px 0 6px rgba(0,0,0,.05);
 }
 .dash-section-table thead .dash-sticky-1 { background: var(--surface); z-index: 6; }
-.dash-section-table tbody tr:hover .dash-sticky-0,
-.dash-section-table tbody tr:hover .dash-sticky-1 { background: var(--surface); }

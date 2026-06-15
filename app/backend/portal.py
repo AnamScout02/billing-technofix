@@ -22,7 +22,7 @@ from functools import wraps
 from datetime import date
 from flask import Blueprint, request, jsonify, session
 
-from utils import get_owner_db, get_master_db, OWNER_DB_DIR, is_isolir_profil
+from utils import get_owner_db, get_master_db, OWNER_DB_DIR, is_isolir_profil, catat_aktivitas
 
 portal_bp = Blueprint('portal', __name__)
 logger    = logging.getLogger(__name__)
@@ -728,6 +728,9 @@ def portal_perpanjang():
             )
         )
         trx_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+        catat_aktivitas('tagihan', 'tambah', target=username,
+                        pesan=f'Pengajuan perpanjangan paket {profil_name} via portal — {username}',
+                        nominal=harga, aktor=username, conn=conn)
         conn.commit(); conn.close()
     except Exception as e:
         logger.error(f'[Portal] perpanjang error: {e}')

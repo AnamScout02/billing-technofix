@@ -65,10 +65,18 @@
   border-radius: var(--r-lg); box-shadow: var(--shadow-sm);
   position: relative; overflow: hidden;
 }
+/* Fade kanan: warna disesuaikan per area — header (navy) vs body (bg),
+   supaya tidak jadi "kilauan" putih di atas header saat light mode */
+.table-wrap.has-scroll::before {
+  content: '';
+  position: absolute; right: 0; top: 0; height: 38px; width: 32px;
+  background: linear-gradient(to left, var(--header-bg), transparent);
+  pointer-events: none; z-index: 9;
+}
 .table-wrap.has-scroll::after {
   content: '';
-  position: absolute; right: 0; top: 0; bottom: 0; width: 32px;
-  background: linear-gradient(to left, rgba(255,255,255,.9), transparent);
+  position: absolute; right: 0; top: 38px; bottom: 0; width: 32px;
+  background: linear-gradient(to left, var(--bg), transparent);
   pointer-events: none; z-index: 8;
 }
 
@@ -303,19 +311,6 @@ textarea.form-input { height: auto; padding: 10px 12px; resize: none; line-heigh
 
 
 /* ══════════════════════════════════════════════════════════
-   7. TOOLBAR ROW — device-bar kiri + toolbar kanan (desktop)
-══════════════════════════════════════════════════════════ */
-.toolbar-row {
-  display: flex; align-items: center; gap: 12px;
-  margin-bottom: 16px;
-}
-/* Device bar (.dash-device-bar — komponen global): lebar sesuai konten */
-.toolbar-row .dash-device-bar { flex: 0 0 auto; width: auto; margin-bottom: 0; }
-/* Toolbar mengisi sisa ruang */
-.toolbar-row .toolbar     { flex: 1 1 auto; margin-bottom: 0; }
-
-
-/* ══════════════════════════════════════════════════════════
    8. MODAL DETAIL PELANGGAN (dinamis via openModalForm)
 ══════════════════════════════════════════════════════════ */
 .detail-action-group { margin-bottom: 20px; }
@@ -382,11 +377,6 @@ textarea.form-input { height: auto; padding: 10px 12px; resize: none; line-heigh
    10. RESPONSIVE
 ══════════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
-  /* Di HP: toolbar-row jadi kolom (device-bar tetap di atas, toolbar di bawah) */
-  .toolbar-row  { flex-direction: column; gap: 8px; }
-  .toolbar-row .dash-device-bar { width: 100%; max-width: 100%; flex: unset; }
-  .toolbar-row .toolbar    { flex: unset; }
-
   .toolbar      { gap: 8px; }
   .search-wrap  { max-width: 100%; }
   .table-scroll { max-height: calc(100vh - 280px); }
@@ -395,6 +385,17 @@ textarea.form-input { height: auto; padding: 10px 12px; resize: none; line-heigh
 @media (max-width: 480px) {
   .toolbar     { flex-direction: column; align-items: stretch; }
   .search-wrap { max-width: 100%; }
+  /* 3 dropdown filter ("50 baris"/"Semua Status"/"Semua Redaman"):
+     basis 0 -> lebar tiap trigger murni proporsional, dibagi rata
+     dari sisa ruang baris (selalu 1 baris, 3 sama lebar), tanpa
+     patokan px tetap - otomatis menyesuaikan lebar layar berapa pun.
+     Teks yang tak cukup (mis. "Semua Redaman" di layar sangat sempit)
+     terpotong "..." (lihat .tf-sel-trigger-text). Panel pilihan TIDAK
+     ikut lebar trigger - menyesuaikan teks opsi terlebar (lihat
+     .tf-select:not(.tf-block) .tf-pop) + auto rata-kanan kalau
+     keluar tepi layar (lihat .tf-pop-end di global.js/global.css). */
+  .filter-group { flex-wrap: wrap; gap: 10px; }
+  .filter-group .tf-select { flex: 1 1 0; }
   .form-grid   { grid-template-columns: 1fr; }
   .table-footer { flex-direction: column; align-items: flex-start; }
   .pelanggan-table { font-size: 12px; }
@@ -513,9 +514,6 @@ tr.row-offline:hover > td { background: rgba(239,68,68,.04) !important; }
 tbody tr:nth-child(odd)  td.sticky-col-0 { background-color: #ffffff; }
 tbody tr:nth-child(even) td.sticky-col-0 { background-color: #f0f5ff; }
 tbody tr:hover           td.sticky-col-0 { background-color: #e0eaff !important; }
-[data-theme="dark"] tbody tr:nth-child(odd)  td.sticky-col-0 { background-color: var(--bg); }
-[data-theme="dark"] tbody tr:nth-child(even) td.sticky-col-0 { background-color: var(--surface); }
-[data-theme="dark"] tbody tr:hover           td.sticky-col-0 { background-color: var(--surface-2, var(--surface)) !important; }
 
 
 /* ══════════════════════════════════════════════════════════

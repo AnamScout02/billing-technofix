@@ -2,7 +2,7 @@
 <html lang="id">
 
 <head>
-  <meta charset="UTF-8" /><script>(function(){var t=localStorage.getItem("tf_theme");if(t)document.documentElement.dataset.theme=t;else if(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)document.documentElement.dataset.theme="dark";})();</script>
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dashboard — TechnoFix Billing</title>
 
@@ -11,13 +11,13 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Poppins:wght@300;400;500;600;700&display=swap"
     rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,0..200"
     rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
   <!-- global.css WAJIB pertama -->
-  <link rel="stylesheet" href="/app/frontend/statis/global.css?v=48" />
-  <link rel="stylesheet" href="/app/frontend/dashboard/dashboard.css?v=5454" />
+  <link rel="stylesheet" href="/app/frontend/statis/global.css?v=87" />
+  <link rel="stylesheet" href="/app/frontend/dashboard/dashboard.css?v=5472" />
 </head>
 
 <body>
@@ -44,7 +44,7 @@
         <a href="#" onclick="openPerangkatSheet(event)" data-perm="perangkat">
           <span class="material-symbols-outlined">router</span>Perangkat
         </a>
-        <a href="#" onclick="openKeuanganSheet(event)" data-perm="keuangan"><span class="material-symbols-outlined">payments</span>Layanan</a>
+        <a href="#" onclick="openKeuanganSheet(event)" data-perm="keuangan"><span class="material-symbols-outlined">credit_card_gear</span>Layanan</a>
         <a href="/app/frontend/maps/maps.html" data-perm="maps">
           <span class="material-symbols-outlined">map</span>Maps
         </a>
@@ -95,7 +95,6 @@
   <!-- â•â• BOTTOM NAV â•â• -->
   <nav class="bottom-nav">
     <div class="bottom-nav-inner">
-      <div class="bottom-nav-indicator" id="bottom-nav-indicator"></div>
       <a href="/app/frontend/dashboard/dashboard.html" class="bottom-nav-item active">
         <div class="bottom-nav-icon"><span class="material-symbols-outlined">dashboard</span></div>
         <span class="bottom-nav-label">Dashboard</span>
@@ -109,7 +108,7 @@
         <span class="bottom-nav-label">Perangkat</span>
       </a>
       <a href="#" onclick="openKeuanganSheet(event)" class="bottom-nav-item" data-perm="keuangan">
-        <div class="bottom-nav-icon"><span class="material-symbols-outlined">payments</span></div>
+        <div class="bottom-nav-icon"><span class="material-symbols-outlined">credit_card_gear</span></div>
         <span class="bottom-nav-label">Layanan</span>
       </a>
       <a href="/app/frontend/maps/maps.html" class="bottom-nav-item" data-perm="maps">
@@ -138,27 +137,23 @@
     </div>
 
     <!-- â•â• DEVICE BAR — identik pola pelanggan.html â•â• -->
-    <div class="dash-device-bar">
+    <div class="dash-device-bar dash-device-bar--source">
       <div class="dash-device-bar-left">
         <div class="dash-device-icon">
           <span class="material-symbols-outlined">router</span>
         </div>
         <div class="dash-device-info">
-          <span class="dash-device-label">SUMBER DATA MIKROTIK</span>
+          <span class="dash-device-label">Perangkat MikroTik</span>
           <div class="g-select-wrap" style="margin-top:4px">
             <select id="select-device" class="g-select primary" onchange="onDeviceChange()"
               style="min-width:240px;max-width:360px">
-              <option value="">— Pilih Perangkat —</option>
+              <option value="">Pilih Perangkat</option>
             </select>
             <span class="material-symbols-outlined g-select-icon">expand_more</span>
           </div>
         </div>
       </div>
       <div class="dash-device-bar-right">
-        <div class="dash-conn-wrap" id="dash-conn-wrap">
-          <span class="dash-status-dot" id="mt-status-dot"></span>
-          <span class="dash-status-text" id="mt-status-text">Pilih perangkat...</span>
-        </div>
         <span id="sync-status" class="sync-badge"></span>
       </div>
     </div>
@@ -229,7 +224,7 @@
     <!-- â•â• RESOURCE MIKROTIK (realtime) â•â• -->
     <!-- ══ ALERT SINYAL ONU ══ -->
     <div id="onu-signal-alert" style="display:none;margin-bottom:16px">
-      <a href="/app/frontend/input_perangkat/input_olt.html"
+      <a href="/app/frontend/pelanggan/pelanggan.html?redaman=buruk"
          id="onu-alert-card"
          style="display:flex;align-items:center;gap:14px;
                 padding:14px 18px;border-radius:var(--r-lg,10px);
@@ -270,7 +265,7 @@
         </div>
       </div>
 
-      <!-- Resource Grid: CPU | Memory | Uptime | (Suhu) | Board | Version -->
+      <!-- Resource Grid: CPU | Memory | Storage | Uptime | (Suhu) | Board | Version -->
       <div class="dash-res-grid">
         <div class="dash-res-card">
           <div class="dash-res-icon"><span class="material-symbols-outlined">developer_board</span></div>
@@ -295,24 +290,33 @@
           </div>
         </div>
         <div class="dash-res-card">
+          <div class="dash-res-icon"><span class="material-symbols-outlined">hard_drive</span></div>
+          <div class="dash-res-body">
+            <div class="dash-res-lbl">Storage</div>
+            <div class="dash-res-status" id="res-hdd-status">—</div>
+          </div>
+          <div class="dash-res-donut" id="res-hdd-donut">
+            <span class="dash-res-donut-val"><span id="res-hdd">—</span><span class="dash-res-donut-unit" id="res-hdd-unit">%</span></span>
+          </div>
+        </div>
+        <div class="dash-res-card">
           <div class="dash-res-icon"><span class="material-symbols-outlined">timer</span></div>
           <div class="dash-res-body">
             <div class="dash-res-lbl">Uptime</div>
             <div class="dash-res-val dash-res-val--sm" id="res-uptime">—</div>
             <div class="dash-res-bar-wrap">
-              <div class="dash-res-bar dash-res-bar--full" id="res-uptime-bar"></div>
+              <div class="dash-res-bar" id="res-uptime-bar"></div>
             </div>
             <div class="dash-res-status" id="res-uptime-status">—</div>
           </div>
         </div>
         <div class="dash-res-card" id="res-suhu-card" style="display:none">
-          <div class="dash-res-icon"><span class="material-symbols-outlined">thermostat</span></div>
+          <div class="dash-res-therm">
+            <div class="dash-res-therm-fill" id="res-suhu-bar"></div>
+          </div>
           <div class="dash-res-body">
             <div class="dash-res-lbl">Suhu Board</div>
             <div class="dash-res-val"><span id="res-suhu">—</span><span class="dash-res-unit">°C</span></div>
-            <div class="dash-res-bar-wrap">
-              <div class="dash-res-bar" id="res-suhu-bar"></div>
-            </div>
             <div class="dash-res-status" id="res-suhu-status">—</div>
           </div>
         </div>
@@ -324,7 +328,7 @@
             <div class="dash-res-status" id="res-board-status">—</div>
           </div>
         </div>
-        <div class="dash-res-card">
+        <div class="dash-res-card" id="res-version-card">
           <div class="dash-res-icon"><span class="material-symbols-outlined">system_update</span></div>
           <div class="dash-res-body">
             <div class="dash-res-lbl">RouterOS</div>
@@ -355,7 +359,7 @@
           <div class="g-select-wrap">
             <select id="bw-iface-select" class="g-select dash-g-select-navy" onchange="onIfaceChange()"
               style="min-width:160px">
-              <option value="">— Interface —</option>
+              <option value="">Interface</option>
             </select>
             <span class="material-symbols-outlined g-select-icon dash-g-icon-navy">expand_more</span>
           </div>
@@ -415,7 +419,6 @@
         <canvas id="chart-bw" role="img" aria-label="Grafik area bandwidth download dan upload realtime">—</canvas>
         <div class="dash-chart-empty" id="bw-empty">
           <span class="material-symbols-outlined">swap_horiz</span>
-    
         </div>
       </div>
 
@@ -442,12 +445,6 @@
           Kelola profil <span class="material-symbols-outlined" style="font-size:14px">chevron_right</span>
         </a>
       </div>  
-
-      <!-- Loading state -->
-      <div id="profile-state-loading" class="state-box" style="display:none;padding:24px">
-        <div class="spinner"></div>
-        <p class="state-title">Mengambil profil dari MikroTik...</p>
-      </div>
 
       <!-- Empty state -->
       <div id="profile-state-empty" class="dash-empty-state" style="display:none">
@@ -496,7 +493,7 @@
             </div>
           </div>
         </div>
-        <div class="dash-chart-wrap" style="height:200px">
+        <div class="dash-chart-wrap" style="height:290px">
           <canvas id="chart-trend"></canvas>
           <div class="dash-chart-empty" id="trend-empty">
             <span class="material-symbols-outlined">trending_up</span>
@@ -546,7 +543,7 @@
       <div class="dash-ticker-list" id="ticker-list">
         <div class="dash-empty-state">
           <span class="material-symbols-outlined">rss_feed</span>
-          <p>Pilih MikroTik untuk melihat aktivitas live</p>
+          <p>Belum ada aktivitas tercatat</p>
         </div>
       </div>
     </div>
@@ -559,7 +556,7 @@
             <span class="material-symbols-outlined">history</span>
             Aktivitas Terbaru
           </h2>
-          <p class="dash-section-sub" id="log-device-label">Log MikroTik &amp; billing</p>
+          <p class="dash-section-sub" id="log-device-label">Log MikroTik</p>
         </div>
         <button class="dash-head-btn" onclick="loadActivityLog()">
           <span class="material-symbols-outlined" style="font-size:14px">refresh</span>Refresh
@@ -669,12 +666,12 @@
       <a href="/app/frontend/tagihan/tagihan.html" class="psheet-item psheet-tagihan" data-perm="keuangan"><div class="psheet-item-icon"><span class="material-symbols-outlined">receipt_long</span></div><div class="psheet-item-body"><div class="psheet-item-name">Tagihan</div><div class="psheet-item-desc">Tagihan bulanan pelanggan</div></div><div class="psheet-item-badge">Invoice</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
       <a href="/app/frontend/loket/loket.html" class="psheet-item psheet-loket" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">point_of_sale</span></div><div class="psheet-item-body"><div class="psheet-item-name">Loket / Kasir</div><div class="psheet-item-desc">Terima bayar + komisi</div></div><div class="psheet-item-badge">Kasir</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
       <a href="/app/frontend/notifikasi/wa.html" class="psheet-item psheet-wa" data-perm="pelanggan_manage"><div class="psheet-item-icon"><span class="material-symbols-outlined">chat</span></div><div class="psheet-item-body"><div class="psheet-item-name">Notifikasi WA</div><div class="psheet-item-desc">Pengingat tagihan WhatsApp</div></div><div class="psheet-item-badge">Reminder</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
-      <a href="/app/frontend/pembayaran/payment.html" class="psheet-item psheet-payment" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">credit_card</span></div><div class="psheet-item-body"><div class="psheet-item-name">Bayar Online</div><div class="psheet-item-desc">Midtrans / Xendit</div></div><div class="psheet-item-badge">Gateway</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
+      <a href="/app/frontend/pembayaran/payment.html" class="psheet-item psheet-payment" data-perm="bayar"><div class="psheet-item-icon"><span class="material-symbols-outlined">account_balance_wallet</span></div><div class="psheet-item-body"><div class="psheet-item-name">Bayar Online</div><div class="psheet-item-desc">Midtrans / Xendit</div></div><div class="psheet-item-badge">Gateway</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
       <a href="/app/frontend/tiket/tiket.html" class="psheet-item psheet-tiket" data-perm="pelanggan"><div class="psheet-item-icon"><span class="material-symbols-outlined">support_agent</span></div><div class="psheet-item-body"><div class="psheet-item-name">Tiket Laporan <span id="tiket-badge-nav" style="display:none;background:#dc2626;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:6px;vertical-align:1px"></span></div><div class="psheet-item-desc">Laporan gangguan pelanggan</div></div><div class="psheet-item-badge">Support</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
     </div>
   </div>
-  <script src="/app/frontend/statis/global.js?v=46"></script>
-  <script src="/app/frontend/dashboard/dashboard.js?v=8"></script>
+  <script src="/app/frontend/statis/global.js?v=56"></script>
+  <script src="/app/frontend/dashboard/dashboard.js?v=19"></script>
 </body>
 
 </html>

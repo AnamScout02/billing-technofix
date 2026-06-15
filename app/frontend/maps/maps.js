@@ -999,6 +999,8 @@ function showCard(node) {
   card.innerHTML = node.type === 'onu' ? _buildOnuCard(node) : _buildDeviceCard(node);
   card.style.display = '';
 
+  if (typeof applyFeatureLocks === 'function') applyFeatureLocks();
+
   /* Backdrop mobile: non-interaktif selama 300ms setelah muncul
      agar event tap yang sama tidak langsung menutup card. */
   if (backdrop) {
@@ -1088,7 +1090,7 @@ function _buildOnuCard(node) {
   const actionBtns = isKolektor ? (waBtn + ruteBtn) : (waBtn + ruteBtn +
     '<button class="dcx-btn dcx-btn-purple" onclick="mapRebootModem(' + d.pelanggan_id + ',\'' + escHtml(d.username) + '\')">' +
       '<span class="material-symbols-outlined">restart_alt</span>Reboot</button>' +
-    '<button class="dcx-btn dcx-btn-navy" onclick="mapRemoteModem(\'' + escHtml(d.ip || '') + '\',\'' + escHtml(d.username) + '\')">' +
+    '<button class="dcx-btn dcx-btn-navy" data-feature-lock="remote_modem" onclick="mapRemoteModem(' + d.pelanggan_id + ',\'' + escHtml(d.username) + '\')">' +
       '<span class="material-symbols-outlined">terminal</span>Remote</button>');
 
   return '<div class="dcx dcx-onu">' +
@@ -1584,13 +1586,29 @@ async function mapRebootModem(pelangganId, username) {
   }
 }
 
-function mapRemoteModem(ip, username) {
-  if (!ip) {
-    if (typeof toast === 'function') toast('IP modem ' + username + ' tidak tersedia', 'warning');
-    return;
+/* Remote Modem — repoint slot NAT "Remote-Onu" lalu buka di tab baru */
+async function mapRemoteModem(pelangganId, username) {
+  try {
+    const base = (typeof API_BASE !== 'undefined') ? API_BASE : '';
+    const res  = await fetch(base + '/api/pelanggan/' + pelangganId + '/remote-on', {
+      method: 'POST', credentials: 'include',
+      headers: Object.assign({ 'Content-Type': 'application/json' },
+        (typeof getAuthHeaders === 'function') ? getAuthHeaders() : {}),
+      body: JSON.stringify({}),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      if (typeof toast === 'function') toast(data.error || 'Gagal menyiapkan remote', 'error');
+      return;
+    }
+    if (typeof openRemoteLinksModal === 'function') {
+      openRemoteLinksModal(data.modem_ip, data.url, username);
+    } else {
+      window.open(data.url, '_blank', 'noopener,noreferrer');
+    }
+  } catch (e) {
+    if (typeof toast === 'function') toast('Gagal menyiapkan remote: ' + e.message, 'error');
   }
-  const url = ip.startsWith('http') ? ip : 'http://' + ip;
-  window.open(url, '_blank');
 }
 
 if (typeof escHtml === 'undefined') {

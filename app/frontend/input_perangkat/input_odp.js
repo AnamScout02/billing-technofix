@@ -75,12 +75,16 @@ function showLoading() {
 
 // ── STATS ─────────────────────────────────────────────────────
 function updateStats() {
-  const totalPort    = _allData.reduce((s, o) => s + (Number(o.jumlah_port)    || 0), 0);
-  const totalTerpakai = _allData.reduce((s, o) => s + (Number(o.port_terpakai) || 0), 0);
+  const totalPort = _allData.reduce((s, o) => s + (Number(o.jumlah_port) || 0), 0);
+  const odpPenuh  = _allData.filter(o => {
+    const kap = Number(o.jumlah_port)   || 0;
+    const pak = Number(o.port_terpakai) || 0;
+    return kap > 0 && pak >= kap;
+  }).length;
 
-  animNum('stat-total',          _allData.length);
-  animNum('stat-port-terpakai',  totalTerpakai);
-  animNum('stat-port-total',     totalPort);
+  animNum('stat-total',      _allData.length);
+  animNum('stat-odp-penuh',  odpPenuh);
+  animNum('stat-port-total', totalPort);
 
   const cnt = document.getElementById('odp-count');
   if (cnt) cnt.textContent = `${_allData.length} titik ODP`;
@@ -113,8 +117,8 @@ function renderOdp() {
     const barColor    = persen >= 90 ? 'var(--red)' : persen >= 70 ? 'var(--amber)' : 'var(--green)';
     const koordinat   = o.koordinat || '';
 
-    // Status badge: port tersisa / penuh
-    const badgeClass  = sisa > 0 ? 'connected' : 'failed';
+    // Status badge: port tersisa / penuh — warna ikut persentase, sama seperti progress bar
+    const badgeClass  = persen >= 90 ? 'failed' : persen >= 70 ? 'warning' : 'connected';
     const badgeLabel  = sisa > 0 ? `${sisa} port tersisa` : 'Penuh';
 
     return `
@@ -194,9 +198,9 @@ async function showForm(prefill = null) {
   const v      = k => prefill ? escHtml(String(prefill[k] ?? '')) : '';
 
   // Load opsi ODC, ODP, dan OLT (untuk semua mode relasi)
-  let odcOptions    = '<option value="">— Pilih ODC —</option>';
-  let odpParentOptions = '<option value="">— Pilih ODP Induk —</option>';
-  let oltOptions    = '<option value="">— Pilih OLT —</option>';
+  let odcOptions    = '<option value="">Pilih ODC</option>';
+  let odpParentOptions = '<option value="">Pilih ODP Induk</option>';
+  let oltOptions    = '<option value="">Pilih OLT</option>';
   try {
     const [rOdc, rOdp, rOlt] = await Promise.all([
       fetch(`${API_BASE}/api/odc`, { credentials: 'include', headers: getAuthHeaders() }),
@@ -303,7 +307,7 @@ async function showForm(prefill = null) {
         <div id="port-odc-wrap" class="form-group full" style="display:none">
           <label class="form-label">Terhubung ke Port ODC <span style="font-size:10px;color:var(--text-dim)">(port yang belum dipakai ODP lain)</span></label>
           <select class="form-input" id="f-port-odc">
-            <option value="">— Pilih Port —</option>
+            <option value="">Pilih Port</option>
           </select>
         </div>
 
@@ -315,7 +319,7 @@ async function showForm(prefill = null) {
         <div id="port-parent-odp-wrap" class="form-group full" style="display:none">
           <label class="form-label">Terhubung ke Port ODP Induk <span style="font-size:10px;color:var(--text-dim)">(port yang belum dipakai)</span></label>
           <select class="form-input" id="f-port-parent-odp">
-            <option value="">— Pilih Port —</option>
+            <option value="">Pilih Port</option>
           </select>
         </div>
 
@@ -491,7 +495,7 @@ async function _loadPortOdcForOdp() {
   try {
     const r = await fetch(`${API_BASE}/api/odc/${odcId}/ports`, { credentials:'include', headers:getAuthHeaders() });
     const d = await r.json();
-    sel.innerHTML = '<option value="">— Pilih Port —</option>';
+    sel.innerHTML = '<option value="">Pilih Port</option>';
     (d.tersedia||[]).forEach(p => sel.appendChild(new Option('Port ' + p + ' (kosong)', p)));
     Object.entries(d.odp_per_port||{}).forEach(([port, name]) => {
       const o = new Option('Port ' + port + ' — ' + name + ' (terpakai)', port);
@@ -509,7 +513,7 @@ async function _loadPortParentOdp() {
   try {
     const r = await fetch(`${API_BASE}/api/odp/${odpId}/child-ports`, { credentials:'include', headers:getAuthHeaders() });
     const d = await r.json();
-    sel.innerHTML = '<option value="">— Pilih Port —</option>';
+    sel.innerHTML = '<option value="">Pilih Port</option>';
     (d.tersedia||[]).forEach(p => sel.appendChild(new Option('Port ' + p + ' (kosong)', p)));
     Object.entries(d.terhubung_per_port||{}).forEach(([port, name]) => {
       const o = new Option('Port ' + port + ' — ' + name + ' (terpakai)', port);

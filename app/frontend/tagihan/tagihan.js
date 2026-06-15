@@ -5,6 +5,9 @@ const TG_API = (typeof API_BASE !== 'undefined' ? API_BASE : '') + '/api/tagihan
 let _tagihan = [];
 let _tgPage  = 0;
 let _TG_PER_PAGE = 50;
+let _tgSortKey = null;
+let _tgSortAsc = true;
+let _selectedTgIds = new Set();
 
 function _hdr() { return (typeof getAuthHeaders === 'function') ? getAuthHeaders() : {}; }
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
@@ -24,13 +27,17 @@ async function loadTagihan() {
     const d = await r.json();
     _tagihan = d.tagihan || [];
     _tgPage  = 0;
+    _selectedTgIds.clear();
+    _updateTgBulkToolbar();
+    const cbAll = document.getElementById('tg-cb-all');
+    if (cbAll) cbAll.checked = false;
     renderStats(d.ringkasan || {});
     renderRows();
   } catch { renderError('Gagal memuat tagihan.'); }
 }
 
 function renderError(msg) {
-  document.getElementById('tg-tbody').innerHTML = `<tr><td colspan="8"><div class="state-box"><p class="state-title">${esc(msg)}</p></div></td></tr>`;
+  document.getElementById('tg-tbody').innerHTML = `<tr><td colspan="9"><div class="state-box"><p class="state-title">${esc(msg)}</p></div></td></tr>`;
 }
 
 function renderStats(s) {
@@ -48,12 +55,21 @@ function renderRows() {
   let list = _tagihan.slice();
   if (q)  list = list.filter(t => (t.nama || '').toLowerCase().includes(q) || (t.username || '').toLowerCase().includes(q));
   if (fs) list = list.filter(t => t.status === fs);
+  if (_tgSortKey) {
+    list.sort((a, b) => {
+      let va = a[_tgSortKey] ?? '';
+      let vb = b[_tgSortKey] ?? '';
+      if (_tgSortKey === 'nominal') { va = Number(va) || 0; vb = Number(vb) || 0; }
+      const cmp = va < vb ? -1 : va > vb ? 1 : 0;
+      return _tgSortAsc ? cmp : -cmp;
+    });
+  }
 
   const tb  = document.getElementById('tg-tbody');
   const cnt = document.getElementById('tg-count');
   const pgWrap = document.getElementById('tg-pagination');
   if (!list.length) {
-    tb.innerHTML = '<tr><td colspan="8"><div class="state-box"><p class="state-title">Belum ada tagihan untuk periode ini.</p></div></td></tr>';
+    tb.innerHTML = '<tr><td colspan="9"><div class="state-box"><p class="state-title">Belum ada tagihan untuk periode ini.</p></div></td></tr>';
     if (cnt) cnt.textContent = '0 tagihan';
     if (pgWrap) pgWrap.style.display = 'none';
     return;
@@ -98,6 +114,8 @@ function renderRows() {
         ? `<button class="btn-bayar" onclick="bayar(${t.id},'${esc(t.username)}',${t.nominal})"><span class="material-symbols-outlined">payments</span>Lunasi</button>${btnHapus}`
         : `<button class="btn-bayar" onclick="bayar(${t.id},'${esc(t.username)}',${t.nominal})"><span class="material-symbols-outlined">payments</span>Bayar</button>${btnPiutang}${btnHapus}`;
     return `<tr>
+      <td class="sticky-col-0"><input type="checkbox" class="tg-cb-row" data-id="${t.id}"
+        ${_selectedTgIds.has(t.id) ? 'checked' : ''} onchange="toggleTgSelect(${t.id},this.checked)" /></td>
       <td class="sticky-col-1">${offset + i + 1}</td>
       <td class="sticky-col-2"><div class="tg-name">${esc(t.nama || t.username)}</div><div class="tg-user">@${esc(t.username)}</div></td>
       <td><span class="tg-chip">${esc(t.profil || '-')}</span></td>
@@ -108,6 +126,7 @@ function renderRows() {
       <td>${aksi}</td>
     </tr>`;
   }).join('');
+  _injectTgBulkToolbar();
 }
 
 function tgGotoPage(p) {
@@ -117,6 +136,82 @@ function tgGotoPage(p) {
 }
 
 function filterChanged() { _tgPage = 0; renderRows(); }
+
+function sortTagihan(key) {
+  if (_tgSortKey === key) {
+    _tgSortAsc = !_tgSortAsc;
+  } else {
+    _tgSortKey = key;
+    _tgSortAsc = key === 'jatuh_tempo';
+  }
+  _tgPage = 0;
+  renderRows();
+}
+
+// ── Bulk select ──────────────────────────────────────────────
+function toggleTgSelect(id, checked) {
+  if (checked) _selectedTgIds.add(Number(id));
+  else {
+    _selectedTgIds.delete(Number(id));
+    const cbAll = document.getElementById('tg-cb-all');
+    if (cbAll) cbAll.checked = false;
+  }
+  _updateTgBulkToolbar();
+}
+
+function toggleTgSelectAll(checked) {
+  document.querySelectorAll('.tg-cb-row').forEach(cb => {
+    cb.checked = checked;
+    const id = Number(cb.dataset.id);
+    if (checked) _selectedTgIds.add(id);
+    else _selectedTgIds.delete(id);
+  });
+  _updateTgBulkToolbar();
+}
+
+function clearTgSelection() {
+  _selectedTgIds.clear();
+  document.querySelectorAll('.tg-cb-row').forEach(cb => cb.checked = false);
+  const cbAll = document.getElementById('tg-cb-all');
+  if (cbAll) cbAll.checked = false;
+  _updateTgBulkToolbar();
+}
+
+function _updateTgBulkToolbar() {
+  const count   = _selectedTgIds.size;
+  const toolbar = document.getElementById('tg-bulk-toolbar');
+  if (!toolbar) return;
+  toolbar.style.display = count > 0 ? 'flex' : 'none';
+  const lbl = document.getElementById('tg-bulk-label');
+  if (lbl) lbl.textContent = `${count} dipilih`;
+}
+
+function _injectTgBulkToolbar() {
+  if (document.getElementById('tg-bulk-toolbar')) return;
+  const t = document.createElement('div');
+  t.id = 'tg-bulk-toolbar';
+  t.style.cssText = 'display:none;position:fixed;bottom:72px;left:50%;transform:translateX(-50%);' +
+    'background:var(--text);color:#fff;border-radius:99px;padding:10px 16px;' +
+    'box-shadow:0 4px 20px rgba(0,0,0,.3);align-items:center;gap:10px;z-index:200;' +
+    'font-size:13px;font-weight:600;white-space:nowrap;';
+  t.innerHTML = `
+    <span class="material-symbols-outlined" style="font-size:18px">checklist</span>
+    <span id="tg-bulk-label">0 dipilih</span>
+    <div style="width:1px;height:20px;background:rgba(255,255,255,.25)"></div>
+    <button onclick="konfirmasiPiutangMassal()" style="background:var(--purple,#7c3aed);color:#fff;border:none;border-radius:99px;
+      padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:var(--sans)">
+      <span class="material-symbols-outlined" style="font-size:14px">handshake</span>Setujui Piutang
+    </button>
+    <button onclick="konfirmasiHapusMassal()" style="background:var(--red);color:#fff;border:none;border-radius:99px;
+      padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:var(--sans)">
+      <span class="material-symbols-outlined" style="font-size:14px">delete</span>Hapus
+    </button>
+    <button onclick="clearTgSelection()" style="background:rgba(255,255,255,.15);color:#fff;border:none;
+      border-radius:99px;padding:6px 10px;cursor:pointer;display:flex;align-items:center;font-family:var(--sans)">
+      <span class="material-symbols-outlined" style="font-size:16px">close</span>
+    </button>`;
+  document.body.appendChild(t);
+}
 
 function ubahTgPerPage() {
   const s = document.getElementById('tg-per-page');
@@ -212,17 +307,37 @@ function tutupModalHapusTg() {
   const m = document.getElementById('modal-hapus-tg');
   if (m) m.classList.remove('open');
 }
+function konfirmasiHapusMassal() {
+  const ids = [..._selectedTgIds];
+  if (!ids.length) return;
+  _hapusTgId = ids;
+  const el = document.getElementById('hapus-tg-nama');
+  if (el) el.textContent = `${ids.length} tagihan terpilih`;
+  const m = document.getElementById('modal-hapus-tg');
+  if (m) m.classList.add('open');
+}
 async function eksekusiHapusTagihan() {
   if (!_hapusTgId) return;
+  const ids = Array.isArray(_hapusTgId) ? _hapusTgId : [_hapusTgId];
   const btn = document.getElementById('btn-hapus-tg-ok');
   if (btn) { btn.disabled = true; btn.textContent = 'Menghapus...'; }
   try {
-    const r = await fetch(`${TG_API}/${_hapusTgId}`, {
-      method: 'DELETE', credentials: 'include', headers: _hdr()
-    });
-    const d = await r.json();
-    toast(r.ok ? (d.message || 'Tagihan dihapus') : (d.message || 'Gagal'), r.ok ? 'success' : 'danger');
-    if (r.ok) { tutupModalHapusTg(); loadTagihan(); }
+    if (ids.length === 1) {
+      const r = await fetch(`${TG_API}/${ids[0]}`, {
+        method: 'DELETE', credentials: 'include', headers: _hdr()
+      });
+      const d = await r.json();
+      toast(r.ok ? (d.message || 'Tagihan dihapus') : (d.message || 'Gagal'), r.ok ? 'success' : 'danger');
+      if (r.ok) { tutupModalHapusTg(); clearTgSelection(); loadTagihan(); }
+    } else {
+      const results = await Promise.allSettled(ids.map(id =>
+        fetch(`${TG_API}/${id}`, { method: 'DELETE', credentials: 'include', headers: _hdr() })
+      ));
+      const ok = results.filter(r => r.status === 'fulfilled' && r.value.ok).length;
+      const fail = ids.length - ok;
+      toast(fail ? `${ok} tagihan dihapus, ${fail} gagal` : `${ok} tagihan dihapus`, fail ? 'warning' : 'success');
+      tutupModalHapusTg(); clearTgSelection(); loadTagihan();
+    }
   } catch { toast('Tidak bisa menghubungi server', 'danger'); }
   if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-outlined">delete</span>Ya, Hapus'; }
 }
@@ -241,17 +356,39 @@ function tutupModalPiutang() {
   const m = document.getElementById('modal-piutang-tg');
   if (m) m.classList.remove('open');
 }
+function konfirmasiPiutangMassal() {
+  const eligible = _tagihan.filter(t => _selectedTgIds.has(t.id) && t.status !== 'lunas' && t.status !== 'piutang').map(t => t.id);
+  if (!eligible.length) { toast('Tidak ada tagihan terpilih yang bisa disetujui piutang (sudah lunas/piutang)', 'warning'); return; }
+  const skipped = _selectedTgIds.size - eligible.length;
+  if (skipped > 0) toast(`${skipped} tagihan dilewati (sudah lunas/piutang)`, 'warning');
+  _piutangTgId = eligible;
+  const el = document.getElementById('piutang-tg-nama');
+  if (el) el.textContent = `${eligible.length} tagihan terpilih`;
+  const m = document.getElementById('modal-piutang-tg');
+  if (m) m.classList.add('open');
+}
 async function eksekusiPiutang() {
   if (!_piutangTgId) return;
+  const ids = Array.isArray(_piutangTgId) ? _piutangTgId : [_piutangTgId];
   const btn = document.getElementById('btn-piutang-tg-ok');
   if (btn) { btn.disabled = true; btn.textContent = 'Memproses…'; }
   try {
-    const r = await fetch(`${TG_API}/${_piutangTgId}/piutang`, {
-      method: 'POST', credentials: 'include', headers: _hdr()
-    });
-    const d = await r.json();
-    toast(r.ok ? (d.message || 'Piutang disetujui') : (d.message || 'Gagal'), r.ok ? 'success' : 'danger');
-    if (r.ok) { tutupModalPiutang(); loadTagihan(); }
+    if (ids.length === 1) {
+      const r = await fetch(`${TG_API}/${ids[0]}/piutang`, {
+        method: 'POST', credentials: 'include', headers: _hdr()
+      });
+      const d = await r.json();
+      toast(r.ok ? (d.message || 'Piutang disetujui') : (d.message || 'Gagal'), r.ok ? 'success' : 'danger');
+      if (r.ok) { tutupModalPiutang(); clearTgSelection(); loadTagihan(); }
+    } else {
+      const results = await Promise.allSettled(ids.map(id =>
+        fetch(`${TG_API}/${id}/piutang`, { method: 'POST', credentials: 'include', headers: _hdr() })
+      ));
+      const ok = results.filter(r => r.status === 'fulfilled' && r.value.ok).length;
+      const fail = ids.length - ok;
+      toast(fail ? `${ok} piutang disetujui, ${fail} gagal` : `${ok} piutang disetujui`, fail ? 'warning' : 'success');
+      tutupModalPiutang(); clearTgSelection(); loadTagihan();
+    }
   } catch { toast('Tidak bisa menghubungi server', 'danger'); }
   if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-outlined">handshake</span>Ya, Setujui'; }
 }

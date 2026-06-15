@@ -1723,6 +1723,109 @@ def admin_network_detail(network_id):
     }), 200
 
 
+# ── POST /admin/networks/<id>/reset-password — reset password owner ──
+@auth_bp.route('/admin/networks/<network_id>/reset-password', methods=['POST'])
+@superadmin_required
+def admin_reset_owner_password(network_id):
+    """
+    Reset password akun owner (role='owner') workspace ini ke password
+    acak sementara. Sesi yang sedang login (di semua perangkat) ikut
+    dihapus supaya owner wajib login ulang dengan password baru.
+
+    Password baru hanya dikembalikan SEKALI di response ini — superadmin
+    wajib menyampaikannya langsung ke owner (tidak disimpan plaintext).
+    """
+    import string
+    conn = get_db()
+    net = conn.execute('SELECT isp_name FROM networks WHERE network_id=?', (network_id,)).fetchone()
+    if not net:
+        conn.close()
+        return jsonify({'status': 'error', 'message': 'Jaringan tidak ditemukan'}), 404
+
+    owner = conn.execute(
+        "SELECT id, username FROM users WHERE network_id=? AND role='owner' ORDER BY id LIMIT 1",
+        (network_id,)
+    ).fetchone()
+    if not owner:
+        conn.close()
+        return jsonify({'status': 'error', 'message': 'Akun owner tidak ditemukan'}), 404
+
+    alphabet = string.ascii_letters + string.digits
+    new_password = ''.join(secrets.choice(alphabet) for _ in range(10))
+
+    conn.execute(
+        "UPDATE users SET password_hash=?, session_tokens='[]' WHERE id=?",
+        (generate_password_hash(new_password), owner['id'])
+    )
+    conn.commit()
+    conn.close()
+
+    log_admin_action('Reset password owner', target=net['isp_name'], detail=f'user: {owner["username"]}')
+    logger.info(f'[SuperAdmin] Reset password owner: {net["isp_name"]} ({owner["username"]})')
+    return jsonify({
+        'status': 'success',
+        'message': f'Password owner "{owner["username"]}" berhasil direset',
+        'username': owner['username'],
+        'password': new_password,
+    }), 200
+
+
+# ══════════════════════════════════════════════════════════════
+# SUPERADMIN — Ringkasan Perangkat & User Lintas Owner
+# ══════════════════════════════════════════════════════════════
+
+@auth_bp.route('/admin/devices-overview', methods=['GET'])
+@superadmin_required
+def admin_devices_overview():
+    """Daftar semua perangkat MikroTik & OLT di seluruh owner, plus totalnya."""
+    conn = get_db()
+    nets = conn.execute('SELECT network_id, isp_name FROM networks ORDER BY isp_name').fetchall()
+    conn.close()
+
+    mikrotik, olt = [], []
+    for n in nets:
+        try:
+            odb = get_owner_db(n['network_id'])
+            for d in odb.execute('SELECT id, name, ip, port, username, password, status FROM devices ORDER BY id').fetchall():
+                mikrotik.append({
+                    'network_id': n['network_id'], 'isp_name': n['isp_name'],
+                    'id': d['id'], 'name': d['name'], 'ip': d['ip'], 'port': d['port'],
+                    'username': d['username'], 'password': d['password'], 'status': d['status'],
+                })
+            for o in odb.execute('SELECT id, name, tipe, ip, port, username, password, status FROM olt ORDER BY id').fetchall():
+                olt.append({
+                    'network_id': n['network_id'], 'isp_name': n['isp_name'],
+                    'id': o['id'], 'name': o['name'], 'tipe': o['tipe'], 'ip': o['ip'], 'port': o['port'],
+                    'username': o['username'], 'password': o['password'], 'status': o['status'],
+                })
+            odb.close()
+        except Exception as e:
+            logger.warning(f'[SuperAdmin] Gagal baca perangkat owner {n["network_id"]}: {e}')
+
+    return jsonify({
+        'status': 'success',
+        'total_mikrotik': len(mikrotik),
+        'total_olt': len(olt),
+        'mikrotik': mikrotik,
+        'olt': olt,
+    }), 200
+
+
+@auth_bp.route('/admin/users', methods=['GET'])
+@superadmin_required
+def admin_list_users():
+    """Daftar semua user (anggota tim) di seluruh owner, lintas workspace."""
+    conn = get_db()
+    rows = conn.execute('''
+        SELECT u.username, u.nama, u.role, u.aktif, u.network_id, n.isp_name
+        FROM users u
+        LEFT JOIN networks n ON n.network_id = u.network_id
+        ORDER BY n.isp_name, u.role, u.username
+    ''').fetchall()
+    conn.close()
+    return jsonify({'status': 'success', 'users': [dict(r) for r in rows], 'total': len(rows)}), 200
+
+
 # ══════════════════════════════════════════════════════════════
 # PANDUAN INTEGRASI KE app.py
 # ══════════════════════════════════════════════════════════════
