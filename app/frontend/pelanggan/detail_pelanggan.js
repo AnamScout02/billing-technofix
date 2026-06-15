@@ -123,12 +123,6 @@ function _renderHero(p) {
   // Badge prioritas
   const badgePrioritas = document.getElementById('dp-badge-prioritas');
   if (badgePrioritas) badgePrioritas.style.display = p.is_prioritas ? 'inline-flex' : 'none';
-  // Tombol piutang — tampilkan hanya untuk owner/admin
-  const btnPiutang = document.getElementById('btn-dp-piutang');
-  if (btnPiutang) {
-    const r = localStorage.getItem('tf_role') || '';
-    btnPiutang.style.display = (r === 'owner' || r === 'admin') ? '' : 'none';
-  }
 
   const rxInfo  = (typeof parseRxTx === 'function') ? parseRxTx(p, isOnline) : _fallbackRxTx(p, isOnline);
   const rxEl    = document.getElementById('dp-rx');
@@ -168,7 +162,7 @@ function _renderInfoCards(p) {
   _setText('info-tgl-pasang', fmtDate(p.tgl_pasang));
   _setText('info-tgl-jatuh',  fmtDate(p.tgl_jatuh));
   _setText('info-koordinat',  fmt(p.titik_koordinat || p.koordinat));
-  _setText('info-status',     isOnline ? 'Online ✅' : (p.status === 'Router Disconnected' ? 'Router Disconnected ⚠' : 'Offline ❌'));
+  _setText('info-status',     isOnline ? 'Online' : (p.status === 'Router Disconnected' ? 'Router Disconnected' : 'Offline'));
 
   // IP Address & MAC Address dari MikroTik active session
   // Field: ip_modem / address (IP yang di-assign ke pelanggan), mac_address / caller_id (MAC modem)
@@ -767,63 +761,4 @@ function _dpRute() {
   var lng = parts[1] ? parts[1].trim() : '';
   if (!lat || !lng) { if (typeof toast === 'function') toast('Format koordinat tidak valid', 'warning'); return; }
   window.open('https://www.google.com/maps/dir/?api=1&destination=' + lat + ',' + lng, '_blank');
-}
-
-
-/* ══════════════════════════════════════════════════════════
-   PIUTANG — dari detail pelanggan
-   Cari tagihan belum_bayar terbaru milik pelanggan ini, lalu setujui piutang
-══════════════════════════════════════════════════════════ */
-let _dpPiutangTagihanId = null;
-
-async function aksiPiutang() {
-  if (!_pelanggan) return;
-  const base = (typeof API_BASE !== 'undefined') ? API_BASE : '';
-  const hdr  = (typeof getAuthHeaders === 'function') ? getAuthHeaders() : {};
-  try {
-    const r = await fetch(`${base}/api/tagihan/pelanggan/${encodeURIComponent(_pelanggan.username)}`,
-      { credentials: 'include', headers: hdr });
-    const d = await r.json();
-    const list = (d.tagihan || []).filter(t => t.status === 'belum_bayar' || t.status === 'piutang');
-    if (!list.length) {
-      toast('Tidak ada tagihan belum bayar untuk pelanggan ini', 'warning');
-      return;
-    }
-    // Ambil tagihan belum_bayar terbaru (bukan piutang)
-    const belum = list.filter(t => t.status === 'belum_bayar');
-    const target = belum.length ? belum[0] : list[0];
-    _dpPiutangTagihanId = target.id;
-    const namaEl = document.getElementById('dp-piutang-nama');
-    if (namaEl) namaEl.textContent = (_pelanggan.nama || _pelanggan.username) + ' — ' + target.periode;
-    _bukaModal('modal-dp-piutang');
-  } catch (_) {
-    toast('Gagal memuat tagihan pelanggan', 'danger');
-  }
-}
-
-function tutupModalDpPiutang() {
-  _dpPiutangTagihanId = null;
-  _tutupModal('modal-dp-piutang');
-}
-
-async function eksekusiDpPiutang() {
-  if (!_dpPiutangTagihanId) return;
-  const base = (typeof API_BASE !== 'undefined') ? API_BASE : '';
-  const hdr  = (typeof getAuthHeaders === 'function') ? getAuthHeaders() : {};
-  const btn  = document.getElementById('btn-dp-piutang-ok');
-  if (btn) { btn.disabled = true; btn.textContent = 'Memproses…'; }
-  try {
-    const r = await fetch(`${base}/api/tagihan/${_dpPiutangTagihanId}/piutang`,
-      { method: 'POST', credentials: 'include', headers: hdr });
-    const d = await r.json();
-    toast(r.ok ? (d.message || 'Piutang disetujui') : (d.message || 'Gagal'), r.ok ? 'success' : 'danger');
-    if (r.ok) {
-      tutupModalDpPiutang();
-      _loadRiwayat(_pelanggan.username);
-    }
-  } catch (_) { toast('Gagal menghubungi server', 'danger'); }
-  if (btn) {
-    btn.disabled = false;
-    btn.innerHTML = '<span class="material-symbols-outlined">handshake</span>Ya, Setujui';
-  }
 }

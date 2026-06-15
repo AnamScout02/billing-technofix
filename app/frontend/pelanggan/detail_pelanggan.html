@@ -16,7 +16,7 @@
 
   <!-- global.css WAJIB pertama -->
   <link rel="stylesheet" href="/app/frontend/statis/global.css?v=87" />
-  <link rel="stylesheet" href="/app/frontend/pelanggan/detail_pelanggan.css?v=5" />
+  <link rel="stylesheet" href="/app/frontend/pelanggan/detail_pelanggan.css?v=6" />
 </head>
 
 <body>
@@ -189,15 +189,10 @@
           <span class="material-symbols-outlined">settings_remote</span>Remote Modem
         </button>
       </div>
-      <!-- Grup 3: Isolir + Piutang + Hapus -->
+      <!-- Grup 3: Isolir + Hapus -->
       <div class="dp-action-group">
         <button class="dp-action-btn amber"   onclick="aksiModem('isolir')"  title="Ubah profil ke Isolir & tendang sesi aktif">
           <span class="material-symbols-outlined">person_off</span>Isolir
-        </button>
-        <button class="dp-action-btn" id="btn-dp-piutang" onclick="aksiPiutang()"
-          title="Setujui piutang — aktifkan internet, pelanggan bayar nanti"
-          style="background:var(--purple-bg,#f3e8ff);color:var(--purple,#7c3aed);border:1.5px solid #ddd6fe;display:none">
-          <span class="material-symbols-outlined">handshake</span>Setujui Piutang
         </button>
         <button class="dp-action-btn red"     onclick="openModalHapusPelanggan()" title="Hapus data pelanggan">
           <span class="material-symbols-outlined">delete</span>Hapus Pelanggan
@@ -694,30 +689,8 @@
       <a href="/app/frontend/tiket/tiket.html" class="psheet-item psheet-tiket" data-perm="pelanggan"><div class="psheet-item-icon"><span class="material-symbols-outlined">support_agent</span></div><div class="psheet-item-body"><div class="psheet-item-name">Tiket Laporan <span id="tiket-badge-nav" style="display:none;background:#dc2626;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:6px;vertical-align:1px"></span></div><div class="psheet-item-desc">Laporan gangguan pelanggan</div></div><div class="psheet-item-badge">Support</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
     </div>
   </div>
-  <!-- MODAL: SETUJUI PIUTANG (dari detail pelanggan) -->
-  <div class="modal-overlay" id="modal-dp-piutang" onclick="if(event.target===this)tutupModalDpPiutang()">
-    <div class="modal-sheet small" onclick="event.stopPropagation()">
-      <div class="modal-handle"></div>
-      <div class="hapus-icon-wrap" style="background:var(--purple-bg,#f3e8ff)">
-        <span class="material-symbols-outlined hapus-icon" style="color:var(--purple,#7c3aed)">handshake</span>
-      </div>
-      <div class="hapus-title">Setujui Piutang?</div>
-      <div class="hapus-sub">
-        Pelanggan <strong id="dp-piutang-nama">—</strong> akan diaktifkan kembali.<br>
-        Tagihan bulan ini menjadi <strong>piutang</strong> — internet aktif, bayar nanti.
-      </div>
-      <div class="modal-footer">
-        <button class="btn" onclick="tutupModalDpPiutang()">Batal</button>
-        <button class="btn" id="btn-dp-piutang-ok" onclick="eksekusiDpPiutang()"
-          style="background:var(--purple,#7c3aed);color:#fff;gap:6px;display:flex;align-items:center">
-          <span class="material-symbols-outlined">handshake</span>Ya, Setujui
-        </button>
-      </div>
-    </div>
-  </div>
-
   <script src="/app/frontend/statis/global.js?v=56"></script>
-  <script src="/app/frontend/pelanggan/detail_pelanggan.js?v=20"></script>
+  <script src="/app/frontend/pelanggan/detail_pelanggan.js?v=22"></script>
 
 </body>
 </html>

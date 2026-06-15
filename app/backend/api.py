@@ -2924,6 +2924,7 @@ def export_keuangan():
 
     buf = io.StringIO()
     buf.write('﻿')  # BOM agar Excel membaca UTF-8 dengan benar
+    buf.write('sep=,\r\n')  # paksa Excel pakai koma sbg pemisah kolom (locale ID pakai ;)
     writer = csv.writer(buf)
     writer.writerow(['Tanggal', 'Keterangan', 'Tipe', 'Nominal', 'Status', 'Metode', 'Username', 'Catatan'])
     for r in rows:

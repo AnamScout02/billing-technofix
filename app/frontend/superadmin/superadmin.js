@@ -268,7 +268,7 @@ function exportOwnersCSV(){
     o.jumlah_user, o.jumlah_user_aktif, o.jumlah_pelanggan ?? 0,
     o.trial_end||'', o.expired_at||'', o.created_at||'',
   ].map(csvEsc).join(','));
-  const csv = '﻿' + [header.map(csvEsc).join(','), ...rows].join('\r\n');
+  const csv = '﻿sep=,\r\n' + [header.map(csvEsc).join(','), ...rows].join('\r\n');
   const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
   const url  = URL.createObjectURL(blob);
   const a = document.createElement('a');

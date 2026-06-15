@@ -334,6 +334,57 @@ function filterPelanggan() {
   renderPaginasi();
 }
 
+/* ══════════════════════════════════════════════════════════
+   EKSPOR CSV — data pelanggan sesuai filter yang sedang aktif
+══════════════════════════════════════════════════════════ */
+function _csvField(v) {
+  v = String(v ?? '');
+  return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+}
+
+function eksporPelanggan() {
+  if (!_filteredData.length) {
+    toast('Tidak ada data pelanggan untuk diekspor', 'warning');
+    return;
+  }
+
+  const header = ['No', 'Username', 'Nama', 'No HP', 'Profil', 'Harga', 'Slot/Port ONU', 'VLAN', 'SN/MAC Address', 'RX (dBm)', 'TX (dBm)', 'Status'];
+  const rows = _filteredData.map((p, i) => {
+    const online = p.status === 'Online';
+    const rxInfo = parseRxTx(p, online);
+    return [
+      i + 1,
+      p.username || '',
+      p.nama || '',
+      p.hp || '',
+      p.profil || '',
+      p.harga || 0,
+      p.slot_port || '',
+      p.vlan || '',
+      formatSn(p.sn) || '',
+      rxInfo.rx ?? '',
+      rxInfo.tx ?? '',
+      p.status || '',
+    ];
+  });
+
+  const csv = '﻿sep=,\r\n' + [header, ...rows].map(r => r.map(_csvField).join(',')).join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const namaDevice = (selectedDevice?.name || 'pelanggan').replace(/[^a-z0-9]+/gi, '_');
+  const tanggal = new Date().toISOString().slice(0, 10);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `pelanggan_${namaDevice}_${tanggal}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+
+  toast(`${_filteredData.length} pelanggan diekspor ke CSV`, 'success');
+}
+
 /* ── Sort data berdasarkan RX Signal ── */
 function applySort() {
   if (sortCol !== 'rx') return;
