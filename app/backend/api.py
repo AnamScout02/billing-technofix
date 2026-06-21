@@ -1,5 +1,5 @@
 """
-api.py — TechnoFix Backend
+api.py — TechnoFix-Bill Backend
 ============================
 Blueprint Flask yang mencakup semua endpoint API:
   1. Pelanggan (PPP Secrets MikroTik + ONU mapping)
@@ -25,7 +25,7 @@ import io
 import csv
 import logging
 import time
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import calendar
 
 from flask import Blueprint, jsonify, request, g, Response
@@ -228,6 +228,53 @@ except Exception as _me:
     logging.warning(f'[migrate] Gagal migrasi tabel pelanggan: {_me}')
 
 
+
+
+def _validasi_hp_ringan(hp: str) -> str | None:
+    """Validasi ringan nomor HP — TOLAK yang jelas sampah, TIDAK reformat
+    nilai yang valid (format simpan dibiarkan apa adanya, krn tabel
+    pelanggan & tel: link menampilkan nilai mentah, sementara titik kirim
+    WA/klik-hubungi sudah masing2 normalize sendiri saat dipakai).
+    Return pesan error kalau invalid, None kalau OK/kosong (opsional)."""
+    if not hp:
+        return None
+    digit_count = sum(1 for ch in hp if ch.isdigit())
+    if digit_count == 0:
+        return 'Nomor HP harus berisi angka'
+    if digit_count < 8 or digit_count > 15:
+        return 'Nomor HP tidak valid (panjang tidak wajar)'
+    return None
+
+
+def _validasi_sn_ringan(sn: str) -> str | None:
+    """Validasi ringan SN ONU — format beda2 per vendor (ZTE/Huawei/dst),
+    jadi TIDAK dipaksa 1 pola regex. Cukup tolak yang jelas bukan SN asli:
+    terlalu pendek, terlalu panjang, atau ada karakter markup/kontrol."""
+    if not sn:
+        return None
+    if len(sn) < 4 or len(sn) > 64:
+        return 'SN ONU tidak valid (panjang tidak wajar)'
+    if any(ch in sn for ch in '<>{}'):
+        return 'SN ONU tidak boleh mengandung karakter <, >, {, }'
+    return None
+
+
+def _validasi_koordinat_ringan(koordinat: str) -> str | None:
+    """Validasi ringan koordinat GPS — format 'lat,lng' (sesuai cara
+    Maps/pelanggan.js mem-parsing). Tolak yang jelas bukan koordinat,
+    TIDAK reformat (presisi/jumlah desimal dibiarkan apa adanya)."""
+    if not koordinat:
+        return None
+    parts = koordinat.replace(';', ',').split(',')
+    if len(parts) != 2:
+        return 'Koordinat harus format "lat,lng" (mis. -7.123,112.456)'
+    try:
+        lat, lng = float(parts[0].strip()), float(parts[1].strip())
+    except ValueError:
+        return 'Koordinat harus berupa angka desimal "lat,lng"'
+    if not (-90 <= lat <= 90) or not (-180 <= lng <= 180):
+        return 'Koordinat di luar rentang valid (lat -90..90, lng -180..180)'
+    return None
 
 
 def cari_device(device_id: int) -> dict | None:
@@ -972,6 +1019,15 @@ def tambah_pelanggan():
         return jsonify({'error': 'Username wajib diisi'}), 400
     if not password:
         return jsonify({'error': 'Password wajib diisi'}), 400
+    hp_err = _validasi_hp_ringan(hp)
+    if hp_err:
+        return jsonify({'error': hp_err}), 400
+    sn_err = _validasi_sn_ringan(sn)
+    if sn_err:
+        return jsonify({'error': sn_err}), 400
+    koor_err = _validasi_koordinat_ringan(koordinat)
+    if koor_err:
+        return jsonify({'error': koor_err}), 400
     if not device_id:
         return jsonify({'error': 'Perangkat MikroTik wajib dipilih'}), 400
 
@@ -1160,6 +1216,9 @@ def update_pelanggan(id_pelanggan):
 
         if not username:
             return jsonify({'error': 'Username tidak boleh kosong'}), 400
+        hp_err = _validasi_hp_ringan(hp)
+        if hp_err:
+            return jsonify({'error': hp_err}), 400
 
         conn = get_db()
  
@@ -1173,6 +1232,15 @@ def update_pelanggan(id_pelanggan):
         kolektor      = str(body.get('kolektor', '') or '').strip()
         is_prioritas  = 1 if body.get('is_prioritas') else 0
         catatan_khusus = str(body.get('catatan_khusus', '') or '').strip()
+        sn_err = _validasi_sn_ringan(sn)
+        if sn_err:
+            conn.close()
+            return jsonify({'error': sn_err}), 400
+        koor_err = _validasi_koordinat_ringan(koordinat)
+        if koor_err:
+            conn.close()
+            return jsonify({'error': koor_err}), 400
+
         odp_id_upd = body.get('odp_id') or None
         if odp_id_upd is not None:
             try: odp_id_upd = int(odp_id_upd)
@@ -1690,6 +1758,39 @@ def _update_rx_tx_cache(username: str, rx_power, tx_power):
     conn.close()
 
 
+_METRICS_RANGE_HOURS = {'24h': 24, '7d': 24 * 7, '14d': 24 * 14}
+
+
+@api_bp.route('/pelanggan/<int:pelanggan_id>/metrics-history', methods=['GET'])
+def get_pelanggan_metrics_history(pelanggan_id):
+    """Riwayat sinyal ONU (RX/TX power + status online) untuk grafik tren.
+    Data direkam tiap siklus sync OLT (~5 menit) oleh
+    olt_sync._record_onu_metrics_snapshot, retensi 14 hari."""
+    conn = get_db()
+    pelanggan = conn.execute(
+        'SELECT username FROM pelanggan WHERE id = ?', (pelanggan_id,)
+    ).fetchone()
+    if not pelanggan:
+        conn.close()
+        return jsonify({'error': 'Pelanggan tidak ditemukan'}), 404
+
+    hours  = _METRICS_RANGE_HOURS.get(request.args.get('range', '24h'), 24)
+    cutoff = (datetime.now() - timedelta(hours=hours)).isoformat(timespec='seconds')
+    rows = conn.execute('''
+        SELECT rx_power, tx_power, is_online, recorded_at
+        FROM onu_metrics_history
+        WHERE username = ? AND recorded_at >= ?
+        ORDER BY recorded_at ASC
+    ''', (pelanggan['username'], cutoff)).fetchall()
+    conn.close()
+    # recorded_at disimpan naive-UTC (server jalan di UTC) — tandai 'Z' eksplisit
+    # supaya Date() di browser parse sebagai UTC, bukan dikira sudah waktu lokal.
+    out = [dict(r) for r in rows]
+    for o in out:
+        o['recorded_at'] = o['recorded_at'] + 'Z'
+    return jsonify(out)
+
+
 @api_bp.route('/onu-mapping', methods=['POST'])
 def save_onu_mapping():
     """
@@ -2021,7 +2122,7 @@ def _resolve_isolir_profile(mt, body=None):
         mt.tambah_profile({
             'name':        'Isolir',
             'rate-limit':  '1k/1k',          # praktis tidak bisa browsing
-            'comment':     'Auto-created by TechnoFix untuk isolir pelanggan',
+            'comment':     'Auto-created by TechnoFix-Bill untuk isolir pelanggan',
         })
         return 'Isolir'
     except MikroTikError as e:
@@ -3288,6 +3389,11 @@ def add_profile(device_id):
         return jsonify({'error': f'Kesalahan server: {str(e)}'}), 500
 
     # ── STEP 2: Simpan data lokal (MikroTik sudah berhasil) ────────────────────
+    # TIDAK rollback ke MikroTik kalau step ini gagal — itu nambah operasi
+    # jaringan baru yg bisa gagal juga (2 titik gagal independen, lebih ruwet).
+    # Cukup kasih tahu user jujur lewat field 'warning' supaya dia tahu harus
+    # sync manual, bukan diam2 cuma masuk log yg tidak pernah dia lihat.
+    local_save_failed = False
     try:
         conn = get_db()
         conn.execute(
@@ -3303,12 +3409,19 @@ def add_profile(device_id):
         conn.commit()
         conn.close()
     except Exception as e:
+        local_save_failed = True
         logging.warning(
             f'[profile] Profile "{nama}" sudah ada di MikroTik '
             f'tapi gagal simpan ke DB lokal: {e}'
         )
 
-    return jsonify({'message': f'Profile {nama} ({rate_limit}) berhasil ditambahkan'}), 201
+    resp = {'message': f'Profile {nama} ({rate_limit}) berhasil ditambahkan di MikroTik'}
+    if local_save_failed:
+        resp['warning'] = (
+            f'Profile berhasil dibuat di MikroTik, TAPI gagal disimpan ke data lokal '
+            f'(harga/catatan). Buka halaman ini lagi & edit profile "{nama}" manual untuk sinkronkan.'
+        )
+    return jsonify(resp), 201
 
 
 @api_bp.route('/profile/<int:device_id>/<string:nama_profile>', methods=['PUT'])
@@ -3668,6 +3781,36 @@ def get_bandwidth(device_id):
         logging.error(f'[bandwidth] device {device_id} iface {iface}: {e}')
         return jsonify({'error': str(e)}), 500
 
+
+_BW_RANGE_HOURS = {'24h': 24, '7d': 24 * 7, '14d': 24 * 14}
+
+
+@api_bp.route('/mikrotik/<int:device_id>/bandwidth-history', methods=['GET'])
+def get_bandwidth_history(device_id):
+    """Riwayat bandwidth WAN device ini (direkam worker background tiap
+    5 menit dari devices.wan_interface). Kosong kalau wan_interface belum
+    diisi di form MikroTik."""
+    device = cari_device(device_id)
+    if not device:
+        return jsonify({'error': 'Perangkat tidak ditemukan'}), 404
+
+    hours  = _BW_RANGE_HOURS.get(request.args.get('range', '24h'), 24)
+    cutoff = (datetime.now() - timedelta(hours=hours)).isoformat(timespec='seconds')
+
+    conn = get_db()
+    rows = conn.execute('''
+        SELECT rx_mbps, tx_mbps, recorded_at
+        FROM bandwidth_history
+        WHERE device_id = ? AND recorded_at >= ?
+        ORDER BY recorded_at ASC
+    ''', (device_id, cutoff)).fetchall()
+    conn.close()
+    # recorded_at disimpan naive-UTC (server jalan di UTC) — tandai 'Z' eksplisit
+    # supaya Date() di browser parse sebagai UTC, bukan dikira sudah waktu lokal.
+    out = [dict(r) for r in rows]
+    for o in out:
+        o['recorded_at'] = o['recorded_at'] + 'Z'
+    return jsonify(out)
 
 
 @api_bp.route('/stats/<int:device_id>', methods=['GET'])

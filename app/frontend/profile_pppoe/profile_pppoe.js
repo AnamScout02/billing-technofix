@@ -626,7 +626,11 @@ async function addProfile() {
         : (data.error || 'Gagal menyimpan'));
     }
     cancelForm();
-    toast(data.message || `Profile ${nama} berhasil ditambahkan`, 'success');
+    if (data.warning) {
+      toast(data.warning, 'warning');
+    } else {
+      toast(data.message || `Profile ${nama} berhasil ditambahkan`, 'success');
+    }
     loadProfiles();
   } catch (e) {
     toast(e.message, 'danger');

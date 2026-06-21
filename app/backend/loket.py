@@ -1,5 +1,5 @@
 """
-loket.py — TechnoFix · Blueprint Loket / Kasir + Komisi (unified kolektor page)
+loket.py — TechnoFix-Bill · Blueprint Loket / Kasir + Komisi (unified kolektor page)
 ================================================================================
 Halaman kasir terpadu untuk kolektor. Kolektor hanya melihat tagihan
 pelanggan yang ditugaskan ke mereka (field kolektor di tabel pelanggan).

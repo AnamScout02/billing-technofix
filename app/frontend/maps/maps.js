@@ -1,5 +1,5 @@
 /**
- * maps.js — TechnoFix · Peta Topologi Jaringan
+ * maps.js — TechnoFix-Bill · Peta Topologi Jaringan
  * =============================================
  * v4.0 — MapLibre GL JS rebuild
  *
@@ -10,10 +10,12 @@
  *  - Marker: HTML div via maplibregl.Marker
  *  - Tidak ada device card, tidak ada style switcher
  *
- * Klasifikasi RX Power ONU:
- *   Bagus  🟢  -20 ≤ rx ≤ -8   → marker hijau
- *   Sedang 🟡  -26 ≤ rx < -20  → marker kuning
- *   Buruk  🔴  rx > -8 atau < -26 → marker merah
+ * Klasifikasi RX Power ONU — DISAMAKAN dgn threshold backend (maps.py
+ * RX_CRIT_DBM/RX_WARN_DBM, dipakai endpoint Problems) supaya ONU yg sama
+ * tidak tampil severity berbeda di Maps vs Problems/Dashboard.
+ *   Bagus  🟢  -24 ≤ rx ≤ -8   → marker hijau
+ *   Sedang 🟡  -27 ≤ rx < -24  → marker kuning
+ *   Buruk  🔴  rx > -8 atau < -27 → marker merah
  */
 
 'use strict';
@@ -27,8 +29,8 @@ const MAP_ZOOM_INIT = 15;        /* ≈ 1 km view default */
 const API_ENDPOINT  = '/api/maps/topology';
 
 const RX_SAT_THRESH = -8;
-const RX_WARN_OK    = -20;
-const RX_BAD_LOW    = -26;
+const RX_WARN_OK    = -24;  // konsisten dgn RX_WARN_DBM di maps.py
+const RX_BAD_LOW    = -27;  // konsisten dgn RX_CRIT_DBM di maps.py
 
 /* Palet warna terpadu — dipakai utk MARKER & KABEL (link) sekaligus,
    supaya konsisten di seluruh peta. Satu spektrum hijau→merah agar
@@ -166,8 +168,15 @@ document.addEventListener('DOMContentLoaded', () => {
         hideCard();
     });
 
-  /* Tutup card saat orientasi berubah agar tidak stuck di mode yang salah */
+  /* Tutup card saat orientasi berubah (lebar viewport berubah) — BUKAN saat
+     toolbar/address bar Chrome mobile collapse/expand, yang hanya mengubah
+     innerHeight dan ikut terpicu sesaat setelah tap marker. Tanpa pengecekan
+     lebar ini, showCard() yang baru jalan langsung ditutup lagi oleh resize
+     tersebut (gejala: backdrop hitam kedip sebentar lalu card hilang). */
+  let _lastInnerWidth = window.innerWidth;
   window.addEventListener('resize', function() {
+    if (window.innerWidth === _lastInnerWidth) return;
+    _lastInnerWidth = window.innerWidth;
     const card = document.getElementById('device-card');
     if (card && card.style.display !== 'none') hideCard();
   }, { passive: true });
@@ -515,6 +524,9 @@ function createMarker(node) {
     `width:${size}px`, `height:${size}px`,
     'display:flex', 'align-items:center', 'justify-content:center',
     'cursor:pointer',
+    /* Cegah browser/MapLibre menafsirkan tap di marker sebagai gesture
+       peta (pan/zoom) — lihat handler touchstart/touchmove di bawah. */
+    'touch-action:none',
   ].join(';');
 
   /* PRIORITAS TAMPILAN: marker OFFLINE digambar di atas marker ONLINE
@@ -592,6 +604,18 @@ function createMarker(node) {
     e.stopImmediatePropagation();
     showCard(node);
   });
+  /* touchstart/touchmove WAJIB di-stop juga (bukan cuma touchend): kalau
+     dibiarkan bubble ke canvas, DragPan/TouchZoomRotate handler MapLibre
+     menganggap tap di marker sebagai awal gesture geser/zoom peta (meski
+     jari hanya bergeser 1-2px). Akibatnya peta ikut redraw (kelihatan
+     "berkedip") dan touchend di marker batal → showCard() tidak terpanggil
+     sama sekali di HP, walau di desktop (mouse, tanpa gesture ini) normal. */
+  el.addEventListener('touchstart', function(e) {
+    e.stopPropagation();
+  }, { passive: true });
+  el.addEventListener('touchmove', function(e) {
+    e.stopPropagation();
+  }, { passive: true });
   el.addEventListener('touchend', function(e) {
     e.stopPropagation();
     e.preventDefault();          /* cegah synthetic click dari touchend */
@@ -1457,8 +1481,81 @@ function _kmlStyleId(node) {
   return node.type || 'router';
 }
 
-function exportKML() {
+const KML_TYPE_FULL_LABEL = { router:'Router (MikroTik)', olt:'OLT', odc:'ODC', odp:'ODP', onu:'Pelanggan (ONU)' };
+const KML_TYPE_ORDER = ['router', 'olt', 'odc', 'odp', 'onu'];
+
+/* Modal pilihan jenis perangkat sebelum download — supaya export tidak
+   selalu menyertakan SEMUA perangkat kalau user cuma butuh sebagian
+   (mis. cuma ODP/ODC saja untuk dokumentasi jalur fiber). */
+function openExportKmlModal() {
   const nodes = _topologyNodes.filter(function(n) { return n.lat != null && n.lng != null; });
+  if (!nodes.length) {
+    if (typeof toast === 'function') toast('Belum ada data topologi untuk diekspor', 'warning');
+    return;
+  }
+
+  const counts = {};
+  nodes.forEach(function(n) {
+    const t = n.type || 'onu';
+    counts[t] = (counts[t] || 0) + 1;
+  });
+
+  const checkboxes = KML_TYPE_ORDER.filter(function(t) { return counts[t]; }).map(function(t) {
+    return '<label style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">'
+      + '<input type="checkbox" class="kml-export-type" value="' + t + '" checked style="width:18px;height:18px;accent-color:var(--primary)" />'
+      + '<span style="flex:1;font-size:13px">' + (KML_TYPE_FULL_LABEL[t] || t) + '</span>'
+      + '<span style="color:var(--text-muted);font-size:12px">' + counts[t] + '</span>'
+      + '</label>';
+  }).join('');
+
+  const hasLinks = (window._lastLinks || []).length > 0;
+
+  openModalForm(`
+    <div class="modal">
+      <div class="hapus-icon-wrap" style="background:var(--primary-light)">
+        <span class="material-symbols-outlined hapus-icon" style="color:var(--primary)">download</span>
+      </div>
+      <div class="hapus-title">Export KML</div>
+      <div class="hapus-sub">Pilih jenis perangkat yang ingin disertakan dalam file export.</div>
+      <div style="margin-top:14px">
+        ${checkboxes}
+        ${hasLinks ? `
+        <label style="display:flex;align-items:center;gap:10px;padding:10px 0">
+          <input type="checkbox" id="kml-export-links" checked style="width:18px;height:18px;accent-color:var(--primary)" />
+          <span style="flex:1;font-size:13px">Kabel / Garis Koneksi</span>
+        </label>` : ''}
+      </div>
+      <div class="modal-actions" style="gap:8px;margin-top:18px">
+        <button class="btn" style="flex:1;justify-content:center" onclick="closeModalForm()">Batal</button>
+        <button class="btn-primary" style="flex:1;justify-content:center" onclick="confirmExportKML()">
+          <span class="material-symbols-outlined">download</span> Download KML
+        </button>
+      </div>
+    </div>`);
+}
+
+function confirmExportKML() {
+  const checked = Array.prototype.slice.call(document.querySelectorAll('.kml-export-type:checked'))
+    .map(function(el) { return el.value; });
+  if (!checked.length) {
+    if (typeof toast === 'function') toast('Pilih minimal 1 jenis perangkat', 'warning');
+    return;
+  }
+  const linksEl    = document.getElementById('kml-export-links');
+  const withLinks  = linksEl ? linksEl.checked : true;
+  closeModalForm();
+  exportKML(checked, withLinks);
+}
+
+function exportKML(selectedTypes, withLinks) {
+  const typesFilter = Array.isArray(selectedTypes) ? selectedTypes : null;
+  withLinks = withLinks !== false;
+
+  const nodes = _topologyNodes.filter(function(n) {
+    if (n.lat == null || n.lng == null) return false;
+    if (typesFilter && typesFilter.indexOf(n.type || 'onu') === -1) return false;
+    return true;
+  });
   if (!nodes.length) {
     if (typeof toast === 'function') toast('Belum ada data topologi untuk diekspor', 'warning');
     return;
@@ -1508,7 +1605,7 @@ function exportKML() {
   });
 
   /* Garis koneksi antar perangkat */
-  const linkPlacemarks = (window._lastLinks || []).map(function(lk) {
+  const linkPlacemarks = (withLinks ? (window._lastLinks || []) : []).map(function(lk) {
     const src = _topologyNodes.find(function(n) { return n.id === lk.source; });
     const tgt = _topologyNodes.find(function(n) { return n.id === lk.target; });
     if (!src || !tgt || src.lat == null || tgt.lat == null) return '';
@@ -1544,7 +1641,7 @@ function exportKML() {
     '<kml xmlns="http://www.opengis.net/kml/2.2">',
     '<Document>',
     '<name>Topologi Jaringan — ' + now + '</name>',
-    '<description>Diekspor dari TechnoFix · ' + nodes.length + ' perangkat</description>',
+    '<description>Diekspor dari TechnoFix-Bill · ' + nodes.length + ' perangkat</description>',
     styles,
     folderBlocks,
     (linkPlacemarks ? '<Folder><name>Kabel / Koneksi</name>\n' + linkPlacemarks + '\n</Folder>' : ''),
@@ -1569,7 +1666,7 @@ function mapActionToast(msg) {
 }
 
 async function mapRebootModem(pelangganId, username) {
-  if (!confirm('Reboot modem ' + username + '?\n\nSesi PPPoE aktif akan diputus, modem reconnect otomatis.')) return;
+  if (!(await tfConfirm('Reboot modem ' + username + '? Sesi PPPoE aktif akan diputus, modem reconnect otomatis.', { icon: 'restart_alt' }))) return;
   try {
     const base = (typeof API_BASE !== 'undefined') ? API_BASE : '';
     const res  = await fetch(base + '/api/pelanggan/' + pelangganId + '/reboot', {

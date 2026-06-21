@@ -229,11 +229,7 @@ async function showForm(prefill = null) {
         </div>
 
         <div class="form-group full">
-          <label class="form-label">
-            <span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;color:var(--primary)">location_on</span>
-            Titik Koordinat
-            <span style="font-size:10px;font-weight:400;color:var(--text-dim);margin-left:4px">(untuk Maps)</span>
-          </label>
+          <label class="form-label">Titik Koordinat ODC</label>
           <div class="koordinat-row">
             <input class="form-input" type="text" id="f-koordinat"
                    placeholder="-6.200000, 106.816666"
@@ -244,7 +240,6 @@ async function showForm(prefill = null) {
               Deteksi
             </button>
           </div>
-          <span class="form-hint">Format: latitude, longitude</span>
           <div class="koordinat-preview" id="koordinat-preview">
             <iframe id="koordinat-iframe" src="" loading="lazy"></iframe>
           </div>

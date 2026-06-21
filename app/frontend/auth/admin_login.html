@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Admin — TechnoFix</title>
+  <title>Admin — TechnoFix-Bill</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,0..200" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,0..200&display=block" rel="stylesheet" />
 
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -88,7 +88,7 @@
       animation: cardIn .4s cubic-bezier(.22,1,.36,1) both;
     }
 
-    /* Watermark motif "F" (identitas TechnoFix), recolor jadi abu/putih
+    /* Watermark motif "F" (identitas TechnoFix-Bill), recolor jadi abu/putih
        transparan agar menyatu dengan kartu glassmorphism gelap */
     .admin-card::before {
       content: '';
@@ -340,8 +340,8 @@
 
     <!-- Subtle brand -->
     <div class="admin-brand">
-      <img src="/app/frontend/statis/technofixlogo.png" alt="TechnoFix" style="width:28px;height:28px;object-fit:contain;border-radius:6px">
-      <span>TechnoFix</span>
+      <img src="/app/frontend/statis/technofixlogo.png" alt="TechnoFix-Bill" style="width:28px;height:28px;object-fit:contain;border-radius:6px">
+      <span>TechnoFix-Bill</span>
     </div>
 
     <!-- Header -->
@@ -394,7 +394,7 @@
       </span>
     </button>
 
-    <div class="admin-footer">Halaman ini tidak diindeks &nbsp;Â·&nbsp; TechnoFix v2.0</div>
+    <div class="admin-footer">Halaman ini tidak diindeks &nbsp;Â·&nbsp; TechnoFix-Bill v2.0</div>
   </div>
 
   <script>
@@ -511,14 +511,14 @@
             localStorage.setItem('tf_username',    data.username);
             localStorage.setItem('tf_role',        'owner');
             localStorage.setItem('tf_network_id',  '__superadmin__');
-            localStorage.setItem('tf_isp_name',    'TechnoFix Admin');
+            localStorage.setItem('tf_isp_name',    'TechnoFix-Bill Admin');
             localStorage.setItem('tf_permissions', JSON.stringify([
               'keuangan','maps','olt','mikrotik','pelanggan','perangkat'
             ]));
             localStorage.setItem('technofix_user', JSON.stringify({
               id: data.username, username: data.username,
               role: 'owner', network_id: '__superadmin__',
-              isp_name: 'TechnoFix Admin',
+              isp_name: 'TechnoFix-Bill Admin',
             }));
 
             setTimeout(() => window.location.replace(DASHBOARD), 800);

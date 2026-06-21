@@ -58,7 +58,7 @@ function stateRow(msg) { return `<tr><td colspan="6"><div class="state-box"><p c
 
 async function blastReminder() {
   const periode = document.getElementById('wa-periode').value || periodeNow();
-  if (!confirm(`Kirim pengingat WhatsApp ke semua pelanggan dengan tagihan BELUM LUNAS periode ${periode}?`)) return;
+  if (!(await tfConfirm(`Kirim pengingat WhatsApp ke semua pelanggan dengan tagihan BELUM LUNAS periode ${periode}?`, { icon: 'campaign' }))) return;
   try {
     const r = await fetch(`${WA_API}/reminder`, { method: 'POST', credentials: 'include', headers: _jhdr(), body: JSON.stringify({ periode }) });
     const d = await r.json();
@@ -76,6 +76,8 @@ function openConfig() {
   document.getElementById('cfg-tpl').value = _cfg.template || '';
   document.getElementById('cfg-enabled').checked = !!_cfg.enabled;
   document.getElementById('cfg-auto-enabled').checked = !!_cfg.auto_enabled;
+  document.getElementById('cfg-alert-enabled').checked = !!_cfg.alert_enabled;
+  document.getElementById('cfg-alert-hp').value = _cfg.alert_hp || '';
   show('cfg');
 }
 function closeConfig() { hide('cfg'); }
@@ -86,6 +88,8 @@ async function saveConfig() {
     enabled: document.getElementById('cfg-enabled').checked,
     auto_enabled: document.getElementById('cfg-auto-enabled').checked,
     template: document.getElementById('cfg-tpl').value.trim(),
+    alert_enabled: document.getElementById('cfg-alert-enabled').checked,
+    alert_hp: document.getElementById('cfg-alert-hp').value.trim(),
   };
   const tk = document.getElementById('cfg-token').value; if (tk) body.token = tk;
   const btn = document.getElementById('cfg-save'); btn.disabled = true;

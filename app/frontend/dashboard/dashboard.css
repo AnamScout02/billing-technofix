@@ -1,7 +1,7 @@
 
-/* ══════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    STAT CARD PROGRESS BAR
-══════════════════════════════════════════════════════════ */
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .stat-prog {
   position: absolute;
   bottom: 0; left: 0; right: 0;
@@ -22,11 +22,11 @@
   box-shadow: 0 0 8px rgba(255,150,150,.3);
 }
 
-/* ── Page fade-in ── */
+/* â”€â”€ Page fade-in â”€â”€ */
 @keyframes pageFadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
 .sa-main, main.sa-main, .page-content { animation: pageFadeIn .35s ease both; }
 
-/* ── Table row left accent ── */
+/* â”€â”€ Table row left accent â”€â”€ */
 .dash-tbl tbody tr:hover td:first-child,
 .data-table tbody tr:hover td:first-child {
   border-left: 3px solid var(--primary);
@@ -34,22 +34,22 @@
 }
 
 /* ============================================================
-   dashboard.css — TechnoFix · Dashboard  v4.0
-   ⚠  Load SETELAH global.css
-   ─────────────────────────────────────────────────────────
+   dashboard.css â€” TechnoFix Â· Dashboard  v4.0
+   âš   Load SETELAH global.css
+   â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    File ini HANYA mengatur style eksklusif dashboard.
    Semua token warna, font, stat-card gradient, g-select,
-   modal, badge, section-head navy → dari global.css v2.0.
+   modal, badge, section-head navy â†’ dari global.css v2.0.
    Tidak ada duplikasi class global di sini.
    ============================================================ */
 
 
-/* ══════════════════════════════════════════════════════════
-   1. DEVICE BAR — komponen .dash-device-bar* kini di global.css
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   1. DEVICE BAR â€” komponen .dash-device-bar* kini di global.css
    (dipakai bersama oleh dashboard, pelanggan, profile_pppoe)
-══════════════════════════════════════════════════════════ */
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
-/* Pengecualian: dropdown pilih interface (bw-head) — panel pilihan melayang
+/* Pengecualian: dropdown pilih interface (bw-head) â€” panel pilihan melayang
    di atas konten (overlay), TIDAK mendorong layout seperti .tf-pop bawaan
    (position:static) di global.css. Card jadi tetap pendek saat dropdown ini
    dibuka. (Pengecualian untuk .dash-device-bar sendiri sudah jadi rule
@@ -67,11 +67,11 @@
 }
 
 
-/* ══════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    3. STAT CARD OVERRIDE
    stat-num--sm: angka panjang (rupiah) tidak overflow
-   stat-trend di card gradient → putih
-══════════════════════════════════════════════════════════ */
+   stat-trend di card gradient â†’ putih
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .stat-num--sm {
   font-size: 17px !important;
   letter-spacing: -.01em !important;
@@ -89,7 +89,7 @@
   color: rgba(255,255,255,.92) !important;
 }
 
-/* Trend/badge di samping angka+label, bukan di bawah — card lebih ramping */
+/* Trend/badge di samping angka+label, bukan di bawah â€” card lebih ramping */
 .stat-row-4 .stat-card .stat-body {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -102,14 +102,17 @@
 .stat-row-4 .stat-card .stat-trend { grid-area: trend; margin-top: 0; }
 
 
-/* ══════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    4. g-select DI HEADER SECTION NAVY (bandwidth controls)
    Override agar kontras di latar navy
-══════════════════════════════════════════════════════════ */
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .dash-g-select-navy {
   background-color: rgba(255,255,255,.14) !important;
   border: 1px solid rgba(255,255,255,.28) !important;
   color: #fff !important;
+  /* Padding kanan default (36px) disediakan utk chevron — terlalu lega
+     utk pill kecil ini, persempit supaya box kelihatan benar2 mepet edge. */
+  padding-right: 26px !important;
 }
 .dash-g-select-navy option { background: #003f88; color: #fff; }
 .dash-g-select-navy:focus  {
@@ -120,9 +123,9 @@
 .dash-g-icon-navy { color: rgba(255,255,255,.75) !important; }
 
 
-/* ══════════════════════════════════════════════════════════
-   5. BANDWIDTH PILL — di header section navy
-══════════════════════════════════════════════════════════ */
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   5. BANDWIDTH PILL â€” di header section navy
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .dash-bw-controls {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
 }
@@ -142,9 +145,9 @@
 }
 
 
-/* ══════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    6. TOMBOL AKSI DI HEADER SECTION NAVY
-══════════════════════════════════════════════════════════ */
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .dash-head-btn {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 5px 12px; border-radius: var(--r-sm);
@@ -164,9 +167,9 @@
 }
 
 
-/* ══════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    7. CHART WRAP
-══════════════════════════════════════════════════════════ */
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .dash-chart-wrap {
   position: relative;
   padding: 16px 20px;
@@ -188,9 +191,9 @@
 .dash-chart-empty.hidden { display: none !important; }
 
 
-/* ══════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    8. GRID 2 KOLOM
-══════════════════════════════════════════════════════════ */
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .dash-grid-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -201,9 +204,9 @@
 .dash-grid-2 .dash-section { margin-bottom: 0; }
 
 
-/* ══════════════════════════════════════════════════════════
-   9. OFFLINE LIST — identik pola info-row global
-══════════════════════════════════════════════════════════ */
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   9. OFFLINE LIST â€” identik pola info-row global
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .dash-offline-list {
   display: flex; flex-direction: column;
   height: 290px; overflow-y: auto;
@@ -213,7 +216,7 @@
 .dash-offline-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 .dash-offline-list .dash-empty-state { flex: 1; }
 
-/* Zebra strip — identik global.css .info-row */
+/* Zebra strip â€” identik global.css .info-row */
 .dash-offline-item:nth-child(odd)  { background: #fff; }
 .dash-offline-item:nth-child(even) { background: #f0f5ff; }
 
@@ -274,9 +277,9 @@
 .dash-offline-more:hover { background: var(--primary-light); }
 
 
-/* ══════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    10. ACTIVITY LOG
-══════════════════════════════════════════════════════════ */
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .dash-log-list {
   display: flex; flex-direction: column;
   max-height: 300px; overflow-y: auto;
@@ -313,9 +316,9 @@
 .dash-log-time { font-size: 10.5px; color: var(--text-dim); white-space: nowrap; }
 
 
-/* ══════════════════════════════════════════════════════════
-   11. EMPTY STATE — seragam pola pelanggan
-══════════════════════════════════════════════════════════ */
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   11. EMPTY STATE â€” seragam pola pelanggan
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .dash-empty-state {
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
@@ -328,10 +331,10 @@
 .dash-empty-state.ok    .material-symbols-outlined { opacity: 1; color: var(--green); }
 
 
-/* ══════════════════════════════════════════════════════════
-   12. TABEL PROFIL PPPoE — pakai dash-section-table dari global
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   12. TABEL PROFIL PPPoE â€” pakai dash-section-table dari global
    Tambahan: row zebra sesuai global, badge profil & pakai
-══════════════════════════════════════════════════════════ */
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 /* Semua kolom rata tengah (header & isi) */
 .dash-section-table th,
 .dash-section-table td {
@@ -369,9 +372,9 @@
 .dash-profile-pakai .material-symbols-outlined { font-size: 13px; color: var(--text-dim); }
 
 
-/* ══════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    13. RESPONSIVE
-══════════════════════════════════════════════════════════ */
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 @media (max-width: 900px) {
   .dash-grid-2 { grid-template-columns: 1fr; }
   .dash-grid-2 .dash-section { margin-bottom: 0; }
@@ -384,7 +387,7 @@
   .dash-offline-more  { padding: 9px 14px; }
   .dash-log-item      { padding: 9px 14px; }
 
-  /* Section head: judul kiri, aksi/badge/pill kanan sejajar judul — bukan baris baru */
+  /* Section head: judul kiri, aksi/badge/pill kanan sejajar judul â€” bukan baris baru */
   .dash-section-head {
     display: grid;
     grid-template-columns: 1fr auto;
@@ -409,9 +412,9 @@
   .stat-num--sm { font-size: 15px !important; }
 }
 
-/* ══════════════════════════════════════════════════════════
-   BANDWIDTH REALTIME — Opsi B redesign
-══════════════════════════════════════════════════════════ */
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   BANDWIDTH REALTIME â€” Opsi B redesign
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .dash-bw-section {
   padding: 0;
   overflow: hidden;
@@ -424,13 +427,14 @@
 }
 .dash-bw-head-left { min-width: 0; }
 .dash-bw-title {
-  font-size: 13px; font-weight: 700; color: #fff;
+  font-size: var(--fs-title-sm); font-weight: 700; color: #fff;
   display: flex; align-items: center; gap: 6px; margin: 0;
 }
 .dash-bw-title .material-symbols-outlined { font-size: 16px; opacity: .8; }
 .dash-bw-sub { font-size: 10px; color: rgba(255,255,255,.45); margin: 2px 0 0; }
+.dash-bw-head-left .dash-bw-live { margin-top: 4px; }
 
-/* Sudah dipilih lewat dropdown di atas — tidak perlu diulang di sini */
+/* Sudah dipilih lewat dropdown di atas â€” tidak perlu diulang di sini */
 #bw-iface-label, #resource-device-label { display: none; }
 .dash-bw-head-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .dash-bw-live {
@@ -443,7 +447,7 @@
 }
 @keyframes bwPulse { 0%,100%{opacity:1} 50%{opacity:.3} }
 
-/* Metric cards — stacked vertikal, tiap kartu horizontal (info kiri + sparkline kanan) */
+/* Metric cards â€” stacked vertikal, tiap kartu horizontal (info kiri + sparkline kanan) */
 .dash-bw-metrics {
   display: flex;
   flex-direction: column;
@@ -490,12 +494,12 @@
 .dash-bw-metric-sub.up { color: var(--green); }
 .dash-bw-metric-sub.dn { color: var(--red); }
 
-/* Chart utama BW — tinggi responsif */
+/* Chart utama BW â€” tinggi responsif */
 .dash-bw-main-chart { height: 180px; }
 @media (max-width: 768px) { .dash-bw-main-chart { height: 150px; } }
 @media (max-width: 480px) { .dash-bw-main-chart { height: 120px; } }
 
-/* Background dotted grid — kesan "data canvas" teknis */
+/* Background dotted grid â€” kesan "data canvas" teknis */
 .dash-bw-main-chart {
   background-image: radial-gradient(circle, #eef2f8 1px, transparent 1px);
   background-size: 18px 18px;
@@ -505,7 +509,7 @@
   filter: drop-shadow(0 0 6px rgba(55,138,221,.18));
 }
 
-/* Sparkline — mengisi sisa ruang (kanan di desktop, bawah di mobile) */
+/* Sparkline â€” mengisi sisa ruang (kanan di desktop, bawah di mobile) */
 .dash-bw-sparkwrap {
   flex: 1;
   height: 54px;
@@ -555,12 +559,12 @@
 }
 
 
-/* ══════════════════════════════════════════════════════════
-   RESOURCE MIKROTIK — Metric Cards + Sparkline + Stat Strip
-══════════════════════════════════════════════════════════ */
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   RESOURCE MIKROTIK â€” Metric Cards + Sparkline + Stat Strip
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .dash-res-section { padding: 0; overflow: hidden; }
 
-/* Stat strip auto-fit — menyesuaikan saat suhu disembunyikan */
+/* Stat strip auto-fit â€” menyesuaikan saat suhu disembunyikan */
 .dash-res-stats {
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   border-bottom: none;
@@ -624,7 +628,7 @@
   height: 7px; border-radius: 2px; background: var(--border);
   margin: 7px 0 4px; overflow: hidden;
 }
-/* Bar dasar — CPU & Suhu: segmen ala indikator baterai/sinyal */
+/* Bar dasar â€” CPU & Suhu: segmen ala indikator baterai/sinyal */
 .dash-res-bar {
   height: 100%; width: 0%;
   background-color: transparent;
@@ -645,7 +649,7 @@
   border-radius: 2px;
 }
 
-/* Storage: donut/ring gauge — pengganti ikon + bar */
+/* Storage: donut/ring gauge â€” pengganti ikon + bar */
 .dash-res-donut {
   width: 48px; height: 48px; flex-shrink: 0;
   border-radius: 50%;
@@ -671,7 +675,7 @@
 .dash-res-donut.warn   { color: var(--amber); }
 .dash-res-donut.danger { color: var(--red); }
 
-/* Suhu Board: thermometer vertikal — pengganti ikon + bar */
+/* Suhu Board: thermometer vertikal â€” pengganti ikon + bar */
 .dash-res-therm {
   width: 14px; height: 34px; flex-shrink: 0;
   border-radius: 7px; background: var(--border);
@@ -687,7 +691,7 @@
 .dash-res-therm-fill.warn   { background-color: var(--amber); }
 .dash-res-therm-fill.danger { background-color: var(--red); }
 
-/* Uptime: bar "marquee" berjalan — selalu penuh, melambangkan proses berjalan */
+/* Uptime: bar "marquee" berjalan â€” selalu penuh, melambangkan proses berjalan */
 #res-uptime-bar {
   width: 100%;
   background-image: repeating-linear-gradient(
@@ -701,7 +705,7 @@
   to   { background-position: -28px 0; }
 }
 
-/* Warna khas per resource saat status normal — biar tiap bar beda */
+/* Warna khas per resource saat status normal â€” biar tiap bar beda */
 #res-cpu-bar.ok    { color: var(--primary); }  /* biru */
 #res-mem-bar.ok    { color: #7c3aed; }         /* ungu */
 #res-hdd-donut.ok  { color: #db2777; }         /* pink */
@@ -726,7 +730,7 @@
 @media (max-width: 768px) {
   .dash-res-grid { grid-template-columns: repeat(2, 1fr); }
 
-  /* BW base responsive — header grid 2 kolom: judul kiri, live/dropdown kanan sejajar */
+  /* BW base responsive â€” header grid 2 kolom: judul kiri, live/dropdown kanan sejajar */
   .dash-bw-head {
     display: grid;
     grid-template-columns: 1fr auto;
@@ -740,6 +744,16 @@
   .dash-bw-head-right .dash-g-select-navy { width: auto; }
   .dash-bw-metric-info { min-width: 130px; max-width: 160px; padding-right: 12px; }
   .dash-bw-stats   { grid-template-columns: repeat(3,1fr); }
+
+  /* Bandwidth Realtime: head-right sekarang cuma berisi dropdown sendirian
+     (Live sudah pindah ke head-left) — grid 2-baris di atas tidak perlu lagi
+     di sini, balik ke flex space-between biasa spy dropdown beanr2 mepet
+     kanan (sama pola dgn .dash-section-head di card lain). */
+  .dash-bw-section .dash-bw-head {
+    display: flex; grid-template-columns: none; grid-template-areas: none;
+    align-items: center; justify-content: space-between;
+  }
+  .dash-bw-section .dash-bw-head-right { width: auto; align-self: auto; }
 }
 
 /* Mobile 480px: 2 kolom */
@@ -763,10 +777,10 @@
 }
 
 
-/* ══════════════════════════════════════════════════════════
-   BANDWIDTH SECTION — selaras Resource MikroTik
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   BANDWIDTH SECTION â€” selaras Resource MikroTik
    Warna menggunakan --bw-rx / --bw-tx dari global.css
-══════════════════════════════════════════════════════════ */
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
 /* Metric: 2-kolom sisi sisi (Download | Upload) */
 .dash-bw-section .dash-bw-metrics {
@@ -775,7 +789,7 @@
   border-bottom: 1px solid var(--border);
 }
 
-/* Layout kolom dalam tiap metric: label → angka → trend → sparkline */
+/* Layout kolom dalam tiap metric: label â†’ angka â†’ trend â†’ sparkline */
 .dash-bw-section .dash-bw-metric {
   flex-direction: column;
   align-items: flex-start;
@@ -820,7 +834,7 @@
   letter-spacing: -.01em;
 }
 
-/* Warna angka — biru Download, teal Upload (selaras CPU & Memory Resource) */
+/* Warna angka â€” biru Download, teal Upload (selaras CPU & Memory Resource) */
 .dash-bw-section .dash-bw-metric:first-child .bw-val-num { color: var(--bw-rx); }
 .dash-bw-section .dash-bw-metric--right .bw-val-num       { color: var(--bw-tx); }
 
@@ -842,7 +856,7 @@
   min-width: 0;
 }
 
-/* ── Animasi Profesional ── */
+/* â”€â”€ Animasi Profesional â”€â”€ */
 
 /* 1. Entrance: fade-in + slide-up */
 @keyframes bwEnter {
@@ -869,12 +883,12 @@
   100% { box-shadow: 0 0 0 0   rgba(74,222,128,.0);  opacity: 1; }
 }
 
-/* ── Responsive BW Section ─────────────────────────────
+/* â”€â”€ Responsive BW Section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    Di-scope ke .dash-bw-section agar tidak mempengaruhi
    Resource section yang berbagi class yang sama.
-─────────────────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
-/* Tablet: 2-kolom → 1 kolom */
+/* Tablet: 2-kolom â†’ 1 kolom */
 @media (max-width: 768px) {
   .dash-bw-section .dash-bw-metrics      { grid-template-columns: 1fr !important; }
   .dash-bw-section .dash-bw-metric--right {
@@ -919,9 +933,9 @@
 }
 
 
-/* ══════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    LIVE TICKER
-══════════════════════════════════════════════════════════ */
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .dash-ticker-live {
   display: inline-flex; align-items: center; gap: 5px;
   font-size: 11px; font-weight: 700; color: var(--bw-live-dot);
@@ -942,6 +956,10 @@
   border-bottom: 1px solid var(--border);
   animation: tickerIn .3s ease;
 }
+/* Zebra-stripe sama dgn .dash-log-item (Aktivitas Terbaru) biar konsisten */
+.dash-ticker-item:nth-child(odd)  { background: #fff; }
+.dash-ticker-item:nth-child(even) { background: #f0f5ff; }
+.dash-ticker-item:hover           { background: #e0eaff !important; }
 .dash-ticker-item:last-child { border-bottom: none; }
 @keyframes tickerIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
 
@@ -964,8 +982,8 @@
 .dash-ticker-time {
   font-size: 10.5px; color: var(--text-dim); white-space: nowrap; flex-shrink: 0;
 }
-/* ── Freeze kolom profile PPPoE table ── */
-/* Batasi tinggi ~5-6 baris, sisanya scroll vertikal — header ikut sticky
+/* â”€â”€ Freeze kolom profile PPPoE table â”€â”€ */
+/* Batasi tinggi ~5-6 baris, sisanya scroll vertikal â€” header ikut sticky
    supaya tetap terlihat saat scroll (kombinasi dgn freeze kolom di bawah). */
 #profile-table-wrap {
   overflow-x: auto; overflow-y: auto;
@@ -991,3 +1009,22 @@
   box-shadow: 2px 0 6px rgba(0,0,0,.05);
 }
 .dash-section-table thead .dash-sticky-1 { background: var(--surface); z-index: 6; }
+
+/* Riwayat Bandwidth (WAN) sekarang pakai .dash-section/.dash-section-head
+   bawaan (sama dgn section dashboard lain) — tidak perlu CSS custom lagi.
+   .dash-section-head sudah flex-wrap & navy header out of the box. */
+
+/* Chart riwayat dipersempit padding kiri-kanannya supaya garis data lebih
+   mendekati tepi card (chart.js sendiri sudah reservasi ruang label
+   sumbu-Y, jadi padding wrapper besar bikin chart kelihatan "tidak full"). */
+#card-bw-history .dash-chart-wrap { padding: 14px 8px 6px; }
+
+/* Tombol range — konteks navy (sama pola dgn detail_pelanggan.css) */
+.dp-range-btn {
+  font-size: 11.5px; font-weight: 600; font-family: var(--sans);
+  color: rgba(255,255,255,.65); background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.15); border-radius: 999px;
+  padding: 4px 12px; cursor: pointer; transition: background .15s, color .15s;
+}
+.dp-range-btn:hover  { background: rgba(255,255,255,.16); color: #fff; }
+.dp-range-btn.active { background: #fff; color: var(--primary); border-color: #fff; }

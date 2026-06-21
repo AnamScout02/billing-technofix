@@ -1,7 +1,7 @@
 
 
 """
-odc.py — TechnoFix · Blueprint ODC
+odc.py — TechnoFix-Bill · Blueprint ODC
 =====================================
 CRUD endpoint untuk ODC (Optical Distribution Cabinet).
 

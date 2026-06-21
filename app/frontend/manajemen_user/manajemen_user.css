@@ -12,10 +12,10 @@
   display: flex; align-items: center;
   background: var(--bg); border: 1.5px solid var(--border);
   border-radius: var(--r-md); padding: 0 12px;
-  gap: 8px; flex: 1; min-width: 200px; max-width: 340px;
+  gap: 8px; flex: 1; min-width: 200px;
   transition: border-color .15s, box-shadow .15s;
 }
-.search-wrap:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
+.search-wrap:focus-within { border-color: var(--primary); }
 .search-wrap .material-symbols-outlined { font-size: 18px; color: var(--text-dim); flex-shrink: 0; }
 .search-wrap input {
   border: none; background: none; outline: none; height: 38px; width: 100%;
@@ -24,17 +24,15 @@
 .search-wrap input::placeholder { color: var(--text-dim); }
 
 .filter-select {
-  height: 38px; padding: 0 28px 0 12px;
+  height: 38px; padding: 0 12px;
   border: 1.5px solid var(--border); border-radius: var(--r-md);
   background: var(--bg); color: var(--text-muted);
   font-size: 12.5px; font-weight: 600; font-family: var(--sans);
   cursor: pointer; outline: none; appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238a96a8' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: right 9px center;
   transition: border-color .15s, box-shadow .15s;
 }
 .filter-select:hover { border-color: var(--border-2, #cbd5e1); }
-.filter-select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
+.filter-select:focus { border-color: var(--primary); }
 
 .filter-group { display: flex; gap: 8px; }
 

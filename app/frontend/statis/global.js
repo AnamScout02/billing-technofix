@@ -1,5 +1,5 @@
 /* ============================================================
-   global.js — TechnoFix · Fungsi bersama semua halaman
+   global.js — TechnoFix-Bill · Fungsi bersama semua halaman
    Load SEBELUM JS halaman spesifik.
 
    Isi:
@@ -13,7 +13,7 @@
    8.  toggleProfileMenu()
    9.  togglePwd()
    10. initBottomNav()        — tandai item aktif saat membuka sheet
-   11. initHeaderCanvas()  — animasi partikel jaringan di header
+   11. initHeaderFx()      — efek visual header (CSS-only, ringan)
    12. initDateBadge()
    13. openPerangkatSheet() / closePerangkatSheet()
    14. parseRxTx()          — parsing nilai RX/TX dari MikroTik/OLT
@@ -32,6 +32,46 @@
 if ('scrollRestoration' in history) {
   history.scrollRestoration = 'manual';
 }
+
+/* ══════════════════════════════════════════════════════════
+   0b. Cegah zoom di desktop — Ctrl/Cmd+scroll & Ctrl/Cmd +/-/0.
+       Pelengkap viewport meta (maximum-scale=1.0) yang cuma
+       efektif untuk pinch-zoom mobile, tidak menyentuh
+       shortcut zoom browser desktop.
+══════════════════════════════════════════════════════════ */
+window.addEventListener('wheel', function (e) {
+  if (e.ctrlKey || e.metaKey) e.preventDefault();
+}, { passive: false });
+
+window.addEventListener('keydown', function (e) {
+  if ((e.ctrlKey || e.metaKey) && ['+', '-', '=', '0'].indexOf(e.key) !== -1) {
+    e.preventDefault();
+  }
+});
+
+/* Deteksi zoom yang lolos (mis. lewat menu browser View > Zoom, bukan
+   shortcut keyboard/scroll) — bandingkan devicePixelRatio terhadap nilai
+   awal saat halaman dimuat. Browser TIDAK mengizinkan halaman web
+   mengunci/mengubah level zoom-nya sendiri, jadi ini cuma peringatan,
+   bukan pemaksaan. Toast di-debounce 2 detik supaya tidak spam saat
+   browser masih proses transisi zoom. */
+var _initialDPR  = window.devicePixelRatio;
+var _zoomWarned  = false;
+var _zoomWarnTimer = null;
+window.addEventListener('resize', function () {
+  clearTimeout(_zoomWarnTimer);
+  _zoomWarnTimer = setTimeout(function () {
+    var offZoom = Math.abs(window.devicePixelRatio - _initialDPR) > 0.02;
+    if (offZoom && !_zoomWarned) {
+      _zoomWarned = true;
+      if (typeof toast === 'function') {
+        toast('Browser sedang di-zoom — kembalikan ke 100% (Ctrl+0) untuk tampilan normal.', 'warning', 5000);
+      }
+    } else if (!offZoom) {
+      _zoomWarned = false;
+    }
+  }, 2000);
+});
 
 
 /* ══════════════════════════════════════════════════════════
@@ -232,334 +272,35 @@ function initBottomNav() {
       }
     });
   });
+
+  /* Garis aksen mengalir di tepi atas bottom-nav — sama pola dgn
+     .header-accent (lihat initHeaderFx), reuse keyframe headerAccentSlide. */
+  const bnav = document.querySelector('.bottom-nav');
+  if (bnav && !bnav.querySelector('.bottom-nav-accent')) {
+    const accent = document.createElement('div');
+    accent.className = 'bottom-nav-accent';
+    bnav.appendChild(accent);
+  }
 }
 
 
 /* ══════════════════════════════════════════════════════════
-   11. initHeaderCanvas — Network Topology Animation
-   Node jaringan + flowing edges + paket data + trail
+   11. initHeaderFx — efek visual header (CSS-only, ringan)
+   Sisipkan .header-shine (kilau) & .header-accent (garis aksen)
+   sekali saat halaman dimuat. Animasi 100% via @keyframes CSS,
+   tanpa loop JS/canvas.
 ══════════════════════════════════════════════════════════ */
-function initHeaderCanvas() {
+function initHeaderFx() {
   const header = document.querySelector('.header');
-  if (!header) return;
+  if (header && !header.querySelector('.header-shine')) {
+    const shine = document.createElement('div');
+    shine.className = 'header-shine';
+    header.appendChild(shine);
 
-  let canvas = header.querySelector('.header-canvas');
-  if (!canvas) {
-    canvas = document.createElement('canvas');
-    canvas.className = 'header-canvas';
-    header.insertBefore(canvas, header.firstChild);
+    const accent = document.createElement('div');
+    accent.className = 'header-accent';
+    header.appendChild(accent);
   }
-
-  const ctx = canvas.getContext('2d');
-  let W, H, CDIST;
-
-  function resize() {
-    W = canvas.width  = header.offsetWidth;
-    H = canvas.height = header.offsetHeight;
-    CDIST = Math.max(110, Math.min(230, W * 0.17));
-  }
-  resize();
-  window.addEventListener('resize', resize);
-
-  /* ── Node: 5 core (router utama) + 11 edge (switch/endpoint) ── */
-  const N_CORE = 5, N_TOTAL = 16;
-  const nodes = Array.from({ length: N_TOTAL }, function (_, i) {
-    const core = i < N_CORE;
-    return {
-      x:  0.04 + Math.random() * 0.92,
-      y:  0.10 + Math.random() * 0.80,
-      vx: (Math.random() - 0.5) * (core ? 0.00006 : 0.00010),
-      vy: (Math.random() - 0.5) * (core ? 0.00012 : 0.00017),
-      r:  core ? (4.5 + Math.random() * 2.0) : (2.0 + Math.random() * 1.5),
-      a0: core ? 0.92 : (0.50 + Math.random() * 0.35),
-      ph: Math.random() * Math.PI * 2,
-      rph: Math.random() * Math.PI * 2, /* ring pulse phase */
-      core: core,
-      flash: 0,
-    };
-  });
-
-  /* ── Activity map: fade saat tidak ada paket ── */
-  const edgeAct = {};
-
-  /* ── Paket data ── */
-  const pkts = [];
-
-  function spawnPkt() {
-    if (pkts.length >= 10) return;
-    const edges = [];
-    for (let i = 0; i < nodes.length; i++) {
-      for (let j = i + 1; j < nodes.length; j++) {
-        const dx = (nodes[i].x - nodes[j].x) * W;
-        const dy = (nodes[i].y - nodes[j].y) * H;
-        if (Math.sqrt(dx * dx + dy * dy) < CDIST) edges.push([i, j]);
-      }
-    }
-    if (!edges.length) return;
-    const e = edges[Math.floor(Math.random() * edges.length)];
-    const from = Math.random() < 0.5 ? e[0] : e[1];
-    const to   = from === e[0] ? e[1] : e[0];
-    pkts.push({ from: from, to: to, t: 0, spd: 0.007 + Math.random() * 0.011, r: 1.8 + Math.random() * 1.2 });
-  }
-
-  spawnPkt();
-  setInterval(spawnPkt, 360);
-
-  /* ── Aurora backdrop ── */
-  const orbs = [0.16, 0.51, 0.83].map(function (xi, i) {
-    return {
-      x: xi, y: 0.5,
-      vx: (Math.random() - 0.5) * 0.00009,
-      vy: (Math.random() - 0.5) * 0.00012,
-      r:  0.28 + Math.random() * 0.14,
-      hue: [210, 198, 222][i],
-      ph: Math.random() * Math.PI * 2,
-    };
-  });
-
-  /* ── Render loop ── */
-  function draw(ts) {
-    const time = (ts || 0) / 1000;
-    ctx.clearRect(0, 0, W, H);
-
-    /* — Aurora backdrop — */
-    orbs.forEach(function (o) {
-      o.x += o.vx; o.y += o.vy; o.ph += 0.005;
-      o.x = ((o.x % 1) + 1) % 1;
-      if (o.y <= 0.05 || o.y >= 0.95) o.vy = -o.vy;
-      o.y = Math.max(0.05, Math.min(0.95, o.y));
-      const a  = 0.018 + Math.sin(o.ph * 0.6) * 0.006;
-      const rx = o.x * W, ry = o.y * H, rr = o.r * Math.min(W, H);
-      const g  = ctx.createRadialGradient(rx, ry, 0, rx, ry, rr);
-      g.addColorStop(0, 'hsla(' + o.hue + ',80%,72%,' + (a * 3.0) + ')');
-      g.addColorStop(0.55, 'hsla(' + o.hue + ',68%,60%,' + a + ')');
-      g.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.beginPath(); ctx.arc(rx, ry, rr, 0, Math.PI * 2);
-      ctx.fillStyle = g; ctx.fill();
-    });
-
-    /* — Update edge activity: decay semua, mark yang ada paket — */
-    for (const k in edgeAct) edgeAct[k] = Math.max(0, edgeAct[k] - 0.055);
-    pkts.forEach(function (pk) {
-      const k = Math.min(pk.from, pk.to) + ',' + Math.max(pk.from, pk.to);
-      edgeAct[k] = 1.0;
-    });
-
-    /* — Edges — */
-    for (let i = 0; i < nodes.length; i++) {
-      for (let j = i + 1; j < nodes.length; j++) {
-        const ni = nodes[i], nj = nodes[j];
-        const dx = (ni.x - nj.x) * W, dy = (ni.y - nj.y) * H;
-        const d  = Math.sqrt(dx * dx + dy * dy);
-        if (d >= CDIST) continue;
-
-        const fade = Math.pow(1 - d / CDIST, 1.5);
-        const act  = edgeAct[i + ',' + j] || 0;
-
-        /* Garis dasar */
-        ctx.beginPath();
-        ctx.moveTo(ni.x * W, ni.y * H);
-        ctx.lineTo(nj.x * W, nj.y * H);
-        ctx.strokeStyle = act > 0.05
-          ? 'rgba(96,208,255,' + (fade * (0.14 + act * 0.20)) + ')'
-          : 'rgba(118,186,255,' + (fade * 0.13) + ')';
-        ctx.lineWidth = (ni.core || nj.core) ? 0.90 : 0.60;
-        ctx.setLineDash([]);
-        ctx.stroke();
-
-        /* Flowing dashes saat edge aktif — memberi kesan arus data */
-        if (act > 0.15) {
-          ctx.beginPath();
-          ctx.moveTo(ni.x * W, ni.y * H);
-          ctx.lineTo(nj.x * W, nj.y * H);
-          ctx.strokeStyle = 'rgba(180,232,255,' + (act * 0.28) + ')';
-          ctx.lineWidth   = 1.0;
-          ctx.setLineDash([4, 8]);
-          ctx.lineDashOffset = -(time * 42);
-          ctx.stroke();
-          ctx.setLineDash([]);
-        }
-      }
-    }
-    ctx.setLineDash([]);
-
-    /* — Paket data + trail — */
-    for (let i = pkts.length - 1; i >= 0; i--) {
-      const pk = pkts[i];
-      pk.t += pk.spd;
-      if (pk.t >= 1) { nodes[pk.to].flash = 1.0; pkts.splice(i, 1); continue; }
-
-      const fr = nodes[pk.from], to = nodes[pk.to];
-      const edDx = (fr.x - to.x) * W, edDy = (fr.y - to.y) * H;
-      if (Math.sqrt(edDx * edDx + edDy * edDy) > CDIST * 1.1) { pkts.splice(i, 1); continue; }
-
-      const px = (fr.x + (to.x - fr.x) * pk.t) * W;
-      const py = (fr.y + (to.y - fr.y) * pk.t) * H;
-      const ea = Math.sin(pk.t * Math.PI); /* fade in/out */
-
-      /* Trail — 3 titik memudar di belakang */
-      for (let ti = 1; ti <= 3; ti++) {
-        const tt = Math.max(0, pk.t - ti * 0.045);
-        if (tt <= 0) continue;
-        const trx = (fr.x + (to.x - fr.x) * tt) * W;
-        const try_ = (fr.y + (to.y - fr.y) * tt) * H;
-        ctx.beginPath();
-        ctx.arc(trx, try_, pk.r * (0.55 - ti * 0.13), 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(155,228,255,' + (ea * 0.28 / ti) + ')';
-        ctx.fill();
-      }
-
-      /* Glow aura */
-      const g = ctx.createRadialGradient(px, py, 0, px, py, pk.r * 5.2);
-      g.addColorStop(0, 'rgba(138,214,255,' + (ea * 0.62) + ')');
-      g.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.beginPath(); ctx.arc(px, py, pk.r * 5.2, 0, Math.PI * 2);
-      ctx.fillStyle = g; ctx.fill();
-
-      /* Titik inti */
-      ctx.beginPath(); ctx.arc(px, py, pk.r, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(218,244,255,' + (ea * 0.94) + ')';
-      ctx.fill();
-    }
-
-    /* — Node jaringan — */
-    nodes.forEach(function (n) {
-      n.x += n.vx; n.y += n.vy; n.ph += 0.013; n.rph += 0.019;
-      if (n.x < 0.04) { n.x = 0.04; n.vx =  Math.abs(n.vx); }
-      if (n.x > 0.96) { n.x = 0.96; n.vx = -Math.abs(n.vx); }
-      if (n.y < 0.08) { n.y = 0.08; n.vy =  Math.abs(n.vy); }
-      if (n.y > 0.92) { n.y = 0.92; n.vy = -Math.abs(n.vy); }
-      if (n.flash > 0) n.flash = Math.max(0, n.flash - 0.07);
-
-      const pulse = 1 + Math.sin(n.ph) * (n.core ? 0.18 : 0.10);
-      const a     = Math.min(1, n.a0 + n.flash * 0.28);
-      const nr    = n.r * pulse;
-      const nx    = n.x * W, ny = n.y * H;
-      const glowR = nr * (n.core ? 5.5 : 3.8);
-
-      /* Outer glow halo */
-      const glow = ctx.createRadialGradient(nx, ny, 0, nx, ny, glowR);
-      glow.addColorStop(0, 'rgba(106,200,255,' + (a * (n.core ? 0.46 : 0.24)) + ')');
-      glow.addColorStop(0.5, 'rgba(56,158,240,' + (a * (n.core ? 0.13 : 0.05)) + ')');
-      glow.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.beginPath(); ctx.arc(nx, ny, glowR, 0, Math.PI * 2);
-      ctx.fillStyle = glow; ctx.fill();
-
-      /* Cincin berdenyut untuk core node — tanda router utama */
-      if (n.core) {
-        const ringA = 0.10 + Math.sin(n.rph) * 0.06;
-        ctx.beginPath(); ctx.arc(nx, ny, nr * 2.2, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(118,212,255,' + (a * ringA) + ')';
-        ctx.lineWidth = 0.75;
-        ctx.stroke();
-      }
-
-      /* Badan node */
-      ctx.beginPath(); ctx.arc(nx, ny, nr, 0, Math.PI * 2);
-      ctx.fillStyle = n.core
-        ? 'rgba(164,226,255,' + a + ')'
-        : 'rgba(100,174,242,' + (a * 0.76) + ')';
-      ctx.fill();
-
-      /* Titik pusat terang — core node lebih jelas */
-      if (n.core) {
-        ctx.beginPath(); ctx.arc(nx, ny, nr * 0.38, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(232,250,255,' + (a * 0.84) + ')';
-        ctx.fill();
-      }
-    });
-
-    requestAnimationFrame(draw);
-  }
-
-  requestAnimationFrame(draw);
-}
-
-
-/* ══════════════════════════════════════════════════════════
-   11b. initFiberStreaks — Garis cahaya melintas ala fiber optik
-   Dipakai sebagai lapisan tambahan di header & ambient di bottom-nav.
-   @param {string} selector  - elemen kontainer (.header / .bottom-nav)
-   @param {string} canvasCls - class unik utk elemen <canvas>
-   @param {object} opt       - { count, speed, hue, alpha, insertFirst }
-══════════════════════════════════════════════════════════ */
-function initFiberStreaks(selector, canvasCls, opt) {
-  const host = document.querySelector(selector);
-  if (!host) return;
-
-  let canvas = host.querySelector('.' + canvasCls);
-  if (!canvas) {
-    canvas = document.createElement('canvas');
-    canvas.className = canvasCls;
-    if (opt && opt.insertFirst) host.insertBefore(canvas, host.firstChild);
-    else host.appendChild(canvas);
-  }
-
-  const o = Object.assign({ count: 5, speed: 1, hue: 195, alpha: 1 }, opt || {});
-  const ctx = canvas.getContext('2d');
-  let W, H;
-
-  function resize() {
-    W = canvas.width  = host.offsetWidth;
-    H = canvas.height = host.offsetHeight;
-  }
-  resize();
-  window.addEventListener('resize', resize);
-
-  function mkStreak() {
-    const angle = (-18 + Math.random() * 10) * Math.PI / 180; /* sedikit menanjak ke kanan */
-    const len   = (0.22 + Math.random() * 0.30) * W;
-    const sp    = (0.55 + Math.random() * 0.85) * o.speed;
-    const y0    = Math.random() * H;
-    return {
-      x: -len, y: y0, angle: angle, len: len,
-      spd: sp, w: 1.1 + Math.random() * 1.6,
-      a0: 0.30 + Math.random() * 0.40,
-      hue: o.hue + (Math.random() - 0.5) * 26,
-    };
-  }
-
-  const streaks = Array.from({ length: o.count }, function () {
-    const s = mkStreak();
-    s.x = Math.random() * (W + s.len) - s.len; /* sebar posisi awal */
-    return s;
-  });
-
-  function draw() {
-    ctx.clearRect(0, 0, W, H);
-    streaks.forEach(function (s) {
-      s.x += s.spd;
-      const dx = Math.cos(s.angle) * s.len;
-      const dy = Math.sin(s.angle) * s.len;
-      const x2 = s.x + dx, y2 = s.y + dy;
-
-      const g = ctx.createLinearGradient(s.x, s.y, x2, y2);
-      g.addColorStop(0,   'hsla(' + s.hue + ',95%,72%,0)');
-      g.addColorStop(0.55,'hsla(' + s.hue + ',95%,74%,' + (s.a0 * o.alpha) + ')');
-      g.addColorStop(1,   'hsla(' + s.hue + ',95%,88%,' + (s.a0 * o.alpha * 1.15) + ')');
-
-      ctx.beginPath();
-      ctx.moveTo(s.x, s.y);
-      ctx.lineTo(x2, y2);
-      ctx.strokeStyle = g;
-      ctx.lineWidth = s.w;
-      ctx.lineCap = 'round';
-      ctx.stroke();
-
-      /* Titik ujung berpijar — kepala "paket cahaya" */
-      ctx.beginPath();
-      ctx.arc(x2, y2, s.w * 1.4, 0, Math.PI * 2);
-      ctx.fillStyle = 'hsla(' + s.hue + ',100%,90%,' + (s.a0 * o.alpha) + ')';
-      ctx.fill();
-
-      if (s.x > W + 4) {
-        const fresh = mkStreak();
-        Object.assign(s, fresh, { x: -fresh.len });
-      }
-    });
-    requestAnimationFrame(draw);
-  }
-  requestAnimationFrame(draw);
 }
 
 
@@ -858,13 +599,15 @@ function openRemoteLinksModal(modemIp, internetUrl, username) {
       <div class="hapus-sub">Pilih akses modem ${escHtml(username || '')} sesuai jaringan Anda saat ini.</div>
 
       <div class="modal-actions" style="flex-direction:column;gap:8px;margin-top:18px">
-        ${localUrl ? `
-        <a class="btn-primary" style="width:100%;justify-content:center;text-decoration:none" href="${escHtml(localUrl)}" target="_blank" rel="noopener noreferrer">
-          <span class="material-symbols-outlined">lan</span> Lokal (${escHtml(modemIp)})
-        </a>` : ''}
-        <a class="btn" style="width:100%;justify-content:center;text-decoration:none" href="${escHtml(internetUrl)}" target="_blank" rel="noopener noreferrer">
-          <span class="material-symbols-outlined">public</span> Internet
-        </a>
+        <div style="display:flex;gap:8px">
+          ${localUrl ? `
+          <a class="btn-primary" style="flex:1;justify-content:center;text-decoration:none" href="${escHtml(localUrl)}" target="_blank" rel="noopener noreferrer">
+            <span class="material-symbols-outlined">lan</span> Lokal
+          </a>` : ''}
+          <a class="btn btn-blue" style="flex:1;justify-content:center;text-decoration:none" href="${escHtml(internetUrl)}" target="_blank" rel="noopener noreferrer">
+            <span class="material-symbols-outlined">public</span> Internet
+          </a>
+        </div>
         <button class="btn" style="width:100%;justify-content:center" onclick="closeModalForm()">Tutup</button>
       </div>
     </div>`);
@@ -946,8 +689,7 @@ function geoDetectKoordinat() {
 
 document.addEventListener('DOMContentLoaded', function () {
   initBottomNav();
-  initHeaderCanvas();
-  initFiberStreaks('.header', 'header-fiber', { count: 4, speed: 0.9, hue: 198, alpha: 0.55 });
+  initHeaderFx();
   initDateBadge();
 
   var _path = window.location.pathname;
@@ -982,6 +724,38 @@ document.addEventListener('DOMContentLoaded', function () {
     /* Refresh badge tiket berkala (setiap 60 detik) supaya tetap akurat
        tanpa perlu reload halaman saat ada tiket baru masuk. */
     setInterval(_loadTiketBadgeNav, 60000);
+
+    /* Refresh tema warna white-label dari server (cache localStorage
+       sudah diterapkan duluan oleh theme.js di <head> agar tidak flash). */
+    var _apiBase = (typeof API_BASE !== 'undefined') ? API_BASE : '';
+    fetch(_apiBase + '/api/setting/branding', {
+      credentials: 'include',
+      headers: (typeof getAuthHeaders === 'function') ? getAuthHeaders() : {},
+    })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) {
+        if (data && data.theme && data.theme.primary && typeof applyTheme === 'function') {
+          applyTheme(data.theme);
+          localStorage.setItem('tf_theme', JSON.stringify(data.theme));
+        }
+        // Branding custom (nama+logo header) — fitur whitelabel paket Pro+.
+        // Endpoint sudah balas aktif:false kalau paket tidak punya akses
+        // ATAU owner belum set apa pun, jadi cukup percaya field 'aktif'
+        // tanpa cek paket lagi di sini.
+        if (data && data.aktif) {
+          if (data.brand_name) {
+            document.querySelectorAll('.brand-name').forEach(function (el) {
+              el.textContent = data.brand_name;
+            });
+          }
+          if (data.logo_base64) {
+            document.querySelectorAll('.brand-logo img').forEach(function (img) {
+              img.src = data.logo_base64;
+            });
+          }
+        }
+      })
+      .catch(function () {});
   }
 });
 
@@ -1092,7 +866,7 @@ function getAuthHeaders(extra = {}) {
     if (window._forcingReLogin) return;
     window._forcingReLogin = true;
     ['technofix_user', 'tf_token', 'tf_user_id', 'tf_username',
-     'tf_role', 'tf_network_id', 'tf_isp_name', 'tf_permissions']
+     'tf_role', 'tf_network_id', 'tf_isp_name', 'tf_permissions', 'tf_theme']
       .forEach(function (k) { localStorage.removeItem(k); });
     const code = data && data.code;
     const msg  = (data && data.message) || _msgByCode[code] || 'Sesi habis, silakan login kembali.';
@@ -1167,7 +941,7 @@ function applyRbacUi() {
       : 'badge-profil';
     roleBadge.style.background    = isOwner ? 'var(--primary-light)' : 'var(--amber-bg)';
     roleBadge.style.color         = isOwner ? 'var(--primary)'       : 'var(--amber)';
-    roleBadge.style.borderColor   = isOwner ? 'rgba(0,64,161,.2)'    : 'var(--amber-border)';
+    roleBadge.style.borderColor   = isOwner ? 'rgba(var(--primary-rgb),.2)' : 'var(--amber-border)';
   }
 }
  
@@ -1211,6 +985,7 @@ function logout() {
     'tf_token', 'tf_user_id', 'tf_username',
     'tf_role', 'tf_network_id', 'tf_isp_name',
     'tf_permissions',   // ← untuk applyUIPermissions()
+    'tf_theme',         // ← cache tema warna white-label
   ];
   function finish() {
     keys.forEach(function (k) { localStorage.removeItem(k); });
@@ -1301,6 +1076,125 @@ function closeModalLogout(e) {
   if (e && e.target !== e.currentTarget) return;
   const m = document.getElementById('modal-logout');
   if (m) m.classList.remove('open');
+}
+
+
+/* ══════════════════════════════════════════════════════════
+   26. tfConfirm / tfPrompt — pengganti confirm()/prompt() bawaan
+   browser, dibuat dinamis via JS (tidak perlu markup tambahan di
+   tiap halaman). Pakai pola modal-overlay/modal-sheet/hapus-*
+   yang sudah dipakai konsisten di seluruh app (modal hapus, dst).
+   Pemakaian: ganti `if (!confirm('...')) return;` jadi
+   `if (!(await tfConfirm('...'))) return;` (fungsi pemanggil harus
+   async). Untuk prompt: `const v = await tfPrompt('...', '7');`
+══════════════════════════════════════════════════════════ */
+function tfConfirm(message, opts) {
+  opts = opts || {};
+  return new Promise(function (resolve) {
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay open';
+    var accent = opts.danger ? 'red' : 'amber';
+    overlay.innerHTML =
+      '<div class="modal-sheet small" role="dialog" aria-modal="true">' +
+        '<div class="modal-handle"></div>' +
+        '<div class="hapus-icon-wrap" style="background:var(--' + accent + '-bg);color:var(--' + accent + ')">' +
+          '<span class="material-symbols-outlined hapus-icon">' + (opts.icon || 'help') + '</span>' +
+        '</div>' +
+        '<div class="hapus-title"></div>' +
+        '<div class="hapus-sub"></div>' +
+        '<div class="modal-footer">' +
+          '<button type="button" class="btn btn-cancel">' + (opts.cancelText || 'Batal') + '</button>' +
+          '<button type="button" class="btn tf-confirm-ok" style="background:var(--' + accent + '-bg);border-color:var(--' + accent + '-border);color:var(--' + accent + ')">' + (opts.okText || 'Ya, lanjutkan') + '</button>' +
+        '</div>' +
+      '</div>';
+    overlay.querySelector('.hapus-title').textContent = opts.title || 'Konfirmasi';
+    overlay.querySelector('.hapus-sub').textContent = message;
+    document.body.appendChild(overlay);
+    document.body.style.overflow = 'hidden';
+
+    function cleanup(result) {
+      overlay.remove();
+      document.body.style.overflow = '';
+      resolve(result);
+    }
+    overlay.querySelector('.btn-cancel').onclick = function () { cleanup(false); };
+    overlay.querySelector('.tf-confirm-ok').onclick = function () { cleanup(true); };
+    overlay.onclick = function (e) { if (e.target === overlay) cleanup(false); };
+    document.addEventListener('keydown', function escHandler(e) {
+      if (e.key === 'Escape') { document.removeEventListener('keydown', escHandler); cleanup(false); }
+    });
+  });
+}
+
+function tfPrompt(message, defaultValue, opts) {
+  opts = opts || {};
+  return new Promise(function (resolve) {
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay open';
+    overlay.innerHTML =
+      '<div class="modal-sheet small" role="dialog" aria-modal="true">' +
+        '<div class="modal-handle"></div>' +
+        '<div class="hapus-icon-wrap" style="background:var(--primary-light);color:var(--primary)">' +
+          '<span class="material-symbols-outlined hapus-icon">' + (opts.icon || 'edit') + '</span>' +
+        '</div>' +
+        '<div class="hapus-title"></div>' +
+        '<div class="hapus-sub" style="margin-bottom:16px"></div>' +
+        '<input type="' + (opts.type || 'text') + '" class="form-input tf-prompt-input" style="width:100%;margin-bottom:4px" />' +
+        '<div class="modal-footer">' +
+          '<button type="button" class="btn btn-cancel">Batal</button>' +
+          '<button type="button" class="btn tf-prompt-ok" style="background:var(--primary-light);border-color:var(--primary-ring);color:var(--primary)">' + (opts.okText || 'Simpan') + '</button>' +
+        '</div>' +
+      '</div>';
+    overlay.querySelector('.hapus-title').textContent = opts.title || 'Masukkan nilai';
+    overlay.querySelector('.hapus-sub').textContent = message;
+    var input = overlay.querySelector('.tf-prompt-input');
+    input.value = defaultValue != null ? defaultValue : '';
+    document.body.appendChild(overlay);
+    document.body.style.overflow = 'hidden';
+    setTimeout(function () { input.focus(); input.select(); }, 50);
+
+    function cleanup(result) {
+      overlay.remove();
+      document.body.style.overflow = '';
+      resolve(result);
+    }
+    overlay.querySelector('.btn-cancel').onclick = function () { cleanup(null); };
+    overlay.querySelector('.tf-prompt-ok').onclick = function () { cleanup(input.value); };
+    input.addEventListener('keydown', function (e) { if (e.key === 'Enter') cleanup(input.value); });
+    overlay.onclick = function (e) { if (e.target === overlay) cleanup(null); };
+  });
+}
+
+function tfAlert(message, opts) {
+  opts = opts || {};
+  return new Promise(function (resolve) {
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay open';
+    overlay.innerHTML =
+      '<div class="modal-sheet small" role="dialog" aria-modal="true">' +
+        '<div class="modal-handle"></div>' +
+        '<div class="hapus-icon-wrap" style="background:var(--amber-bg);color:var(--amber)">' +
+          '<span class="material-symbols-outlined hapus-icon">' + (opts.icon || 'info') + '</span>' +
+        '</div>' +
+        '<div class="hapus-title"></div>' +
+        '<div class="hapus-sub"></div>' +
+        '<div class="modal-footer" style="justify-content:center">' +
+          '<button type="button" class="btn tf-alert-ok" style="background:var(--primary-light);border-color:var(--primary-ring);color:var(--primary);min-width:120px">OK</button>' +
+        '</div>' +
+      '</div>';
+    overlay.querySelector('.hapus-title').textContent = opts.title || 'Pemberitahuan';
+    overlay.querySelector('.hapus-sub').textContent = message;
+    document.body.appendChild(overlay);
+    document.body.style.overflow = 'hidden';
+
+    function cleanup() {
+      overlay.remove();
+      document.body.style.overflow = '';
+      resolve(true);
+    }
+    overlay.querySelector('.tf-alert-ok').onclick = cleanup;
+    overlay.onclick = function (e) { if (e.target === overlay) cleanup(); };
+  });
 }
 
 
@@ -1401,6 +1295,8 @@ function applyUIPermissions() {
       '/maps/':             'maps',
       '/input_perangkat/':  'perangkat',
       '/profile_pppoe/':    'perangkat',
+      '/diagnostik/':       'perangkat',
+      '/problems/':         'perangkat',
       '/manajemen_user/':   'manajemen_user',
       '/langganan/':        'langganan',
     };

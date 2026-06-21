@@ -1,5 +1,5 @@
 """
-olt.py — TechnoFix · Blueprint OLT
+olt.py — TechnoFix-Bill · Blueprint OLT
 ====================================
 CRUD endpoint untuk perangkat OLT (Optical Line Terminal).
 
@@ -9,6 +9,7 @@ Menggunakan utils.py untuk helper terpusat:
 
 import logging
 import re
+import time
 from flask import Blueprint, request, jsonify, g
 
 # ── Shared helpers ─────────────────────────────────────────────
@@ -441,6 +442,61 @@ def get_unauthorized_onus(olt_id):
     return jsonify([dict(r) for r in rows]), 200
 
 
+def _zte_busy_onu_ids(ssh, port: str) -> set:
+    """
+    Ambil set onu-id yang phase state-nya 'working' (sudah aktif terpakai)
+    di 1 PON port ZTE, via 'sh gpon onu state gpon-olt_<port>'.
+
+    PENTING: di firmware ZXAN/C300 tertentu, command ini TIDAK terpengaruh
+    'terminal length 0' kalau ONU di port itu banyak (>20-an) — tetap
+    memicu pagination '--More--' yang membuat send_command() biasa MACET
+    selamanya (comms_prompt_pattern tidak pernah match '--More--', jadi
+    nunggu sampai timeout tanpa hasil). Solusinya: tulis command & baca
+    langsung dari transport, kirim spasi tiap kali '--More--' terdeteksi
+    utk lanjut ke halaman berikutnya — gaya pager Cisco/ZTE klasik.
+
+    Parsing baris dibuat agnostik jumlah kolom (beberapa firmware ZTE
+    tidak punya kolom 'O7 State') — cukup cek token 'working' di baris
+    yang sama dengan OnuIndex, bukan posisi kolom tetap.
+    """
+    busy = set()
+    try:
+        ssh.channel.write(channel_input=f'sh gpon onu state gpon-olt_{port}')
+        ssh.channel.send_return()
+
+        buf = b''
+        deadline   = time.time() + 25
+        idle_since = time.time()
+        while time.time() < deadline:
+            try:
+                chunk = ssh.transport.read()
+            except Exception:
+                # Socket recv timeout (tidak ada data SAAT INI) — bukan
+                # tanda command selesai, tetap lanjut polling sampai
+                # deadline atau prompt akhir terdeteksi.
+                chunk = None
+            if chunk:
+                buf += chunk
+                idle_since = time.time()
+                if b'--More--' in buf[-80:]:
+                    ssh.channel.write(channel_input=' ')
+            else:
+                idle = time.time() - idle_since
+                tail = buf.decode(errors='ignore').strip()
+                if idle > 1.0 and re.search(r'[>#]\s*$', tail):
+                    break
+                time.sleep(0.15)
+
+        out = re.sub(r'\s*--More--\s*', '\n', buf.decode(errors='ignore'))
+        for line in out.splitlines():
+            m = re.match(r'\s*(?:gpon-onu_)?\d+/\d+/\d+:(\d+)\s+(.*)', line)
+            if m and 'working' in m.group(2).lower():
+                busy.add(int(m.group(1)))
+    except Exception:
+        pass
+    return busy
+
+
 # ── POST /olt/<id>/scan-sn ────────────────────────────────
 @olt_bp.route('/<int:olt_id>/scan-sn', methods=['POST'])
 def scan_sn(olt_id):
@@ -553,6 +609,32 @@ def scan_sn(olt_id):
                                 unregistered.append({'sn': sn, 'slot_port': slot_port, 'tipe': 'gpon-unreg'})
                 except Exception:
                     pass
+
+                # ── Cross-check vs 'sh gpon onu state' ──
+                # Kuirk firmware ZTE tertentu: 'show gpon onu uncfg' kadang
+                # menyarankan onu-id yang TERNYATA sudah 'working' (dipakai
+                # pelanggan aktif) — onu-id di kolom OnuIndex uncfg cuma
+                # saran OLT, bukan kepastian slot kosong. Kalau dibiarkan,
+                # admin bisa salah pakai slot itu utk registrasi baru dan
+                # menabrak pelanggan yang sedang aktif. Verifikasi tiap
+                # port yang muncul di hasil unregistered, cari onu-id
+                # kosong terdekat kalau yang disarankan ternyata bentrok.
+                ports_to_check = {u['slot_port'].split(':')[0] for u in unregistered if ':' in u['slot_port']}
+                for port in ports_to_check:
+                    busy = _zte_busy_onu_ids(ssh, port)
+                    if not busy:
+                        continue
+                    for u in unregistered:
+                        if not u['slot_port'].startswith(port + ':'):
+                            continue
+                        onu_id = int(u['slot_port'].split(':')[1])
+                        if onu_id in busy:
+                            free_id = 1
+                            while free_id in busy:
+                                free_id += 1
+                            u['slot_port_disarankan_olt'] = u['slot_port']
+                            u['slot_port'] = f'{port}:{free_id}'
+                            u['catatan'] = f"Slot {port}:{onu_id} sudah dipakai — dialihkan ke {port}:{free_id}."
 
             elif is_huawei:
                 try: ssh.send_command('enable', timeout_ops=10)

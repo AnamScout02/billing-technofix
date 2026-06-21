@@ -212,7 +212,7 @@ function _injectBtBulkToolbar() {
 async function bayarMassal() {
   const ids = [..._selectedBtIds];
   if (!ids.length) return;
-  if (!confirm(`Tandai ${ids.length} tagihan terpilih sebagai LUNAS (Cash)?`)) return;
+  if (!(await tfConfirm(`Tandai ${ids.length} tagihan terpilih sebagai LUNAS (Cash)?`))) return;
   try {
     const r = await fetch(`${TG_API}/bayar-multi`, {
       method: 'POST', credentials: 'include', headers: _jhdr(),
@@ -275,7 +275,7 @@ async function loadTx() {
 }
 
 async function markPaid(orderId) {
-  if (!confirm('Konfirmasi transaksi ' + orderId + ' sebagai LUNAS?\nTagihan akan tercatat lunas di keuangan.')) return;
+  if (!(await tfConfirm('Konfirmasi transaksi ' + orderId + ' sebagai LUNAS? Tagihan akan tercatat lunas di keuangan.'))) return;
   try {
     const r = await fetch(`${PG_API}/mark-paid`, { method: 'POST', credentials: 'include', headers: _jhdr(), body: JSON.stringify({ order_id: orderId }) });
     const d = await r.json();

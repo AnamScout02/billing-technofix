@@ -31,6 +31,9 @@
 // ── STATE ─────────────────────────────────────────────────────
 let _allData  = [];   // semua ODP dari backend
 let _editingId = null;
+let _odpPage = 1;
+const ODP_PER_PAGE = 10;
+let _odpSearch = '';
 
 
 // ── INIT ──────────────────────────────────────────────────────
@@ -87,7 +90,41 @@ function updateStats() {
   animNum('stat-port-total', totalPort);
 
   const cnt = document.getElementById('odp-count');
-  if (cnt) cnt.textContent = `${_allData.length} titik ODP`;
+  if (cnt) {
+    const filteredLen = _getFilteredOdp().length;
+    cnt.textContent = (filteredLen !== _allData.length)
+      ? `${filteredLen} dari ${_allData.length} titik ODP`
+      : `${_allData.length} titik ODP`;
+  }
+}
+
+
+// ── FILTER ────────────────────────────────────────────────────
+function _getFilteredOdp() {
+  const q      = _odpSearch.trim().toLowerCase();
+  const status = document.getElementById('odp-filter-status')?.value || '';
+
+  return _allData.filter(o => {
+    if (q) {
+      const hay = `${o.nama || ''} ${o.lokasi || ''} ${o.odc_nama || ''}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    if (status) {
+      const kap    = Number(o.jumlah_port)   || 0;
+      const pak    = Number(o.port_terpakai) || 0;
+      const persen = kap > 0 ? Math.round((pak / kap) * 100) : 0;
+      if (status === 'penuh'     && !(kap > 0 && pak >= kap)) return false;
+      if (status === 'hampir'    && !(persen >= 70 && persen < 100)) return false;
+      if (status === 'tersedia'  && !(persen < 70)) return false;
+    }
+    return true;
+  });
+}
+
+function filterOdp() {
+  _odpSearch = document.getElementById('odp-search')?.value || '';
+  _odpPage   = 1;
+  renderOdp();
 }
 
 
@@ -95,6 +132,8 @@ function updateStats() {
 function renderOdp() {
   const container = document.getElementById('odp-list');
   if (!container) return;
+
+  const filtered = _getFilteredOdp();
 
   if (!_allData.length) {
     container.innerHTML = `
@@ -106,10 +145,28 @@ function renderOdp() {
         </p>
       </div>`;
     updateStats();
+    renderOdpPagination(0);
     return;
   }
 
-  container.innerHTML = _allData.map((o, idx) => {
+  if (!filtered.length) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <span class="material-symbols-outlined" style="font-size:44px;color:var(--text-dim)">search_off</span>
+        <p style="font-weight:700;color:var(--text)">Tidak ada ODP yang cocok</p>
+        <p style="font-size:12px;color:var(--text-muted)">Coba ubah kata kunci atau filter status.</p>
+      </div>`;
+    updateStats();
+    renderOdpPagination(0);
+    return;
+  }
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / ODP_PER_PAGE));
+  if (_odpPage > totalPages) _odpPage = totalPages;
+  const start = (_odpPage - 1) * ODP_PER_PAGE;
+  const pageData = filtered.slice(start, start + ODP_PER_PAGE);
+
+  container.innerHTML = pageData.map((o, idx) => {
     const kapasitas   = Number(o.jumlah_port)    || 0;
     const terpakai    = Number(o.port_terpakai)  || 0;
     const sisa        = kapasitas - terpakai;
@@ -188,6 +245,42 @@ function renderOdp() {
   }).join('');
 
   updateStats();
+  renderOdpPagination(totalPages);
+}
+
+/* Pola identik renderPaginasi()/gantiPage() di pelanggan.js */
+function renderOdpPagination(totalPages) {
+  const wrap = document.getElementById('odp-pagination');
+  if (!wrap) return;
+  if (totalPages <= 1) { wrap.innerHTML = ''; return; }
+
+  let html = `<button class="page-btn" onclick="gantiOdpPage(${_odpPage - 1})"
+    ${_odpPage === 1 ? 'disabled' : ''}>
+    <span class="material-symbols-outlined" style="font-size:16px">chevron_left</span>
+  </button>`;
+
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === 1 || i === totalPages || (i >= _odpPage - 1 && i <= _odpPage + 1)) {
+      html += `<button class="page-btn ${i === _odpPage ? 'active' : ''}" onclick="gantiOdpPage(${i})">${i}</button>`;
+    } else if (i === _odpPage - 2 || i === _odpPage + 2) {
+      html += `<span class="page-btn ellipsis">…</span>`;
+    }
+  }
+
+  html += `<button class="page-btn" onclick="gantiOdpPage(${_odpPage + 1})"
+    ${_odpPage === totalPages ? 'disabled' : ''}>
+    <span class="material-symbols-outlined" style="font-size:16px">chevron_right</span>
+  </button>`;
+
+  wrap.innerHTML = html;
+}
+
+function gantiOdpPage(p) {
+  const totalPages = Math.max(1, Math.ceil(_allData.length / ODP_PER_PAGE));
+  if (p < 1 || p > totalPages) return;
+  _odpPage = p;
+  renderOdp();
+  document.getElementById('odp-list').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 
@@ -330,12 +423,7 @@ async function showForm(prefill = null) {
         </div>
 
         <div class="form-group full">
-          <label class="form-label">
-            <span class="material-symbols-outlined"
-                  style="font-size:13px;vertical-align:middle;color:var(--primary)">location_on</span>
-            Titik Koordinat
-            <span style="font-size:10px;font-weight:400;color:var(--text-dim);margin-left:4px">(untuk Maps)</span>
-          </label>
+          <label class="form-label">Titik Koordinat ODP</label>
           <div class="koordinat-row">
             <input class="form-input" type="text" id="f-koordinat"
                    placeholder="-6.200000, 106.816666"
@@ -346,7 +434,6 @@ async function showForm(prefill = null) {
               Deteksi
             </button>
           </div>
-          <span class="form-hint">Format: latitude, longitude</span>
           <div class="koordinat-preview" id="koordinat-preview">
             <iframe id="koordinat-iframe" src="" loading="lazy"></iframe>
           </div>

@@ -1,5 +1,5 @@
 """
-packages.py — TechnoFix · Definisi Paket Langganan (SaaS)
+packages.py — TechnoFix-Bill · Definisi Paket Langganan (SaaS)
 ==========================================================
 Satu sumber kebenaran untuk semua paket: harga, batas, fitur.
 
@@ -88,7 +88,7 @@ PACKAGES = {
             'loket': True, 'komisi_loket': True, 'payment_gateway': True, 'tiket': True,
             'bandwidth_on_demand': True, 'spk': True, 'absensi': True, 'mobile_app': True,
             'remote_modem': False, 'monitoring_redaman': True, 'export': True,
-            'whitelabel': False, 'dedicated': False,
+            'whitelabel': True, 'dedicated': False,
         },
     },
 
@@ -103,7 +103,7 @@ PACKAGES = {
             'loket': True, 'komisi_loket': True, 'payment_gateway': True, 'tiket': True,
             'bandwidth_on_demand': True, 'spk': True, 'absensi': True, 'mobile_app': True,
             'remote_modem': True, 'monitoring_redaman': True, 'export': True,
-            'whitelabel': False, 'dedicated': False,
+            'whitelabel': True, 'dedicated': False,
         },
     },
 
@@ -118,7 +118,7 @@ PACKAGES = {
             'loket': True, 'komisi_loket': True, 'payment_gateway': True, 'tiket': True,
             'bandwidth_on_demand': True, 'spk': True, 'absensi': True, 'mobile_app': True,
             'remote_modem': True, 'monitoring_redaman': True, 'export': True,
-            'whitelabel': False, 'dedicated': False,
+            'whitelabel': True, 'dedicated': False,
         },
     },
 

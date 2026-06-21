@@ -1,7 +1,7 @@
 /* langganan.js — Halaman Langganan & Paket */
 'use strict';
 
-/* Nomor WhatsApp admin TechnoFix untuk konfirmasi upgrade (sama dengan landing.html) */
+/* Nomor WhatsApp admin TechnoFix-Bill untuk konfirmasi upgrade (sama dengan landing.html) */
 const ADMIN_WA = '6283135851605';
 
 const STATUS_LABEL = {
@@ -140,7 +140,7 @@ function renderPackages(packages, currentKey) {
 
 /* Upgrade — kirim permintaan ke admin (tracked) + opsi konfirmasi via WA */
 async function pilihPaket(key, nama, price) {
-  if (!confirm('Ajukan upgrade ke paket "' + nama + '" (Rp ' + rupiah(price) + '/bln)?\n\nPermintaan akan dikirim ke admin untuk konfirmasi pembayaran & aktivasi.')) return;
+  if (!(await tfConfirm('Ajukan upgrade ke paket "' + nama + '" (Rp ' + rupiah(price) + '/bln)? Permintaan akan dikirim ke admin untuk konfirmasi pembayaran & aktivasi.'))) return;
   const base = (typeof API_BASE !== 'undefined') ? API_BASE : '';
   try {
     const r = await fetch(base + '/api/auth/upgrade-request', {
@@ -151,7 +151,7 @@ async function pilihPaket(key, nama, price) {
     if (r.ok) {
       if (typeof toast === 'function') toast(d.message || 'Permintaan upgrade terkirim', 'success');
       /* Lanjut konfirmasi pembayaran via WhatsApp */
-      const msg = encodeURIComponent('Halo Admin TechnoFix, saya mengajukan upgrade ke paket *' + nama + '* (Rp ' + rupiah(price) + '/bln). Mohon info pembayaran & aktivasi.');
+      const msg = encodeURIComponent('Halo Admin TechnoFix-Bill, saya mengajukan upgrade ke paket *' + nama + '* (Rp ' + rupiah(price) + '/bln). Mohon info pembayaran & aktivasi.');
       setTimeout(function () { window.open('https://wa.me/' + ADMIN_WA + '?text=' + msg, '_blank'); }, 900);
     } else {
       if (typeof toast === 'function') toast(d.message || 'Gagal mengirim permintaan', 'danger');

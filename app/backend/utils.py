@@ -1,5 +1,5 @@
 """
-utils.py — TechnoFix · Backend Helpers Terpusat
+utils.py — TechnoFix-Bill · Backend Helpers Terpusat
 ================================================
 Semua fungsi helper yang dipakai bersama oleh:
   api.py, input.py, olt.py, olt_sync.py
@@ -347,6 +347,42 @@ def init_owner_schema(conn: sqlite3.Connection) -> None:
         except Exception:
             pass
 
+    # Riwayat sinyal ONU (snapshot tiap siklus sync OLT) — fondasi grafik
+    # historis RX/TX. username dipakai langsung (bukan FK ke onu_mapping.id)
+    # supaya riwayat tetap utuh walau row onu_mapping diganti/dihapus.
+    cur.execute('''CREATE TABLE IF NOT EXISTS onu_metrics_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL,
+        rx_power REAL, tx_power REAL, is_online INTEGER DEFAULT 0,
+        recorded_at TEXT NOT NULL
+    )''')
+    cur.execute('''CREATE INDEX IF NOT EXISTS idx_onu_metrics_username_time
+        ON onu_metrics_history(username, recorded_at)''')
+
+    # Riwayat bandwidth MikroTik (snapshot tiap siklus worker bandwidth,
+    # ~5 menit) — interface yang dipantau diambil dari devices.wan_interface.
+    cur.execute('''CREATE TABLE IF NOT EXISTS bandwidth_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        device_id INTEGER NOT NULL,
+        rx_mbps REAL, tx_mbps REAL,
+        recorded_at TEXT NOT NULL
+    )''')
+    cur.execute('''CREATE INDEX IF NOT EXISTS idx_bw_device_time
+        ON bandwidth_history(device_id, recorded_at)''')
+
+    # Acknowledge utk halaman Problems. problem_id = id stabil yang sama
+    # dipakai endpoint /api/maps/problems (mis. 'onu-15', 'router-1') —
+    # BUKAN log historis, baris ini otomatis dihapus oleh maps.py begitu
+    # problem itu tidak lagi muncul di hasil live (sudah online/normal
+    # lagi), supaya ack lama tidak menumpuk utk masalah yang sudah selesai.
+    cur.execute('''CREATE TABLE IF NOT EXISTS problem_ack (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        problem_id TEXT NOT NULL UNIQUE,
+        acked_by TEXT NOT NULL,
+        acked_at TEXT NOT NULL,
+        note TEXT DEFAULT ''
+    )''')
+
     cur.execute('''CREATE TABLE IF NOT EXISTS onu_liar (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         olt_id INTEGER NOT NULL,
@@ -521,6 +557,16 @@ def init_owner_schema(conn: sqlite3.Connection) -> None:
         tipe TEXT NOT NULL,
         sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(tagihan_id, tipe)
+    )''')
+
+    # Dedup alert WA gangguan (Problems) — problem_id = id stabil dari
+    # _compute_problems() (mis. 'onu-15'). Dihapus otomatis oleh worker
+    # begitu problem itu hilang dari live list, supaya kalau gangguan yg
+    # sama muncul lagi nanti, WA dikirim ulang (bukan dianggap "sudah pernah").
+    cur.execute('''CREATE TABLE IF NOT EXISTS wa_problem_alert_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        problem_id TEXT NOT NULL UNIQUE,
+        sent_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )''')
 
     # Record transaksi payment gateway

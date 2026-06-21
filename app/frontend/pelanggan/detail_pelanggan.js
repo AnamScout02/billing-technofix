@@ -1,5 +1,5 @@
 /* ============================================================
-   detail_pelanggan.js — Halaman Rincian Pelanggan TechnoFix
+   detail_pelanggan.js — Halaman Rincian Pelanggan TechnoFix-Bill
    Requires: global.js  ← wajib di-load lebih dulu di HTML
 
    Alur:
@@ -96,6 +96,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Load riwayat transaksi ──
   _loadRiwayat(_pelanggan.username);
+
+  // ── Riwayat sinyal (RX/TX) — hanya untuk pelanggan dengan ONU/OLT,
+  // disembunyikan juga untuk kolektor (tidak lihat detail perangkat) ──
+  if (_pelanggan.olt_id && _role !== 'kolektor') {
+    const card = document.getElementById('card-signal-history');
+    if (card) card.style.display = '';
+    loadSignalHistory('24h');
+  }
 });
 
 
@@ -513,9 +521,9 @@ async function registrasiUlang() {
   }
 
   const oltName = _pelanggan._oltName || 'OLT';
-  const konfirm = confirm(
-    `Lakukan registrasi ulang ONU "${_pelanggan.username}" ke OLT "${oltName}"?\n\n` +
-    `Perintah akan dikirim otomatis ke terminal OLT via SSH.\n` +
+  const konfirm = await tfConfirm(
+    `Lakukan registrasi ulang ONU "${_pelanggan.username}" ke OLT "${oltName}"? ` +
+    `Perintah akan dikirim otomatis ke terminal OLT via SSH. ` +
     `Tab aktif: ${_cliTab.toUpperCase()}`
   );
   if (!konfirm) return;
@@ -689,8 +697,10 @@ function _fallbackRxTx(p, isOnline) {
   const fmt = v => (v !== null && !isNaN(v)) ? `${v.toFixed(1)} dBm` : '—';
   let rxClass = 'rx-none';
   if (rx !== null && !isNaN(rx)) {
-    if      (rx < -30) rxClass = 'rx-bad';
-    else if (rx < -27) rxClass = 'rx-warn';
+    // Threshold disamakan dgn backend (maps.py RX_CRIT_DBM/RX_WARN_DBM)
+    // supaya ONU yg sama tidak tampil severity beda di halaman lain.
+    if      (rx < -27) rxClass = 'rx-bad';
+    else if (rx < -24) rxClass = 'rx-warn';
     else               rxClass = 'rx-ok';
   }
   return { rx, tx, rxFormatted: fmt(rx), txFormatted: fmt(tx), rxClass };
@@ -761,4 +771,121 @@ function _dpRute() {
   var lng = parts[1] ? parts[1].trim() : '';
   if (!lat || !lng) { if (typeof toast === 'function') toast('Format koordinat tidak valid', 'warning'); return; }
   window.open('https://www.google.com/maps/dir/?api=1&destination=' + lat + ',' + lng, '_blank');
+}
+
+
+/* ══════════════════════════════════════════════════════════
+   RIWAYAT SINYAL (RX/TX) — grafik historis, pola sama dengan
+   initChartBW() di dashboard.js (gradient fill, tooltip custom)
+══════════════════════════════════════════════════════════ */
+let _chartSignalHistory = null;
+
+function _signalGradient(ctx, colorRgb) {
+  return function (context) {
+    var area = context.chart.chartArea;
+    if (!area) return null;
+    var g = ctx.createLinearGradient(0, area.top, 0, area.bottom);
+    g.addColorStop(0,   'rgba(' + colorRgb + ',.28)');
+    g.addColorStop(.55, 'rgba(' + colorRgb + ',.08)');
+    g.addColorStop(1,   'rgba(' + colorRgb + ',0)');
+    return g;
+  };
+}
+
+function _initChartSignalHistory() {
+  var canvas = document.getElementById('chart-signal-history');
+  if (!canvas || typeof Chart === 'undefined') return null;
+  var ctx = canvas.getContext('2d');
+
+  return new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [
+        {
+          label: 'RX Power', data: [],
+          borderColor: '#378add', backgroundColor: _signalGradient(ctx, '55,138,221'),
+          borderWidth: 2.2, pointRadius: 0, pointHoverRadius: 5,
+          pointHoverBackgroundColor: '#378add', pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2,
+          fill: true, tension: .35, borderCapStyle: 'round', borderJoinStyle: 'round',
+        },
+        {
+          label: 'TX Power', data: [],
+          borderColor: '#1d9e75', backgroundColor: _signalGradient(ctx, '29,158,117'),
+          borderWidth: 2.2, pointRadius: 0, pointHoverRadius: 5,
+          pointHoverBackgroundColor: '#1d9e75', pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2,
+          fill: true, tension: .35, borderCapStyle: 'round', borderJoinStyle: 'round',
+        },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      animation: { duration: 0 },
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          display: true, position: 'top', align: 'end',
+          labels: { boxWidth: 8, boxHeight: 8, usePointStyle: true, pointStyle: 'circle', font: { size: 11, family: 'Poppins,sans-serif' } },
+        },
+        tooltip: {
+          backgroundColor: 'rgba(10,20,34,.94)', borderColor: 'rgba(255,255,255,.12)', borderWidth: 1,
+          titleColor: 'rgba(255,255,255,.65)', titleFont: { size: 10.5, family: 'Poppins,sans-serif', weight: '500' },
+          bodyColor: '#fff', bodyFont: { size: 12, family: 'Poppins,sans-serif', weight: '600' },
+          padding: 10, cornerRadius: 8, boxPadding: 4, usePointStyle: true, caretSize: 6,
+          callbacks: {
+            label: function (c) {
+              var v = c.parsed.y;
+              return ' ' + c.dataset.label + ': ' + (v == null ? '—' : v.toFixed(1) + ' dBm');
+            }
+          }
+        },
+      },
+      scales: {
+        x: {
+          ticks: { maxTicksLimit: 6, font: { size: 9, family: 'Poppins,sans-serif' }, color: '#9aabc4' },
+          grid: { display: false }, border: { color: '#e4e8f0' },
+        },
+        y: {
+          ticks: { font: { size: 9, family: 'Poppins,sans-serif' }, color: '#9aabc4', padding: 8 },
+          grid: { color: '#eef1f6', drawTicks: false }, border: { display: false },
+        },
+      },
+    },
+  });
+}
+
+function _fmtSignalTime(iso) {
+  try {
+    var d = new Date(String(iso).replace(' ', 'T'));
+    if (isNaN(d)) return iso;
+    return d.toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  } catch (_) { return iso; }
+}
+
+async function loadSignalHistory(range) {
+  if (!_pelanggan || !_pelanggan.id) return;
+
+  document.querySelectorAll('.dp-range-btn').forEach(function (b) {
+    b.classList.toggle('active', b.dataset.range === range);
+  });
+
+  try {
+    const base = (typeof API_BASE !== 'undefined') ? API_BASE : '';
+    const res  = await fetch(base + '/api/pelanggan/' + _pelanggan.id + '/metrics-history?range=' + range, {
+      credentials: 'include',
+      headers: (typeof getAuthHeaders === 'function') ? getAuthHeaders() : {},
+    });
+    const rows = await res.json();
+    if (!res.ok || !Array.isArray(rows)) return;
+
+    if (!_chartSignalHistory) _chartSignalHistory = _initChartSignalHistory();
+    if (!_chartSignalHistory) return;
+
+    _chartSignalHistory.data.labels           = rows.map(r => _fmtSignalTime(r.recorded_at));
+    _chartSignalHistory.data.datasets[0].data = rows.map(r => r.rx_power);
+    _chartSignalHistory.data.datasets[1].data = rows.map(r => r.tx_power);
+    _chartSignalHistory.update();
+  } catch (e) {
+    if (typeof toast === 'function') toast('Gagal memuat riwayat sinyal', 'warning');
+  }
 }

@@ -1,5 +1,5 @@
 /* ============================================================
-   input_olt.js — Manajemen Perangkat OLT TechnoFix
+   input_olt.js — Manajemen Perangkat OLT TechnoFix-Bill
    Requires: global.js  ← wajib di-load lebih dulu di HTML
              (API_BASE, escHtml, val, statusInfo, animNum,
               toast, togglePwd, openModalForm, closeModalForm)
@@ -547,11 +547,7 @@ function showForm(prefill = null) {
                  placeholder="mis. ONT, GPON-ONU, dst" maxlength="32"
                  style="margin-top:8px;${_isCustomOnuType ? '' : 'display:none'}"
                  value="${_isCustomOnuType ? escHtml(v('onu_type_keyword')) : ''}">
-          <span class="form-hint">
-            Sesuaikan dengan firmware/model OLT — sebagian OLT ZTE menolak perintah
-            kalau keyword tipe ONU tidak cocok (lihat output CLI saat registrasi gagal).
-            Pilih "Lainnya" kalau firmware Anda pakai keyword selain ALL/ALL-ONT.
-          </span>
+          <span class="form-hint">Ganti kalau OLT menolak perintah registrasi (cek output CLI saat gagal).</span>
         </div>
 
         <div class="form-group full" id="epon-ports-wrap" style="display:none">
@@ -566,13 +562,11 @@ function showForm(prefill = null) {
           <label class="form-label">
             <span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;color:var(--primary)">cable</span>
             Router / MikroTik (Uplink)
-            <span style="font-size:10px;font-weight:400;color:var(--text-dim);margin-left:4px">(untuk kabel di Maps &amp; monitoring)</span>
           </label>
           <div id="f-uplinks-list"></div>
           <button type="button" class="btn btn-sm" onclick="addUplinkRow()" style="margin-top:2px">
             <span class="material-symbols-outlined">add</span> Tambah Jalur Uplink
           </button>
-          <span class="form-hint">Satu OLT bisa punya lebih dari satu jalur uplink (mis. terhubung ke 2 MikroTik berbeda) — tambah baris kalau perlu.</span>
         </div>
 
         <div class="form-group full">
@@ -587,13 +581,13 @@ function showForm(prefill = null) {
           <span class="form-hint">Port default: 23 (Telnet) · 22 (SSH) · 161 (SNMP)</span>
         </div>
 
-        <div class="form-group full">
+        <div class="form-group">
           <label class="form-label">Username <span class="req">*</span></label>
           <input class="form-input" type="text" id="f-user"
                  placeholder="admin" value="${v('username')}">
         </div>
 
-        <div class="form-group full">
+        <div class="form-group">
           <label class="form-label">Password ${isEdit ? '' : '<span class="req">*</span>'}</label>
           <div class="form-pwd-wrap">
             <input class="form-input" type="password" id="f-pass"
@@ -613,11 +607,7 @@ function showForm(prefill = null) {
         </div>
 
         <div class="form-group full">
-          <label class="form-label">
-            <span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;color:var(--primary)">location_on</span>
-            Titik Koordinat
-            <span style="font-size:10px;font-weight:400;color:var(--text-dim);margin-left:4px">(untuk halaman Maps)</span>
-          </label>
+          <label class="form-label">Titik Koordinat OLT</label>
           <div class="koordinat-row">
             <input class="form-input" type="text" id="f-koordinat"
                    placeholder="-6.200000, 106.816666"
@@ -628,7 +618,6 @@ function showForm(prefill = null) {
               Deteksi
             </button>
           </div>
-          <span class="form-hint">Format: latitude, longitude</span>
           <div class="koordinat-preview" id="koordinat-preview">
             <iframe id="koordinat-iframe" src="" loading="lazy"></iframe>
           </div>
@@ -638,10 +627,7 @@ function showForm(prefill = null) {
           <label class="form-label">Catatan Konfigurasi ONU (opsional)</label>
           <textarea class="form-input" id="f-keterangan" rows="3"
                     placeholder="mis. ONU C-DATA/FHTT tanpa OMCI: login 192.168.1.1, set mode bridge + VLAN manual di LAN port">${v('keterangan')}</textarea>
-          <span class="form-hint">
-            Tampil di modal "CLI Preview" saat tambah/edit pelanggan — berguna untuk
-            mencatat langkah konfigurasi manual ONU (mis. tipe yang tidak mendukung OMCI).
-          </span>
+          <span class="form-hint">Tampil di modal "CLI Preview" saat tambah/edit pelanggan.</span>
         </div>
 
       </div>

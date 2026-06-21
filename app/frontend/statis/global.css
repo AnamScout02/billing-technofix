@@ -50,6 +50,16 @@
    2. CSS VARIABLES — satu sumber kebenaran
 ══════════════════════════════════════════════════════════ */
 :root {
+  /* ── Skala Font — 3 level baku, dipakai di seluruh app ──
+     Judul Besar : judul halaman (h1.page-title)
+     Judul Kecil : judul card/section (form-card-title, dash-section-title, dst)
+     Body/Keterangan: teks isi, label, caption, DAN teks di dalam chart
+     (axis/tick/legend) — disengaja disamakan, bukan kategori ke-4
+     terpisah, supaya chart tidak punya skala sendiri yg beda lagi. */
+  --fs-title-lg: 22px;
+  --fs-title-sm: 15px;
+  --fs-body:     13px;
+
   /* ── Warna Utama ── */
   --primary:        #0040a1;
   --primary-dark:   #003080;
@@ -191,7 +201,7 @@
   --dd-font-weight: 600;    /* bobot font */
   --dd-radius:     var(--r-md);
   --dd-border:     1.5px solid var(--border);
-  --dd-focus-ring: 0 0 0 3px var(--primary-ring);
+  --dd-focus-ring: none;
 
   /* Tabel */
   --tbl-head-size:   11px;
@@ -265,9 +275,9 @@ body {
   box-shadow: 0 2px 20px rgba(0,0,0,.25);
   overflow: visible;
   background-image:
-    radial-gradient(ellipse 80% 60% at 15% 50%, rgba(0,174,239,.10) 0%, transparent 70%),
-    radial-gradient(ellipse 40% 80% at 85% 30%, rgba(0,108,71,.08) 0%, transparent 60%),
-    linear-gradient(135deg, #003f88 0%, #004fa8 50%, #003575 100%);
+    radial-gradient(ellipse 80% 60% at 15% 50%, rgba(0,174,239,.12) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 90% at 85% 20%, rgba(205,220,240,.10) 0%, transparent 60%),
+    linear-gradient(135deg, #001f3f 0%, #003f88 45%, #00254d 100%);
 }
 
 .header::before {
@@ -275,10 +285,11 @@ body {
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
-  background-size: 40px 40px;
-  opacity: .35;
+    linear-gradient(rgba(255,255,255,.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.07) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(255,255,255,.10) 0%, transparent 55%);
+  background-size: 26px 26px, 26px 26px, 100% 100%;
+  opacity: .6;
   pointer-events: none;
   z-index: 0;
 }
@@ -292,6 +303,33 @@ body {
   pointer-events: none;
   z-index: 0;
   clip-path: inset(0);
+  mix-blend-mode: screen;
+  animation: headerBlobFloat 7s ease-in-out infinite alternate;
+}
+
+/* EFFECT 3: kilau diagonal yang menyapu header (lihat initHeaderFx di global.js) */
+.header-shine {
+  position: absolute;
+  top: 0; left: -150%;
+  width: 60%; height: 100%;
+  background: linear-gradient(115deg, transparent, rgba(170,195,230,.20), rgba(255,255,255,.32), rgba(170,195,230,.20), transparent);
+  transform: skewX(-18deg);
+  animation: headerShineSweep 4.5s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 1;
+  clip-path: inset(0);
+}
+
+/* EFFECT 2: garis aksen bergerak di tepi bawah header */
+.header-accent {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #5b7fae 30%, #e8edf5 50%, #5b7fae 70%, transparent);
+  background-size: 200% 100%;
+  animation: headerAccentSlide 2.5s linear infinite;
+  pointer-events: none;
+  z-index: 1;
 }
 
 .header-canvas {
@@ -520,6 +558,19 @@ body {
   overflow: hidden;
 }
 
+/* Garis aksen mengalir di tepi atas — sisipkan via initBottomNav() di
+   global.js, reuse keyframe headerAccentSlide (lihat .header-accent). */
+.bottom-nav-accent {
+  position: absolute;
+  left: 0; right: 0; top: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #5b7fae 30%, #e8edf5 50%, #5b7fae 70%, transparent);
+  background-size: 200% 100%;
+  animation: headerAccentSlide 2.5s linear infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
 /* Sembunyikan saat keyboard virtual terbuka — dideteksi via visualViewport
    di global.js. Tanpa ini, navbar fixed-bottom melayang di atas keyboard
    pada banyak WebView Android (bug klasik resize viewport). */
@@ -615,7 +666,7 @@ body.keyboard-open .bottom-nav { display: none !important; }
 }
 
 .page-title {
-  font-size: 22px; font-weight: 700;
+  font-size: var(--fs-title-lg); font-weight: 700;
   font-family: var(--heading);
   color: var(--text); letter-spacing: -.03em;
 }
@@ -1046,6 +1097,12 @@ body.keyboard-open .bottom-nav { display: none !important; }
   z-index: 80;
   display: none; align-items: center; justify-content: center;
 }
+/* Desktop (>768px): bottom-nav disembunyikan (display:none), tapi overlay
+   masih nyisain ruang bottom: var(--bnav-h) — bagian itu jadi TIDAK ikut
+   diblur/digelapkan. Di atas breakpoint ini, overlay full sampai bawah. */
+@media (min-width: 769px) {
+  .modal-overlay { bottom: 0; }
+}
 .modal-overlay.open { display: flex; }
 .modal-overlay.modal-sheet-style { align-items: flex-end; }
 
@@ -1214,15 +1271,15 @@ body.keyboard-open .bottom-nav { display: none !important; }
 .card-head .material-symbols-outlined { font-size: 18px; color: var(--card-head-icon); }
 
 .form-card-title {
-  font-size: 15px; font-weight: 700; font-family: var(--heading);
+  font-size: var(--fs-title-sm); font-weight: 700; font-family: var(--heading);
   color: var(--text); letter-spacing: -.01em; margin-bottom: 20px;
   display: flex; align-items: center; gap: 12px;
 }
 .form-card-title i,
 .form-card-title .material-symbols-outlined { font-size: 20px; color: var(--primary); }
 
-.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.form-group      { display: flex; flex-direction: column; gap: 6px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.form-group      { display: flex; flex-direction: column; gap: 5px; }
 .form-group.full { grid-column: 1 / -1; }
 
 .form-label {
@@ -1274,11 +1331,10 @@ select.form-input {
   padding-right: 32px; cursor: pointer;
 }
 
-/* IP & Port ditumpuk vertikal (bukan sebaris) supaya kolom IP Address
-   selalu selebar field lain (Nama, Username, dst) — sebelumnya berbagi
-   baris dgn Port (lebar tetap 90px) sehingga lebih sempit & tidak konsisten */
-.ip-port-row                  { display: flex; flex-direction: column; gap: 8px; }
-.ip-port-row .form-input.port { text-align: left; }
+/* IP & Port sebaris — IP melebar (flex:1), Port lebar tetap 90px. */
+.ip-port-row                  { display: flex; flex-direction: row; gap: 8px; }
+.ip-port-row .form-input      { flex: 1; min-width: 0; }
+.ip-port-row .form-input.port { flex: 0 0 90px; text-align: left; }
 
 /* ── Input kalender (date / month / datetime-local) ─────────── */
 input[type="date"],
@@ -1296,7 +1352,7 @@ input[type="datetime-local"] {
 input[type="date"]:focus,
 input[type="month"]:focus,
 input[type="datetime-local"]:focus {
-  border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring);
+  border-color: var(--primary);
 }
 input[type="date"]:hover,
 input[type="month"]:hover,
@@ -1574,6 +1630,23 @@ tbody tr:hover td.sticky-col-2           { background-color: #e0eaff !important;
   100% { transform: scale(1.15) translateX(3%); opacity: 1; }
 }
 
+/* EFFECT 4: blob cahaya melayang di .header::after */
+@keyframes headerBlobFloat {
+  0%   { transform: translate(0,0) scale(1); opacity: .8; }
+  50%  { transform: translate(-32px,26px) scale(1.35); opacity: 1; }
+  100% { transform: translate(14px,-18px) scale(.9); opacity: .7; }
+}
+/* EFFECT 3: kilau sweep diagonal di .header-shine */
+@keyframes headerShineSweep {
+  0%, 55% { left: -150%; }
+  100%    { left: 150%; }
+}
+/* EFFECT 2: garis aksen bergerak di .header-accent */
+@keyframes headerAccentSlide {
+  0%   { background-position: 0% 0; }
+  100% { background-position: 200% 0; }
+}
+
 /* ── Stat Card Animations ── */
 @keyframes cardSlideUp {
   from { opacity: 0; transform: translateY(18px); }
@@ -1740,6 +1813,20 @@ tbody tr:hover td.sticky-col-2           { background-color: #e0eaff !important;
 .psheet-odp:hover { background: #fde8c0; border-color: var(--amber-border); box-shadow: 0 2px 10px rgba(180,83,9,.10); }
 .psheet-odp:hover .psheet-item-arrow { color: var(--amber); }
 
+.psheet-diagnostik { background: var(--blue-bg); border-color: rgba(29,78,216,.12); }
+.psheet-diagnostik .psheet-item-icon  { background: rgba(29,78,216,.10); color: var(--blue); }
+.psheet-diagnostik .psheet-item-badge { background: var(--blue); color: #fff; }
+.psheet-diagnostik .psheet-item-arrow { color: rgba(29,78,216,.35); }
+.psheet-diagnostik:hover { background: #dbe8ff; border-color: var(--blue-border); box-shadow: 0 2px 10px rgba(29,78,216,.10); }
+.psheet-diagnostik:hover .psheet-item-arrow { color: var(--blue); }
+
+.psheet-problems { background: var(--red-bg); border-color: rgba(186,26,26,.12); }
+.psheet-problems .psheet-item-icon  { background: rgba(186,26,26,.10); color: var(--red); }
+.psheet-problems .psheet-item-badge { background: var(--red); color: #fff; }
+.psheet-problems .psheet-item-arrow { color: rgba(186,26,26,.35); }
+.psheet-problems:hover { background: #fde2e2; border-color: var(--red-border); box-shadow: 0 2px 10px rgba(186,26,26,.10); }
+.psheet-problems:hover .psheet-item-arrow { color: var(--red); }
+
 .psheet-onu { background: #edf7f0; border-color: rgba(16,124,65,.12); }
 .psheet-onu .psheet-item-icon  { background: rgba(16,124,65,.10); color: #107c41; }
 .psheet-onu .psheet-item-badge { background: #107c41; color: #fff; }
@@ -1818,7 +1905,7 @@ tbody tr:hover td.sticky-col-2           { background-color: #e0eaff !important;
   appearance: none;
   -webkit-appearance: none;
   height: var(--dd-h);
-  padding: 0 36px 0 var(--dd-pad-h);
+  padding: 0 var(--dd-pad-h); /* simetris kiri-kanan, tanpa chevron tidak perlu reservasi ruang ikon */
   border: var(--dd-border);
   border-radius: var(--dd-radius);
   background: var(--bg);
@@ -1844,16 +1931,12 @@ tbody tr:hover td.sticky-col-2           { background-color: #e0eaff !important;
   background-color: var(--bg);
 }
 
-/* Chevron material icon — pakai .g-select-wrap */
-.g-select-icon {
-  position: absolute;
-  right: 10px;
-  font-size: 18px;
-  color: var(--text-dim);
-  pointer-events: none;
-  transition: color .15s;
-}
-.g-select-wrap:focus-within .g-select-icon { color: var(--primary); }
+/* Ikon chevron dropdown DIHILANGKAN secara global — sesuai keputusan,
+   kotak select (border+background) sendiri sudah jadi sinyal visual
+   "bisa diklik", tidak perlu ikon panah tambahan. Konsisten dgn
+   .tf-sel-chevron yg juga disembunyikan di custom-select. */
+.g-select-icon { display: none !important; }
+select { background-image: none !important; }
 
 /* Varian: primary (seperti selector MikroTik di dashboard) */
 .g-select.primary {
@@ -2039,7 +2122,7 @@ tbody tr:hover td.sticky-col-2           { background-color: #e0eaff !important;
 .dash-section-title,
 .dp-card-title {
   font-family: var(--heading);
-  font-size: 13px;
+  font-size: var(--fs-title-sm);
   font-weight: 800;
   color: var(--card-head-text);
   display: flex;
@@ -2382,6 +2465,18 @@ tbody tr:hover td.sticky-col-2           { background-color: #e0eaff !important;
     padding-bottom: 16px !important;
     border-bottom: 1px solid var(--border);
   }
+  /* Modal konfirmasi (icon bundar + judul + teks, dibuka via openModalForm)
+     pakai .hapus-icon-wrap sebagai anak pertama, BUKAN header form — jangan
+     ikut diberi treatment sticky-header di atas (yang merusak margin:auto
+     peng-tengah ikon jadi rata kiri, dan menambah border-bottom yang tidak
+     relevan untuk lingkaran ikon). */
+  #modal-form-overlay .form-modal > .hapus-icon-wrap:first-child,
+  #modal-form-overlay .modal > .hapus-icon-wrap:first-child {
+    position: static !important;
+    margin: 0 auto 14px !important;
+    padding-bottom: 0 !important;
+    border-bottom: none !important;
+  }
 
   .g-section-head, .dash-section-head { flex-direction: column; align-items: flex-start; }
 }
@@ -2499,7 +2594,7 @@ tbody tr:hover td.sticky-col-2           { background-color: #e0eaff !important;
   animation: slideDown .22s cubic-bezier(.22,1,.36,1);
 }
 .form-card-title {
-  font-size: 15px; font-weight: 700;
+  font-size: var(--fs-title-sm); font-weight: 700;
   font-family: var(--heading);
   color: var(--text); letter-spacing: -.01em;
   margin-bottom: 20px;
@@ -2509,8 +2604,8 @@ tbody tr:hover td.sticky-col-2           { background-color: #e0eaff !important;
 .form-card-title i { font-size: 20px; color: var(--primary); }
 
 /* ── Form grid & groups ───────────────────────────────────── */
-.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.form-group      { display: flex; flex-direction: column; gap: 6px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.form-group      { display: flex; flex-direction: column; gap: 5px; }
 .form-group.full { grid-column: 1 / -1; }
 .form-label { font-size: 12px; font-weight: 600; color: var(--text-muted); letter-spacing: .01em; }
 .form-hint  { font-size: 11px; color: var(--text-dim); margin-top: 3px; }
@@ -2525,7 +2620,6 @@ tbody tr:hover td.sticky-col-2           { background-color: #e0eaff !important;
 }
 .form-input:focus {
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--primary-ring);
   background: var(--bg);
 }
 .form-input::placeholder { color: var(--text-dim); }
@@ -2538,10 +2632,7 @@ select.form-input {
   padding-right: 32px; cursor: pointer;
 }
 
-/* IP + Port row — ditumpuk vertikal, lihat catatan di definisi pertama
-   (.ip-port-row) supaya kolom IP selebar field lain */
-.ip-port-row { display: flex; flex-direction: column; gap: 8px; }
-.ip-port-row .form-input.port { text-align: left; }
+/* IP + Port row — lihat definisi pertama (.ip-port-row) */
 
 /* Password toggle */
 .form-pwd-wrap { position: relative; display: flex; align-items: center; }
@@ -2561,10 +2652,9 @@ select.form-input {
 }
 
 /* ── Koordinat row + preview ──────────────────────────────── */
-/* Koordinat: input FULL WIDTH, tombol Deteksi di bawahnya (kiri)
-   agar lebar input seragam dengan field lain. */
-.koordinat-row { display: flex; flex-direction: column; gap: 8px; align-items: stretch; }
-.koordinat-row .form-input { width: 100%; }
+/* Koordinat: input + tombol Deteksi bersebelahan (pola sama dgn SN + Scan SN). */
+.koordinat-row { display: flex; flex-direction: row; gap: 8px; align-items: center; }
+.koordinat-row .form-input { width: auto; flex: 1; }
 .koordinat-btn {
   height: 40px; padding: 0 14px;
   border: 1.5px solid var(--border); border-radius: var(--r-sm);
@@ -2572,7 +2662,6 @@ select.form-input {
   font-size: 12px; font-weight: 600; font-family: var(--sans);
   cursor: pointer; white-space: nowrap; flex-shrink: 0;
   display: inline-flex; align-items: center; gap: 5px;
-  align-self: flex-start;
   transition: background .15s, border-color .15s;
 }
 .koordinat-btn:hover { background: var(--primary-light); border-color: var(--primary); }
@@ -2683,7 +2772,6 @@ select.form-input {
 @media (max-width: 480px) {
   .form-grid      { grid-template-columns: 1fr; }
   .form-group.full{ grid-column: 1; }
-  .koordinat-row  { flex-direction: column; }
   .btn-sm         { font-size: 11.5px; padding: 4px 9px; }
   .stats-row-4    { grid-template-columns: 1fr 1fr; }
 }
@@ -2738,6 +2826,22 @@ select.form-input {
 /* ── Page fade-in on load ── */
 @keyframes pageIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
 .page-wrap, .main-content, .content-area { animation: pageIn .3s ease both; }
+
+/* ── Cross-document View Transitions (native browser API) — transisi
+   antar-halaman tanpa SPA, tanpa delay JS buatan. Browser yang support
+   (Chrome/Edge 126+) coordinate snapshot lama→baru sendiri; browser lain
+   (Firefox/Safari saat ini) abaikan rule ini & reload normal tanpa efek,
+   jadi tidak ada risiko. header/bottom-nav dikasih view-transition-name
+   sendiri supaya dianggap "elemen yang sama" lintas halaman (krn isinya
+   identik di semua halaman) — hasilnya terlihat diam, cuma konten yg
+   crossfade. ── */
+@view-transition { navigation: auto; }
+
+.header     { view-transition-name: tf-header; }
+.bottom-nav { view-transition-name: tf-bottom-nav; }
+
+::view-transition-old(root),
+::view-transition-new(root) { animation-duration: .18s; }
 
 /* ── Table row — left accent on hover ── */
 .tbl-main tbody tr { transition: background .1s; }
@@ -2799,11 +2903,6 @@ select.form-input {
 .tbl-empty .material-symbols-outlined { font-size: 40px; opacity: .4; display: block; margin-bottom: 10px; }
 .tbl-empty p { font-size: 13.5px; margin-top: 6px; }
 
-/* ── Smooth focus ring on all inputs ── */
-input:focus-visible, select:focus-visible, textarea:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 2px;
-}
 
 /* ── Feature lock (fitur terkunci sesuai paket langganan) ──── */
 .tf-locked {

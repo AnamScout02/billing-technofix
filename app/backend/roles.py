@@ -1,5 +1,5 @@
 """
-roles.py — TechnoFix · Definisi Peran & Hak Akses (per workspace)
+roles.py — TechnoFix-Bill · Definisi Peran & Hak Akses (per workspace)
 ==================================================================
 Peran dalam SATU workspace ISP (selain Super Admin yang global):
 

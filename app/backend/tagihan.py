@@ -1,5 +1,5 @@
 """
-tagihan.py — TechnoFix · Blueprint Tagihan Bulanan
+tagihan.py — TechnoFix-Bill · Blueprint Tagihan Bulanan
 ====================================================
 Tagihan langganan pelanggan per bulan. Nominal diambil dari
 profil_harga (harga profil PPPoE pelanggan). Saat dibayar →
@@ -11,6 +11,7 @@ Endpoint (prefix /api/tagihan, di input.py):
   POST /api/tagihan/<id>/bayar {metode}       → tandai lunas + catat keuangan
 """
 
+import calendar
 import logging
 from datetime import date
 from flask import Blueprint, request, jsonify, g
@@ -187,9 +188,17 @@ def generate_tagihan():
         jt_hari = int(jt_hari_raw) if jt_hari_raw not in (None, '', 0, '0') else None
     except (TypeError, ValueError):
         jt_hari = None
-    if not jt_hari or jt_hari < 1 or jt_hari > 28:
-        return jsonify({'status': 'error', 'message': 'Tanggal jatuh tempo harus diisi (1-28)'}), 400
-    jatuh_tempo = '{}-{:02d}'.format(periode, jt_hari)
+    if not jt_hari or jt_hari < 1 or jt_hari > 31:
+        return jsonify({'status': 'error', 'message': 'Tanggal jatuh tempo harus diisi (1-31)'}), 400
+    # Clamp ke hari terakhir bulan periode itu — supaya tanggal 29/30/31
+    # tidak jadi invalid utk Februari/bulan 30-hari (mis. 2026-02-31 -> 2026-02-28).
+    try:
+        tahun, bulan = (int(x) for x in periode.split('-'))
+        hari_terakhir = calendar.monthrange(tahun, bulan)[1]
+    except (ValueError, IndexError):
+        return jsonify({'status': 'error', 'message': 'Periode tidak valid'}), 400
+    jt_hari_efektif = min(jt_hari, hari_terakhir)
+    jatuh_tempo = '{}-{:02d}'.format(periode, jt_hari_efektif)
 
     conn = get_db()
     # pelanggan aktif, kecuali yang is_prioritas (bebas tagihan)

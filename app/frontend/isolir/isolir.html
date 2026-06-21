@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Koneksi Terisolir — TechnoFix</title>
+<title>Koneksi Terisolir — TechnoFix-Bill</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,0..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,0..200&display=block" rel="stylesheet"/>
 <style>
 /* â”€â”€ Reset â”€â”€ */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -244,9 +244,9 @@ body::before{
   <!-- Header — blue branded seperti portal_login -->
   <div class="card-header">
     <div class="header-logo">
-      <img src="/app/frontend/statis/technofixlogo.png" alt="TechnoFix"/>
+      <img src="/app/frontend/statis/technofixlogo.png" alt="TechnoFix-Bill"/>
     </div>
-    <div class="header-brand" id="isp-name">TechnoFix</div>
+    <div class="header-brand" id="isp-name">TechnoFix-Bill</div>
     <div class="header-tagline">Portal Pelanggan</div>
   </div>
 
@@ -364,7 +364,7 @@ async function loadData(){
     if(!r.ok) return;
     const d = await r.json();
 
-    const ispName = d.isp_name || 'TechnoFix';
+    const ispName = d.isp_name || 'TechnoFix-Bill';
     setText('isp-name',   ispName);
     setText('isp-footer', ispName);
     setText('d-nama',     d.nama     || d.username);

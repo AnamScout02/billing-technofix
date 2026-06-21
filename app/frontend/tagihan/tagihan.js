@@ -236,12 +236,12 @@ function _buildPagination(total, current, fnName) {
 async function generateTagihan() {
   const periode = document.getElementById('tg-periode').value || periodeNow();
   const jatuhTempoHari = parseInt(document.getElementById('tg-jatuh-tempo-hari').value, 10);
-  if (!jatuhTempoHari || jatuhTempoHari < 1 || jatuhTempoHari > 28) {
-    toast('Isi tanggal jatuh tempo terlebih dahulu (1–28)', 'warning');
+  if (!jatuhTempoHari || jatuhTempoHari < 1 || jatuhTempoHari > 31) {
+    toast('Isi tanggal jatuh tempo terlebih dahulu (1–31)', 'warning');
     document.getElementById('tg-jatuh-tempo-hari').focus();
     return;
   }
-  if (!confirm(`Buat tagihan untuk semua pelanggan aktif periode ${periode} dengan jatuh tempo tanggal ${jatuhTempoHari}?\n\nTagihan yang sudah ada tidak akan diduplikasi.`)) return;
+  if (!(await tfConfirm(`Buat tagihan untuk semua pelanggan aktif periode ${periode} dengan jatuh tempo tanggal ${jatuhTempoHari}? Tagihan yang sudah ada tidak akan diduplikasi.`, { icon: 'bolt' }))) return;
   const btn = document.getElementById('btn-generate'); btn.disabled = true;
   try {
     const r = await fetch(`${TG_API}/generate`, {
@@ -455,8 +455,19 @@ async function toggleAutoIsolir() {
   chk.disabled = false;
 }
 
+function _isiOpsiJatuhTempo() {
+  const sel = document.getElementById('tg-jatuh-tempo-hari');
+  for (let i = 1; i <= 31; i++) {
+    const opt = document.createElement('option');
+    opt.value = String(i);
+    opt.textContent = 'Tanggal ' + i + (i > 28 ? ' (otomatis ke akhir bulan kalau lebih pendek)' : '');
+    sel.appendChild(opt);
+  }
+}
+
 document.addEventListener('DOMContentLoaded', function () {
   document.getElementById('tg-periode').value = periodeNow();
+  _isiOpsiJatuhTempo();
   loadTagihan();
   loadAutoIsolirConfig();
 });

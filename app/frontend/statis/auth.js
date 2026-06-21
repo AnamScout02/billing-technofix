@@ -1,5 +1,5 @@
 /**
- * auth.js — TechnoFix · Autentikasi Frontend
+ * auth.js — TechnoFix-Bill · Autentikasi Frontend
  * ============================================
  * Bergantung pada global.js (harus di-load lebih dulu):
  *   - API_BASE  → base URL server
@@ -109,11 +109,12 @@ async function submitLogin(event) {
   setButtonLoading(btn, true, 'Memproses...');
 
   try {
+    const loginAs = (typeof loginAsRole !== 'undefined') ? loginAsRole : '';
     const res  = await fetch(`${AUTH_API}/login`, {
       method:      'POST',
       headers:     { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body:        JSON.stringify({ username, password }),
+      body:        JSON.stringify({ username, password, login_as: loginAs }),
     });
 
     const data = await res.json();

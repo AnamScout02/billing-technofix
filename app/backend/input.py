@@ -1,5 +1,5 @@
 """
-input.py — TechnoFix · Entry Point Flask
+input.py — TechnoFix-Bill · Entry Point Flask
 =========================================
 Server utama. Register semua Blueprint, inisialisasi DB,
 dan sediakan endpoint CRUD untuk perangkat MikroTik.
@@ -19,6 +19,7 @@ from flask import Flask, request, jsonify, g
 from flask_cors import CORS
 import logging
 import os
+import sqlite3
 
 # ── Shared helpers ─────────────────────────────────────────────
 from utils import get_db, device_to_dict, try_connect_mikrotik, catat_aktivitas
@@ -36,6 +37,7 @@ from loket import loket_bp
 from wa import wa_bp
 from payment import payment_bp
 from setting import setting_bp
+from diagnostik import diagnostik_bp
 
 # ── Setup ──────────────────────────────────────────────────────
 app = Flask(__name__)
@@ -92,6 +94,7 @@ app.register_blueprint(loket_bp, url_prefix='/api/loket')
 app.register_blueprint(wa_bp, url_prefix='/api/wa')
 app.register_blueprint(payment_bp, url_prefix='/api/payment')
 app.register_blueprint(setting_bp, url_prefix='/api/setting')
+app.register_blueprint(diagnostik_bp, url_prefix='/api/diagnostik')
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 
@@ -367,11 +370,18 @@ def update_device(device_id):
 
     final_password = password if password else current['password']
 
-    conn.execute(
-        'UPDATE devices SET name=?, ip=?, port=?, username=?, password=?, status=?, koordinat=?, public_ip=?, wan_interface=? WHERE id=?',
-        (name, ip, port, username, final_password, 'pending', koordinat, public_ip, wan_interface, device_id)
-    )
-    conn.commit()
+    try:
+        conn.execute(
+            'UPDATE devices SET name=?, ip=?, port=?, username=?, password=?, status=?, koordinat=?, public_ip=?, wan_interface=? WHERE id=?',
+            (name, ip, port, username, final_password, 'pending', koordinat, public_ip, wan_interface, device_id)
+        )
+        conn.commit()
+    except sqlite3.IntegrityError:
+        conn.close()
+        return jsonify({
+            'status': 'error',
+            'message': f'IP {ip} dengan port {port} sudah dipakai perangkat lain.'
+        }), 400
 
     row = conn.execute('SELECT * FROM devices WHERE id = ?', (device_id,)).fetchone()
     conn.close()
@@ -693,6 +703,38 @@ def _start_wa_reminder_worker():
     logging.info('[WA Reminder Worker] Thread pengingat WA berjalan di background.')
 
 
+def _start_problem_alert_worker():
+    """
+    Background thread: kirim alert WA ke nomor admin/teknisi (wa_alert_hp)
+    saat ada gangguan baru (router/OLT/ONU offline, redaman kritis/lemah)
+    untuk owner yang mengaktifkan wa_alert_enabled. Dicek tiap 5 menit —
+    aman dijalankan berulang karena wa_problem_alert_log mencegah alert
+    dobel utk problem yg sama (dibersihkan otomatis begitu problem hilang
+    dari live list, supaya kalau muncul lagi nanti alert dikirim ulang).
+    Mulai setelah 60 detik delay agar Flask sudah siap sepenuhnya.
+    """
+    import time, threading
+    try:
+        from wa import run_problem_alerts
+    except ImportError as e:
+        logging.warning('[WA Problem Alert Worker] wa tidak tersedia: %s', e)
+        return
+
+    def _loop():
+        time.sleep(60)  # tunggu Flask siap
+        logging.info('[WA Problem Alert Worker] Alert gangguan dimulai (cek tiap 5 menit).')
+        while True:
+            try:
+                run_problem_alerts()  # iterasi semua owner
+            except Exception as e:
+                logging.error('[WA Problem Alert Worker] Error: %s', e)
+            time.sleep(5 * 60)  # 5 menit
+
+    t = threading.Thread(target=_loop, daemon=True, name='wa-problem-alert-worker')
+    t.start()
+    logging.info('[WA Problem Alert Worker] Thread alert gangguan berjalan di background.')
+
+
 def _start_auto_isolir_worker():
     """
     Background thread: isolir otomatis pelanggan yang tagihannya sudah lewat
@@ -722,9 +764,40 @@ def _start_auto_isolir_worker():
     logging.info('[Auto-Isolir Worker] Thread isolir otomatis berjalan di background.')
 
 
+def _start_bandwidth_worker():
+    """
+    Background thread: rekam riwayat bandwidth WAN semua MikroTik (yang
+    sudah diisi wan_interface) di semua owner, tiap 5 menit — sama
+    interval dengan OLT Worker supaya granularitas grafik konsisten.
+    Mulai setelah 45 detik delay agar Flask sudah siap sepenuhnya.
+    """
+    import time, threading
+    try:
+        from mikrotik import record_bandwidth_all_owners
+    except ImportError as e:
+        logging.warning('[Bandwidth Worker] mikrotik tidak tersedia: %s', e)
+        return
+
+    def _loop():
+        time.sleep(45)  # tunggu Flask siap
+        logging.info('[Bandwidth Worker] Rekam riwayat bandwidth dimulai (interval 5 menit).')
+        while True:
+            try:
+                record_bandwidth_all_owners()  # iterasi semua owner
+            except Exception as e:
+                logging.error('[Bandwidth Worker] Error: %s', e)
+            time.sleep(5 * 60)  # 5 menit
+
+    t = threading.Thread(target=_loop, daemon=True, name='bandwidth-worker')
+    t.start()
+    logging.info('[Bandwidth Worker] Thread riwayat bandwidth berjalan di background.')
+
+
 if __name__ == '__main__':
     init_db()
     _start_olt_sync_worker()
     _start_wa_reminder_worker()
+    _start_problem_alert_worker()
     _start_auto_isolir_worker()
+    _start_bandwidth_worker()
     app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)

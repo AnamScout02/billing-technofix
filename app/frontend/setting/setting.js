@@ -1,5 +1,5 @@
 /* ============================================================
-   setting.js — TechnoFix · Halaman Pengaturan
+   setting.js — TechnoFix-Bill · Halaman Pengaturan
    v2.0
    ============================================================
    Modul:
@@ -345,6 +345,20 @@ async function _loadLogo() {
     const d = await r.json();
     const logo = d.logo?.logo_base64 || '';
     if (logo) _setLogoPreview(logo);
+
+    // Badge status: nama ISP & Logo Perusahaan di atas otomatis dipakai
+    // juga di header app KALAU paket whitelabel (Pro ke atas) — tidak ada
+    // field/upload terpisah, cukup info status di sini.
+    const statusEl = document.getElementById('branding-status');
+    if (statusEl) {
+      if (d.whitelabel_ok) {
+        statusEl.innerHTML = '<span class="material-symbols-outlined" style="font-size:13px;vertical-align:-2px">check_circle</span> Aktif — tampil juga di header semua halaman';
+        statusEl.style.color = 'var(--green)';
+      } else {
+        statusEl.innerHTML = '<span class="material-symbols-outlined" style="font-size:13px;vertical-align:-2px">lock</span> Upgrade ke paket Pro supaya tampil di header app';
+        statusEl.style.color = 'var(--text-dim)';
+      }
+    }
   } catch(_){}
 }
 

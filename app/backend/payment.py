@@ -1,5 +1,5 @@
 """
-payment.py — TechnoFix · Blueprint Payment Gateway
+payment.py — TechnoFix-Bill · Blueprint Payment Gateway
 ==================================================
 Buat link pembayaran online untuk tagihan (Midtrans / Xendit).
 MODE MANUAL: bila gateway belum diaktifkan, dibuat order_id +

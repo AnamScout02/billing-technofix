@@ -923,3 +923,13 @@
 .row-offline > td:first-child { box-shadow: inset 3px 0 0 var(--red-border, #fca5a5); }
 tr.row-online:hover  > td { background: rgba(34,197,94,.04) !important; }
 tr.row-offline:hover > td { background: rgba(239,68,68,.04) !important; }
+
+/* ── Riwayat Sinyal (RX/TX) — tombol range ── */
+.dp-range-btn {
+  font-size: 11.5px; font-weight: 600; font-family: var(--sans);
+  color: rgba(255,255,255,.65); background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.15); border-radius: 999px;
+  padding: 4px 12px; cursor: pointer; transition: background .15s, color .15s;
+}
+.dp-range-btn:hover  { background: rgba(255,255,255,.16); color: #fff; }
+.dp-range-btn.active { background: #fff; color: var(--primary); border-color: #fff; }

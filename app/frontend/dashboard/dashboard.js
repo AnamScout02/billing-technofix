@@ -1,5 +1,5 @@
 /* ============================================================
-   dashboard.js — TechnoFix · Dashboard  v4.1
+   dashboard.js — TechnoFix-Bill · Dashboard  v4.1
    ─────────────────────────────────────────────────────────
    ⚠  global.js WAJIB dimuat sebelum file ini.
 
@@ -48,7 +48,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   if (typeof initDateBadge      === 'function') initDateBadge();
   if (typeof initBottomNav      === 'function') initBottomNav();
-  if (typeof initHeaderCanvas   === 'function') initHeaderCanvas();
+  if (typeof initHeaderFx       === 'function') initHeaderFx();
   if (typeof initDropdownHeader === 'function') initDropdownHeader();
 
   // Kolektor → loket adalah halaman kerja utama
@@ -120,6 +120,7 @@ async function loadDevices() {
       opt.value       = d.id;
       opt.textContent = d.name + '  (' + d.ip + ')';
       opt.dataset.status = d.status || '';
+      opt.dataset.wanInterface = d.wan_interface || '';
       sel.appendChild(opt);
     });
 
@@ -181,6 +182,156 @@ function _afterDeviceSelect() {
   loadActivityLog();
   loadResource();
   loadTicker();
+  _initBandwidthHistoryCard();
+}
+
+/* ══════════════════════════════════════════════════════════
+   RIWAYAT BANDWIDTH (WAN) — grafik historis, pola sama dengan
+   initChartSignalHistory() di detail_pelanggan.js
+══════════════════════════════════════════════════════════ */
+let _chartBwHistory = null;
+let _bwHistFullLabels = [];  // tanggal lengkap, paralel dgn data.labels (yg cuma jam) — dipakai tooltip title
+
+function _bwHistGradient(ctx, colorRgb) {
+  return function (context) {
+    var area = context.chart.chartArea;
+    if (!area) return null;
+    var g = ctx.createLinearGradient(0, area.top, 0, area.bottom);
+    g.addColorStop(0,   'rgba(' + colorRgb + ',.28)');
+    g.addColorStop(.55, 'rgba(' + colorRgb + ',.08)');
+    g.addColorStop(1,   'rgba(' + colorRgb + ',0)');
+    return g;
+  };
+}
+
+function _initChartBwHistory() {
+  var canvas = document.getElementById('chart-bw-history');
+  if (!canvas || typeof Chart === 'undefined') return null;
+  var ctx = canvas.getContext('2d');
+
+  return new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [
+        {
+          label: 'Download', data: [],
+          borderColor: '#378add', backgroundColor: _bwHistGradient(ctx, '55,138,221'),
+          borderWidth: 2.2, pointRadius: 0, pointHoverRadius: 5,
+          pointHoverBackgroundColor: '#378add', pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2,
+          fill: true, tension: .35, borderCapStyle: 'round', borderJoinStyle: 'round',
+        },
+        {
+          label: 'Upload', data: [],
+          borderColor: '#1d9e75', backgroundColor: _bwHistGradient(ctx, '29,158,117'),
+          borderWidth: 2.2, pointRadius: 0, pointHoverRadius: 5,
+          pointHoverBackgroundColor: '#1d9e75', pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2,
+          fill: true, tension: .35, borderCapStyle: 'round', borderJoinStyle: 'round',
+        },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      animation: { duration: 0 },
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          display: true, position: 'top', align: 'end',
+          labels: { boxWidth: 8, boxHeight: 8, usePointStyle: true, pointStyle: 'circle', font: { size: 11, family: 'Poppins,sans-serif' } },
+        },
+        tooltip: {
+          backgroundColor: 'rgba(10,20,34,.94)', borderColor: 'rgba(255,255,255,.12)', borderWidth: 1,
+          titleColor: 'rgba(255,255,255,.65)', titleFont: { size: 10.5, family: 'Poppins,sans-serif', weight: '500' },
+          bodyColor: '#fff', bodyFont: { size: 12, family: 'Poppins,sans-serif', weight: '600' },
+          padding: 10, cornerRadius: 8, boxPadding: 4, usePointStyle: true, caretSize: 6,
+          callbacks: {
+            title: function (items) {
+              var idx = items && items[0] ? items[0].dataIndex : -1;
+              return idx >= 0 && _bwHistFullLabels[idx] ? _bwHistFullLabels[idx] : '';
+            },
+            label: function (c) {
+              var v = c.parsed.y;
+              return ' ' + c.dataset.label + ': ' + (v == null ? '—' : v.toFixed(2) + ' Mbps');
+            }
+          }
+        },
+      },
+      scales: {
+        x: {
+          ticks: { maxTicksLimit: 6, font: { size: 9, family: 'Poppins,sans-serif' }, color: '#9aabc4' },
+          grid: { display: false }, border: { color: '#e4e8f0' },
+        },
+        y: {
+          beginAtZero: true,
+          ticks: { font: { size: 9, family: 'Poppins,sans-serif' }, color: '#9aabc4', padding: 8 },
+          grid: { color: '#eef1f6', drawTicks: false }, border: { display: false },
+        },
+      },
+    },
+  });
+}
+
+function _fmtBwHistTime(iso) {
+  try {
+    var d = new Date(String(iso).replace(' ', 'T'));
+    if (isNaN(d)) return iso;
+    return d.toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  } catch (_) { return iso; }
+}
+
+/* Label sumbu-X cuma jam:menit (singkat, biar chart tidak padat) —
+   tanggal lengkap tetap muncul di tooltip saat klik/hover (lihat
+   callbacks.title di _initChartBwHistory). */
+function _fmtBwHistTimeShort(iso) {
+  try {
+    var d = new Date(String(iso).replace(' ', 'T'));
+    if (isNaN(d)) return iso;
+    return d.toLocaleString('id-ID', { hour: '2-digit', minute: '2-digit' });
+  } catch (_) { return iso; }
+}
+
+function _initBandwidthHistoryCard() {
+  var sel = document.getElementById('select-device');
+  var opt = sel && sel.options[sel.selectedIndex];
+  var hasWan = opt && opt.dataset.wanInterface;
+
+  var cardChart = document.getElementById('card-bw-history');
+  var cardEmpty = document.getElementById('card-bw-history-empty');
+  if (!cardChart || !cardEmpty) return;
+
+  if (!_deviceId || !hasWan) {
+    cardChart.style.display = 'none';
+    cardEmpty.style.display = _deviceId ? '' : 'none';
+    return;
+  }
+  cardChart.style.display = '';
+  cardEmpty.style.display = 'none';
+  loadBandwidthHistory('24h');
+}
+
+async function loadBandwidthHistory(range) {
+  if (!_deviceId) return;
+
+  document.querySelectorAll('#card-bw-history .dp-range-btn').forEach(function (b) {
+    b.classList.toggle('active', b.dataset.range === range);
+  });
+
+  try {
+    var res  = await fetch(BASE + '/api/mikrotik/' + _deviceId + '/bandwidth-history?range=' + range, { credentials: 'include', headers: _authH() });
+    var rows = await res.json();
+    if (!res.ok || !Array.isArray(rows)) return;
+
+    if (!_chartBwHistory) _chartBwHistory = _initChartBwHistory();
+    if (!_chartBwHistory) return;
+
+    _bwHistFullLabels                     = rows.map(function (r) { return _fmtBwHistTime(r.recorded_at); });
+    _chartBwHistory.data.labels           = rows.map(function (r) { return _fmtBwHistTimeShort(r.recorded_at); });
+    _chartBwHistory.data.datasets[0].data = rows.map(function (r) { return r.rx_mbps; });
+    _chartBwHistory.data.datasets[1].data = rows.map(function (r) { return r.tx_mbps; });
+    _chartBwHistory.update();
+  } catch (e) {
+    console.error('[dash] loadBandwidthHistory:', e);
+  }
 }
 
 
@@ -899,7 +1050,7 @@ function initChartBW() {
         x: {
           ticks: {
             maxTicksLimit: 6,
-            font: { size: 10, family: 'Poppins,sans-serif' },
+            font: { size: 9, family: 'Poppins,sans-serif' },
             color: '#9aabc4',
           },
           grid: { display: false },
@@ -908,7 +1059,7 @@ function initChartBW() {
         y: {
           beginAtZero: true,
           ticks: {
-            font: { size: 10, family: 'Poppins,sans-serif' },
+            font: { size: 9, family: 'Poppins,sans-serif' },
             color: '#9aabc4',
             padding: 8,
             callback: function (v) {
@@ -971,7 +1122,7 @@ function initChartTrend() {
       scales: {
         x: {
           ticks: {
-            font: { size: 10, family: 'Poppins,sans-serif' },
+            font: { size: 9, family: 'Poppins,sans-serif' },
             color: '#6a82a8',
           },
           grid: { display: false },
@@ -980,7 +1131,7 @@ function initChartTrend() {
           beginAtZero: true,
           ticks: {
             stepSize: 1,
-            font: { size: 10, family: 'Poppins,sans-serif' },
+            font: { size: 9, family: 'Poppins,sans-serif' },
             color: '#6a82a8',
           },
           grid: { color: 'rgba(0,0,0,.04)' },

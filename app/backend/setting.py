@@ -24,6 +24,11 @@ def _guard():
     err = guard_request(perm='pelanggan')
     if err:
         return err
+    # /branding dikecualikan dari batasan owner-only — semua role (admin/
+    # teknisi/kolektor) perlu baca ini supaya header mereka ikut tampil
+    # branding custom, bukan cuma owner yg login.
+    if request.path.rstrip('/').endswith('/branding'):
+        return
     # Halaman Setting bersifat owner-only di frontend — backend ikut
     # menegakkan ini supaya anggota tim tidak bisa mengubah profil/
     # logo/portal/preferensi ISP lewat panggilan API langsung.
@@ -75,10 +80,16 @@ def get_settings():
         except Exception:
             pass
 
+    from packages import package_has_feature
+    from utils import get_network_row
+    net_row = get_network_row(g.network_id)
+    paket = net_row['paket'] if net_row else 'trial'
+
     data = {
-        'profil':     profil,
-        'portal':     _load(conn, 'portal_setting', {'enabled': True, 'welcome_msg': ''}),
-        'logo':       _load(conn, 'isp_logo',       {'logo_base64': ''}),
+        'profil':        profil,
+        'portal':        _load(conn, 'portal_setting', {'enabled': True, 'welcome_msg': ''}),
+        'logo':          _load(conn, 'isp_logo',       {'logo_base64': ''}),
+        'whitelabel_ok': package_has_feature(paket, 'whitelabel'),
         'preferensi': _load(conn, 'preferensi',     {
             'refresh_interval': 60,
             'rx_good': -20,
@@ -111,6 +122,12 @@ def save_settings():
     if not db_key:
         return jsonify({'error': f'Section tidak dikenal: {section}'}), 400
 
+    # Catatan: isp_name (section 'profil') & isp_logo (section 'logo') TIDAK
+    # digate di sini — field yg sama dipakai utk invoice/WA (semua paket)
+    # MAUPUN ditampilkan di header app (kalau paket whitelabel, lihat
+    # /api/setting/branding). Gating-nya di titik BACA/TAMPIL, bukan di
+    # titik SIMPAN — supaya tidak ada 2 field nama/logo yg duplikat.
+
     conn = get_db()
     try:
         _save(conn, db_key, data)
@@ -118,6 +135,36 @@ def save_settings():
         conn.close()
 
     return jsonify({'success': True, 'section': section}), 200
+
+
+# ── GET branding (logo+nama custom) — dipanggil tiap halaman utk header,
+# TIDAK owner-only (lihat _guard di atas). Return aktif=False kalau paket
+# tidak punya fitur whitelabel ATAU owner belum set nama/logo custom —
+# frontend fallback ke "TechnoFix-Bill" + logo default kalau aktif=False.
+@setting_bp.route('/branding', methods=['GET'])
+def get_branding():
+    from packages import package_has_feature
+    from utils import get_network_row
+    net = get_network_row(g.network_id)
+    paket = net['paket'] if net else 'trial'
+    whitelabel_ok = package_has_feature(paket, 'whitelabel')
+
+    conn = get_db()
+    try:
+        profil = _load(conn, 'profil_isp', {})
+        logo   = _load(conn, 'isp_logo', {})
+    finally:
+        conn.close()
+
+    nama = (profil.get('isp_name') or '').strip()
+    logo_base64 = (logo.get('logo_base64') or '').strip()
+    aktif = whitelabel_ok and bool(nama or logo_base64)
+
+    return jsonify({
+        'aktif':       aktif,
+        'brand_name':  nama if (whitelabel_ok and nama) else '',
+        'logo_base64': logo_base64 if (whitelabel_ok and logo_base64) else '',
+    }), 200
 
 
 # ── GET info sistem ────────────────────────────────────────────

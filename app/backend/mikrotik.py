@@ -1,5 +1,5 @@
 """
-mikrotik.py — TechnoFix MikroTik Client
+mikrotik.py — TechnoFix-Bill MikroTik Client
 ========================================
 Wrapper di atas librouteros untuk komunikasi ke RouterOS API.
 
@@ -23,6 +23,7 @@ from librouteros import connect
 from librouteros.query import Key
 import logging
 import threading
+import time
 
 
 # ── Setup Logging ──────────────────────────────────────────────
@@ -40,6 +41,11 @@ logger = logging.getLogger(__name__)
 _POOL_MAX_IDLE = 2
 _pool_lock: threading.Lock = threading.Lock()
 _connection_pool: dict = {}
+
+# Snapshot byte-counter terakhir per (ip, port, iface) — utk hitung delta
+# bandwidth interface VLAN di get_bandwidth(). Module-level (bukan Flask g)
+# karena dipanggil dari thread worker tanpa request context.
+_BW_SNAP_CACHE: dict = {}
 
 
 # Comment NAT rule "slot" Remote ONU — satu per MikroTik, to-addresses-nya
@@ -303,6 +309,108 @@ class MikroTikClient:
             raise
         except Exception as e:
             raise MikroTikError(f'Tes koneksi gagal: {e}')
+
+    def ping(self, address: str, count: int = 4, size: int | None = None) -> list:
+        """Jalankan /ping dari MikroTik ini ke address.
+
+        Return list dict mentah dari librouteros: beberapa baris balasan
+        per-paket (seq, host, size, ttl, time) + 1 baris ringkasan terakhir
+        (sent, received, packet-loss, min-rtt, avg-rtt, max-rtt)."""
+        try:
+            api = self._get_api()
+            kwargs = {'address': address, 'count': str(count)}
+            if size:
+                kwargs['size'] = str(size)
+            return [dict(r) for r in api('/ping', **kwargs)]
+        except MikroTikError:
+            raise
+        except Exception as e:
+            raise MikroTikError(f'Ping gagal: {e}')
+
+    def traceroute_stream(self, address: str, max_hops: int = 15, count: int = 3):
+        """Generator: yield setiap baris balasan /tool/traceroute begitu
+        diterima dari MikroTik (live, sebelum command selesai). Dipanggil
+        dari background thread — koneksi ini dipegang selama traceroute
+        berjalan, JANGAN dipakai bersamaan dari thread lain."""
+        try:
+            api = self._get_api()
+            for row in api('/tool/traceroute', address=address,
+                            **{'max-hops': str(max_hops), 'count': str(count)}):
+                yield dict(row)
+        except MikroTikError:
+            raise
+        except Exception as e:
+            raise MikroTikError(f'Traceroute gagal: {e}')
+
+    def abort(self):
+        """Tutup koneksi paksa (BUKAN dikembalikan ke pool) — untuk
+        menghentikan command yang sedang lama berjalan (live traceroute),
+        beda dari close() yang mengembalikan koneksi sehat ke pool."""
+        if self._api is not None:
+            self._safe_close(self._api)
+            self._api = None
+
+    def get_bandwidth(self, iface: str, duration: str = '1') -> dict:
+        """Sample bandwidth 1 interface — dipakai worker background utk
+        riwayat bandwidth. Interface fisik (ether/sfp) pakai
+        /interface/monitor-traffic (sample instan ~1 detik, akurat).
+        Interface VLAN ber-hardware-offloading pakai selisih rx-byte/tx-byte
+        terhadap sampel sebelumnya (monitor-traffic tidak akurat utk VLAN —
+        sering balas rate agregat port fisik induknya, bukan rate VLAN itu
+        sendiri), sama logika dgn endpoint live /api/mikrotik/<id>/bandwidth
+        di api.py, tapi cache di sini module-level (bukan Flask g/request-
+        scoped) karena dipanggil dari thread worker tanpa request context.
+        Panggilan pertama utk VLAN akan balas 0 (belum ada sampel
+        sebelumnya) — baru akurat di siklus berikutnya (~5 menit kemudian).
+        Return {'rx_mbps': float, 'tx_mbps': float}."""
+        try:
+            api = self._get_api()
+
+            def _snap():
+                for r in api.path('/interface'):
+                    rd = dict(r)
+                    if rd.get('name') == iface:
+                        return rd
+                return {}
+
+            s1      = _snap()
+            is_vlan = s1.get('type') == 'vlan'
+
+            if not is_vlan:
+                samples = list(api.path('/interface/monitor-traffic')(
+                    **{'interface': iface, 'duration': duration, 'once': ''}
+                ))
+                if samples:
+                    s = dict(samples[0])
+                    return {
+                        'rx_mbps': round(float(s.get('rx-bits-per-second', 0) or 0) / 1_000_000, 3),
+                        'tx_mbps': round(float(s.get('tx-bits-per-second', 0) or 0) / 1_000_000, 3),
+                    }
+
+            if not s1:
+                return {'rx_mbps': 0.0, 'tx_mbps': 0.0}
+
+            now      = time.monotonic()
+            rx_now   = int(s1.get('rx-byte', 0) or 0)
+            tx_now   = int(s1.get('tx-byte', 0) or 0)
+            snap_key = (self.ip, self.port, iface)
+            prev     = _BW_SNAP_CACHE.get(snap_key)
+            _BW_SNAP_CACHE[snap_key] = (now, rx_now, tx_now)
+
+            if not prev:
+                return {'rx_mbps': 0.0, 'tx_mbps': 0.0}
+            prev_ts, prev_rx, prev_tx = prev
+            elapsed = now - prev_ts
+            if elapsed < 0.5:
+                return {'rx_mbps': 0.0, 'tx_mbps': 0.0}
+            return {
+                'rx_mbps': round(max(rx_now - prev_rx, 0) * 8 / elapsed / 1_000_000, 3),
+                'tx_mbps': round(max(tx_now - prev_tx, 0) * 8 / elapsed / 1_000_000, 3),
+            }
+        except MikroTikError:
+            raise
+        except Exception as e:
+            raise MikroTikError(f'Gagal ambil bandwidth: {e}')
 
     # ══════════════════════════════════════════════════════════
     # PPP PROFILES
@@ -601,3 +709,54 @@ class MikroTikClient:
             f'[VLAN] Total resolved: {len(result)} dari MikroTik {self.ip}'
         )
         return result
+
+
+# ══════════════════════════════════════════════════════════════
+# RIWAYAT BANDWIDTH — dipanggil dari worker background di input.py
+# (pola sama dengan sync_all_olts() di olt_sync.py: iterasi semua owner)
+# ══════════════════════════════════════════════════════════════
+
+def record_bandwidth_all_owners():
+    """Sample bandwidth utk semua device yang sudah diisi wan_interface,
+    di semua owner, simpan ke bandwidth_history (retensi 14 hari).
+    Device tanpa wan_interface dilewati (bukan error) — owner perlu isi
+    field itu dulu di form tambah/edit MikroTik."""
+    from utils import get_master_db, get_owner_db
+    from datetime import datetime, timedelta
+
+    master = get_master_db()
+    owners = master.execute('SELECT network_id FROM networks').fetchall()
+    master.close()
+
+    for row in owners:
+        nid = row['network_id']
+        try:
+            conn = get_owner_db(nid)
+            # TIDAK filter by status='connected' — kolom itu cuma hasil tes
+            # koneksi terakhir (bisa basi/'pending' walau device sebenarnya
+            # online, mis. sehabis edit form). Coba konek langsung & lewati
+            # per-device kalau gagal (sudah ditangani try/except di bawah).
+            devices = conn.execute('''
+                SELECT id, name, ip, port, username, password, wan_interface
+                FROM devices
+                WHERE wan_interface IS NOT NULL AND wan_interface != ''
+            ''').fetchall()
+
+            now = datetime.now().isoformat(timespec='seconds')
+            for d in devices:
+                try:
+                    with MikroTikClient(dict(d)) as mt:
+                        bw = mt.get_bandwidth(d['wan_interface'])
+                    conn.execute(
+                        'INSERT INTO bandwidth_history (device_id, rx_mbps, tx_mbps, recorded_at) VALUES (?, ?, ?, ?)',
+                        (d['id'], bw['rx_mbps'], bw['tx_mbps'], now)
+                    )
+                except MikroTikError as e:
+                    logger.warning('[Bandwidth] device %s (%s) gagal: %s', d['id'], d['name'], e)
+
+            cutoff = (datetime.now() - timedelta(days=14)).isoformat(timespec='seconds')
+            conn.execute('DELETE FROM bandwidth_history WHERE recorded_at < ?', (cutoff,))
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            logger.error('[Bandwidth] owner %s gagal: %s', nid[:8], e)

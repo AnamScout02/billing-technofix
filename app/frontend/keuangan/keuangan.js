@@ -1,5 +1,5 @@
 /**
- * keuangan.js — TechnoFix · Halaman Keuangan
+ * keuangan.js — TechnoFix-Bill · Halaman Keuangan
  * ============================================
  * Mengelola tampilan data keuangan:
  *  - Fetch & render ringkasan statistik ke Stat-Cards
@@ -894,7 +894,7 @@ async function eksekusiHapus() {
 
 function _printStrukKeuangan(trx) {
   const fmt    = n => 'Rp ' + Number(n).toLocaleString('id-ID');
-  const isp    = localStorage.getItem('tf_isp_name') || 'TechnoFix';
+  const isp    = localStorage.getItem('tf_isp_name') || 'TechnoFix-Bill';
   const warna  = trx.tipe === 'pemasukan' ? '#16a34a' : '#dc2626';
   const tanda  = trx.tipe === 'pemasukan' ? '+' : '-';
 
@@ -931,7 +931,7 @@ function _printStrukKeuangan(trx) {
       ${trx.catatan ? baris('Catatan', escHtml(trx.catatan)) : ''}
     </table>
     <hr>
-    <div class="footer">Dicetak otomatis oleh TechnoFix</div>
+    <div class="footer">Dicetak otomatis oleh TechnoFix-Bill</div>
   </div>
   <script>window.onload = () => { window.print(); };</script>
 </body></html>`;

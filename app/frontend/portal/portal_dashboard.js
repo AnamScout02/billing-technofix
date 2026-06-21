@@ -1,5 +1,5 @@
 /* ============================================================
-   portal_dashboard.js — Portal Pelanggan TechnoFix
+   portal_dashboard.js — Portal Pelanggan TechnoFix-Bill
    v2.1 — Fix: konsistensi key backend, endpoint lengkap
    ============================================================
    Perubahan v2.1:
@@ -17,7 +17,10 @@ const PORTAL_API = (function(){
   if (!base) {
     if (h === 'localhost' || h === '127.0.0.1') base = 'http://127.0.0.1:5000';
     else if (h === '192.168.70.7')              base = 'http://192.168.70.7:5000';
-    else if (h === '103.194.175.54')            base = 'http://103.194.175.54:5000';
+    // 103.194.175.54, 172.15.0.11, technofix-bill.com & lainnya → same-origin
+    // (port 5000 diblokir firewall dari luar — HARUS lewat Apache reverse
+    // proxy, bukan port langsung. Beda port = beda origin = cookie sesi
+    // login tidak konsisten, picu redirect loop login<->dashboard).
   }
   return base + '/api/portal';
 })();
@@ -105,7 +108,19 @@ function renderDetail(d) {
   const sapa = hour < 11 ? 'Selamat Pagi' : hour < 15 ? 'Selamat Siang' : hour < 18 ? 'Selamat Sore' : 'Selamat Malam';
   setText('welcome-greeting', sapa + '! 👋');
   setText('welcome-name', displayName);
-  setText('welcome-sub', d.profil ? `Paket ${d.profil} · ${d.router_name || 'TechnoFix'}` : 'Selamat datang di Portal Pelanggan TechnoFix');
+  setText('welcome-sub', d.profil ? `Paket ${d.profil} · ${d.router_name || 'TechnoFix-Bill'}` : 'Selamat datang di Portal Pelanggan TechnoFix-Bill');
+
+  // Waktu login sesi ini
+  const loginAtEl = document.getElementById('welcome-login-at');
+  if (loginAtEl && d.login_at) {
+    try {
+      const dt = new Date(String(d.login_at).replace(' ', 'T'));
+      if (!isNaN(dt)) {
+        setText('welcome-login-at-text', 'Masuk: ' + dt.toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }));
+        loginAtEl.style.display = '';
+      }
+    } catch (_) {}
+  }
 
   // Pesan pengumuman dari ISP (diset di Pengaturan > Portal)
   const wmBanner = document.getElementById('welcome-msg-banner');

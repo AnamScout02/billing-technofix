@@ -1,5 +1,5 @@
 /* ============================================================
-   pelanggan.js — Manajemen Pelanggan TechnoFix
+   pelanggan.js — Manajemen Pelanggan TechnoFix-Bill
    Requires: global.js  ← wajib di-load lebih dulu di HTML
 
    ✅ Fungsi dari global.js yang dipakai:
@@ -898,108 +898,11 @@ function showFormPelanggan(prefill) {
             </select>
           </div>
 
-          <!-- Separator OLT -->
-          <div class="form-group full" style="margin:4px 0 0;">
-            <div style="font-size:11px;font-weight:700;color:var(--text-dim);
-                 letter-spacing:.08em;text-transform:uppercase;padding:6px 0 2px;
-                 border-top:1px solid var(--border);">
-              Data OLT — Provisioning ONU
-            </div>
-          </div>
-
-          <!-- Pilih OLT -->
+          <!-- VLAN -->
           <div class="form-group full">
-            <label class="form-label">Perangkat OLT</label>
-            <select class="form-input" id="f-olt">
-              <option value="">Pilih OLT (opsional)</option>
-            </select>
-          </div>
-
-          <!-- Titik Koordinat — dipindah ke sini agar bisa suggest ODP terdekat -->
-          <div class="form-group full">
-            <label class="form-label">
-              <span class="material-symbols-outlined"
-                    style="font-size:13px;vertical-align:middle;color:var(--primary)">location_on</span>
-              Titik Koordinat Rumah Pelanggan
-              <span style="font-size:10px;font-weight:400;color:var(--text-dim);margin-left:4px">(untuk Maps &amp; suggest ODP terdekat)</span>
-            </label>
-            <div class="koordinat-row">
-              <input class="form-input" id="f-koordinat" type="text"
-                placeholder="cth: -8.267870, 114.369284"
-                value="${prefill ? escHtml(prefill.titik_koordinat || prefill.koordinat || '') : ''}"
-                oninput="previewKoordinatPelanggan();_suggestOdpTerdekat()">
-              <button type="button" class="koordinat-btn" onclick="deteksiLokasiPelanggan()">
-                <span class="material-symbols-outlined">my_location</span>
-                Deteksi
-              </button>
-            </div>
-            <span class="form-hint">Format: latitude, longitude — gunakan tombol Deteksi untuk isi otomatis</span>
-            <div class="koordinat-preview" id="koordinat-preview-pel">
-              <iframe id="koordinat-iframe-pel" src="" loading="lazy"></iframe>
-            </div>
-          </div>
-
-          <!-- ODP — titik distribusi ke pelanggan ini -->
-          <div class="form-group full">
-            <label class="form-label">
-              ODP
-              <span style="font-size:10px;font-weight:400;color:var(--text-dim);margin-left:4px">(untuk garis topologi di Maps)</span>
-            </label>
-            <select class="form-input" id="f-odp" onchange="_loadOdpPortsIntoForm()">
-              <option value="">Pilih ODP (opsional)</option>
-            </select>
-            <div id="odp-suggest-strip" style="display:none;margin-top:6px;font-size:11.5px;color:var(--text-dim)"></div>
-          </div>
-
-          <!-- Port ODP -->
-          <div class="form-group" id="f-port-odp-wrap" style="display:none">
-            <label class="form-label">Port ODP
-              <span style="font-size:10px;font-weight:400;color:var(--text-dim);margin-left:4px">(pilih port yang kosong)</span>
-            </label>
-            <select class="form-input" id="f-port-odp">
-              <option value="">Pilih Port</option>
-            </select>
-          </div>
-
-          <!-- Slot/Port & VLAN -->
-          <div class="form-group">
-            <label class="form-label">Slot/Port : ONU-ID</label>
-            <input class="form-input" id="f-slot" type="text"
-              placeholder="cth: 0/1/1:3" value="${v('slot_port')}">
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">VLAN
-              <span style="font-size:10px;font-weight:400;color:var(--text-dim);margin-left:4px">(sesuai interface VLAN di MikroTik)</span>
-            </label>
+            <label class="form-label">VLAN</label>
             <select class="form-input" id="f-vlan">
               <option value="">Pilih VLAN</option>
-            </select>
-          </div>
-
-          <!-- Serial Number + Scan SN -->
-          <div class="form-group full">
-            <label class="form-label">Serial Number (SN) Modem/ONU</label>
-            <div style="display:flex;gap:8px;align-items:center">
-              <input class="form-input" id="f-sn" type="text"
-                placeholder="cth: ZTEG1A2B3C4D atau HWTC1A2B3C4D" value="${v('sn')}" style="flex:1">
-              <button type="button" class="btn btn-sm btn-blue" onclick="_scanSnOlt()" title="Scan SN dari OLT yang dipilih">
-                <span class="material-symbols-outlined">wifi_find</span>Scan SN
-              </button>
-            </div>
-            <span class="form-hint">Atau klik "Scan SN" untuk mendeteksi ONU yang belum terdaftar</span>
-            <!-- Hasil scan SN -->
-            <div id="scan-sn-result" style="display:none;margin-top:8px;border:1px solid var(--border);border-radius:var(--r-md);max-height:200px;overflow-y:auto">
-            </div>
-          </div>
-
-          <!-- Kolektor -->
-          <div class="form-group full">
-            <label class="form-label">Kolektor
-              <span style="font-size:10px;font-weight:400;color:var(--text-dim);margin-left:4px">(opsional — untuk penugasan tagihan)</span>
-            </label>
-            <select class="form-input" id="f-kolektor">
-              <option value="">Tidak Ditugaskan</option>
             </select>
           </div>
 
@@ -1014,17 +917,102 @@ function showFormPelanggan(prefill) {
                 onchange="document.getElementById('lbl-prioritas-wrap').style.borderColor=this.checked?'var(--purple,#7c3aed)':'var(--border)'">
               <span>
                 <strong style="font-size:13px">Pelanggan Prioritas</strong>
-                <span style="display:block;font-size:11.5px;color:var(--text-dim);font-weight:400">Tidak ditagih & tidak diisolir otomatis (bebas biaya)</span>
               </span>
             </label>
           </div>
 
           <!-- Catatan Khusus -->
           <div class="form-group full">
-            <label class="form-label">Catatan Khusus <span style="font-size:10px;font-weight:400;color:var(--text-dim)">(opsional)</span></label>
+            <label class="form-label">Catatan Khusus</label>
             <input class="form-input" id="f-catatan-khusus" type="text"
               placeholder="cth: Keluarga owner, sponsor, dll"
               value="${prefill ? escHtml(prefill.catatan_khusus || '') : ''}">
+          </div>
+
+          <!-- Titik Koordinat — dipindah ke sini agar bisa suggest ODP terdekat -->
+          <div class="form-group full">
+            <label class="form-label">Titik Koordinat Rumah Pelanggan</label>
+            <div class="koordinat-row">
+              <input class="form-input" id="f-koordinat" type="text"
+                placeholder="cth: -8.267870, 114.369284"
+                value="${prefill ? escHtml(prefill.titik_koordinat || prefill.koordinat || '') : ''}"
+                oninput="previewKoordinatPelanggan();_suggestOdpTerdekat()">
+              <button type="button" class="koordinat-btn" onclick="deteksiLokasiPelanggan()">
+                <span class="material-symbols-outlined">my_location</span>
+                Deteksi
+              </button>
+            </div>
+            <div class="koordinat-preview" id="koordinat-preview-pel">
+              <iframe id="koordinat-iframe-pel" src="" loading="lazy"></iframe>
+            </div>
+          </div>
+
+          <!-- Separator OLT -->
+          <div class="form-group full" style="margin:4px 0 0;">
+            <div style="font-size:11px;font-weight:700;color:var(--text-dim);
+                 letter-spacing:.08em;text-transform:uppercase;padding:6px 0 2px;
+                 border-top:1px solid var(--border);">
+              Data OLT — Provisioning ONU
+            </div>
+          </div>
+
+          <!-- Pilih OLT -->
+          <div class="form-group full">
+            <label class="form-label">Perangkat OLT</label>
+            <select class="form-input" id="f-olt">
+              <option value="">Pilih OLT</option>
+            </select>
+          </div>
+
+          <!-- Serial Number + Scan SN -->
+          <div class="form-group full">
+            <label class="form-label">Serial Number (SN) Modem/ONU</label>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input class="form-input" id="f-sn" type="text"
+                placeholder="cth: ZTEG1A2B3C4D atau HWTC1A2B3C4D" value="${v('sn')}" style="flex:1">
+              <button type="button" class="koordinat-btn" onclick="_scanSnOlt()" title="Scan SN dari OLT yang dipilih">
+                <span class="material-symbols-outlined">wifi_find</span>Scan SN
+              </button>
+            </div>
+            <!-- Hasil scan SN -->
+            <div id="scan-sn-result" style="display:none;margin-top:8px;border:1px solid var(--border);border-radius:var(--r-md);max-height:200px;overflow-y:auto">
+            </div>
+          </div>
+
+          <!-- Slot/Port -->
+          <div class="form-group full">
+            <label class="form-label">Slot/Port : ONU-ID</label>
+            <input class="form-input" id="f-slot" type="text"
+              placeholder="cth: 0/1/1:3" value="${v('slot_port')}">
+          </div>
+
+          <!-- ODP — titik distribusi ke pelanggan ini -->
+          <div class="form-group full">
+            <label class="form-label">ODP</label>
+            <select class="form-input" id="f-odp" onchange="_loadOdpPortsIntoForm()">
+              <option value="">Pilih ODP</option>
+            </select>
+            <div id="odp-suggest-strip" style="display:none;margin-top:6px;font-size:11.5px;color:var(--text-dim)"></div>
+          </div>
+
+          <!-- Port ODP -->
+          <div class="form-group" id="f-port-odp-wrap" style="display:none">
+            <label class="form-label">Port ODP
+              <span style="font-size:10px;font-weight:400;color:var(--text-dim);margin-left:4px">(pilih port yang kosong)</span>
+            </label>
+            <select class="form-input" id="f-port-odp">
+              <option value="">Pilih Port</option>
+            </select>
+          </div>
+
+          <!-- Kolektor -->
+          <div class="form-group full">
+            <label class="form-label">Kolektor
+              <span style="font-size:10px;font-weight:400;color:var(--text-dim);margin-left:4px">(opsional)</span>
+            </label>
+            <select class="form-input" id="f-kolektor">
+              <option value="">Pilih Kolektor</option>
+            </select>
           </div>
 
           <!-- Separator Info Tambahan -->
@@ -1165,7 +1153,7 @@ function _showKonfirmasiSimpan() {
             <span class="material-symbols-outlined">receipt_long</span>
             <div>
               <div class="lk-konfirmasi-title">Billing</div>
-              <div class="lk-konfirmasi-desc">Data pelanggan di database TechnoFix (selalu aktif)</div>
+              <div class="lk-konfirmasi-desc">Data pelanggan di database TechnoFix-Bill (selalu aktif)</div>
             </div>
           </div>
         </label>
@@ -1490,7 +1478,7 @@ async function _loadOltIntoForm(selectedVal) {
     await loadOltCache();
   }
 
-  sel.innerHTML = '<option value="">Pilih OLT (opsional)</option>';
+  sel.innerHTML = '<option value="">Pilih OLT</option>';
   oltCache.forEach(olt => {
     const opt = new Option(
       `${olt.name}${olt.tipe ? ' · ' + olt.tipe : ''} (${olt.ip})`,
@@ -1537,7 +1525,7 @@ function _makeOdpOption(odp, selectedVal) {
 
 /** Render opsi ODP ke dalam select, dengan grup "Terdekat" jika ada */
 function _renderOdpOptions(sel, list, selectedVal, terdekatIds) {
-  sel.innerHTML = '<option value="">Pilih ODP (opsional)</option>';
+  sel.innerHTML = '<option value="">Pilih ODP</option>';
   if (terdekatIds && terdekatIds.length) {
     const grpDekat = document.createElement('optgroup');
     grpDekat.label = '3 ODP Terdekat';
@@ -1702,7 +1690,7 @@ async function _loadKolektorIntoForm(selectedVal) {
     });
     if (!r.ok) return;
     const list = await r.json();
-    sel.innerHTML = '<option value="">Tidak Ditugaskan</option>';
+    sel.innerHTML = '<option value="">Pilih Kolektor</option>';
     list.forEach(k => {
       const opt = new Option(k.nama || k.username, k.username);
       if (k.username === selectedVal) opt.selected = true;
@@ -1763,9 +1751,9 @@ async function _scanSnOlt() {
   if (!resultDiv) return;
 
   resultDiv.style.display = '';
-  resultDiv.innerHTML = '<div style="padding:12px;font-size:12.5px;color:var(--text-muted)">' +
-    '<span class="material-symbols-outlined" style="vertical-align:middle;font-size:16px">sensors</span>' +
-    ' Scanning OLT… (bisa 10–30 detik)</div>';
+  resultDiv.innerHTML = '<div style="padding:14px 12px;font-size:12.5px;color:var(--text-muted);display:flex;align-items:center;gap:8px">' +
+    '<span class="material-symbols-outlined spin" style="font-size:18px;color:var(--primary)">progress_activity</span>' +
+    '<span>Scanning OLT… (bisa sampai 1 menit, makin lama kalau port-nya padat ONU)</span></div>';
 
   const base = (typeof API_BASE !== 'undefined') ? API_BASE : '';
   const hdr  = (typeof getAuthHeaders === 'function') ? getAuthHeaders() : {};
@@ -1792,7 +1780,7 @@ async function _scanSnOlt() {
             'onmouseover="this.style.background=\'var(--surface)\'" onmouseout="this.style.background=\'\'">' +
             '<span class="material-symbols-outlined" style="font-size:18px;color:var(--primary)">wifi</span>' +
             '<div><div style="font-weight:700;font-size:13px">' + formatSn(item.sn) + '</div>' +
-            '<div style="font-size:11.5px;color:var(--text-dim)">Slot/Port: ' + (item.slot_port||'—') + ' \xb7 ' + (item.tipe||'gpon') + '</div></div>' +
+            '<div style="font-size:11.5px;color:var(--text-dim)">Slot/Port: ' + (item.slot_port||'—') + '</div></div>' +
             '</div>';
         }).join('');
       return;

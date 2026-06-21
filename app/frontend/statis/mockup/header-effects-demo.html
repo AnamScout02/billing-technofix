@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Header Effects Demo</title>
+<style>
+  :root {
+    /* Ganti warna ini sesuai brand kamu */
+    --accent: #f5c451;
+    --accent-dark: #d99a1b;
+    --glow-color: rgba(77, 159, 255, .18);
+
+    --bg: #0b0f19;
+    --surface: #141a26;
+    --text: #f1f5f9;
+    --text-muted: #94a3b8;
+    --ease: cubic-bezier(.22, 1, .36, 1);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    position: relative;
+  }
+
+  /* ============================================================
+     EFFECT 5: Ambient glow — radial glow fixed di belakang konten
+     ============================================================ */
+  .ambient-glow {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background: radial-gradient(640px circle at 50% 0%, var(--glow-color), transparent 70%);
+    transition: background .7s var(--ease);
+  }
+
+  /* ============================================================
+     HEADER / TOPBAR — gabungan effect 1-4
+     ============================================================ */
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 18px 24px;
+    overflow: hidden;
+
+    /* EFFECT 1: grid pattern + glass background */
+    background:
+      linear-gradient(rgba(255, 255, 255, .03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, .03) 1px, transparent 1px),
+      linear-gradient(180deg, rgba(26, 28, 38, .94) 0%, rgba(11, 15, 25, .9) 100%);
+    background-size: 26px 26px, 26px 26px, auto;
+    backdrop-filter: blur(18px);
+    border-bottom: 1px solid rgba(245, 196, 81, .16);
+  }
+
+  /* Konten header harus di atas pseudo-element ::before/::after */
+  .topbar-brand,
+  .topbar-right {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .topbar-brand {
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: -.01em;
+  }
+
+  .brand-mark {
+    width: 30px;
+    height: 30px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    color: var(--bg);
+    box-shadow: 0 4px 12px rgba(245, 185, 66, .35);
+  }
+
+  .topbar-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: var(--surface);
+    border: 1px solid rgba(255, 255, 255, .08);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  /* EFFECT 3: kilau bergerak ala kartu kredit */
+  .topbar::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -150%;
+    width: 60%;
+    height: 100%;
+    background: linear-gradient(115deg, transparent, rgba(245, 196, 81, .22), transparent);
+    transform: skewX(-18deg);
+    animation: shineSweep 4.5s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* EFFECT 4: blob cahaya melayang */
+  .topbar::after {
+    content: '';
+    position: absolute;
+    top: -60%;
+    right: -15%;
+    width: 60%;
+    height: 220%;
+    border-radius: 50%;
+    background: radial-gradient(ellipse, rgba(245, 196, 81, .16) 0%, transparent 70%);
+    mix-blend-mode: screen;
+    pointer-events: none;
+    animation: floatBlob 7s ease-in-out infinite alternate;
+  }
+
+  /* EFFECT 2: garis aksen bergerak di tepi bawah header */
+  .topbar-curve {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent) 45%, var(--accent-dark) 55%, transparent);
+    background-size: 200% 100%;
+    animation: accentSlide 2.5s linear infinite;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  @keyframes shineSweep {
+    0%, 55% { left: -150%; }
+    100%    { left: 150%; }
+  }
+
+  @keyframes floatBlob {
+    0%   { transform: translate(0, 0) scale(1); opacity: .8; }
+    50%  { transform: translate(-32px, 26px) scale(1.35); opacity: 1; }
+    100% { transform: translate(14px, -18px) scale(.9); opacity: .7; }
+  }
+
+  @keyframes accentSlide {
+    0%   { background-position: 0% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  /* ---- Konten demo ---- */
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 720px;
+    margin: 40px auto;
+    padding: 0 24px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid rgba(255, 255, 255, .08);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+
+  .card h2 { font-size: 16px; margin-bottom: 8px; }
+  .card p { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+  .swatches {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+  }
+
+  .swatch {
+    flex: 1;
+    height: 40px;
+    border-radius: 8px;
+    cursor: pointer;
+    border: 1px solid rgba(255, 255, 255, .1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+  }
+</style>
+</head>
+<body>
+
+  <!-- EFFECT 5 -->
+  <div class="ambient-glow" id="glow"></div>
+
+  <!-- HEADER -->
+  <header class="topbar">
+    <div class="topbar-brand">
+      <span class="brand-mark">D</span>
+      <span>duitku</span>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-btn">⚙</div>
+    </div>
+    <div class="topbar-curve"></div>
+  </header>
+
+  <div class="container">
+    <div class="card">
+      <h2>Header Effects Demo</h2>
+      <p>
+        Header di atas menggabungkan 5 efek: grid pattern + glass blur, garis aksen emas
+        yang bergerak di tepi bawah, kilau diagonal ala kartu kredit, blob cahaya
+        melayang di pojok kanan atas, dan ambient glow radial di belakang seluruh halaman.
+      </p>
+      <p style="margin-top:8px;">
+        Klik swatch warna di bawah untuk mengganti <code>--glow-color</code> ambient glow secara live.
+      </p>
+      <div class="swatches">
+        <div class="swatch" style="background:rgba(77,159,255,.35)" data-glow="rgba(77,159,255,.18)">Biru</div>
+        <div class="swatch" style="background:rgba(52,211,153,.35)" data-glow="rgba(52,211,153,.18)">Hijau</div>
+        <div class="swatch" style="background:rgba(245,196,81,.35)" data-glow="rgba(245,196,81,.18)">Emas</div>
+        <div class="swatch" style="background:rgba(248,113,113,.35)" data-glow="rgba(248,113,113,.18)">Merah</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Cara pakai</h2>
+      <p>
+        1. Copy seluruh blok CSS di file ini (variabel <code>:root</code>, <code>.ambient-glow</code>, <code>.topbar</code> + pseudo-element + keyframes).<br>
+        2. Sesuaikan <code>--accent</code> / <code>--accent-dark</code> dengan warna brand kamu.<br>
+        3. Pastikan elemen di dalam <code>.topbar</code> punya <code>position: relative; z-index: 1;</code> agar tampil di atas efek dekoratif.<br>
+        4. Tambahkan <code>&lt;div class="topbar-curve"&gt;&lt;/div&gt;</code> dan <code>&lt;div class="ambient-glow"&gt;&lt;/div&gt;</code> di markup.
+      </p>
+    </div>
+  </div>
+
+  <script>
+    document.querySelectorAll('.swatch').forEach(el => {
+      el.addEventListener('click', () => {
+        document.getElementById('glow').style.setProperty('--glow-color', el.dataset.glow);
+      });
+    });
+  </script>
+</body>
+</html>

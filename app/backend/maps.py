@@ -1,5 +1,5 @@
 """
-maps.py — TechnoFix · Blueprint API Peta Topologi
+maps.py — TechnoFix-Bill · Blueprint API Peta Topologi
 ===================================================
 Endpoint khusus untuk halaman Maps.
 Blueprint: maps_bp  →  didaftarkan di input.py dengan prefix /api/maps
@@ -24,6 +24,7 @@ Format node:
 import logging
 import socket
 import time
+from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from flask import Blueprint, jsonify, request, g
 from utils  import get_db, get_olt_uplinks
@@ -41,14 +42,24 @@ _mt_cache: dict = {}   # network_id -> (timestamp, {username: ip})
 _MT_TTL   = 60
 
 
-def _fetch_pppoe_active(conn):
+def _fetch_pppoe_active(conn, network_id=None):
     """
     Kembalikan dict {username: ip} dari sesi PPPoE aktif di semua MikroTik.
     Jika semua MikroTik gagal atau tidak ada → kembalikan None (sinyal: pakai p.aktif).
     Cache 60 detik per owner.
+
+    network_id dipakai sbg cache key — kalau tidak diberikan (dipanggil dari
+    luar request Flask, mis. worker background), coba ambil dari g.network_id;
+    kalau tidak ada app context sama sekali (worker thread), pakai '' (aman,
+    cuma berarti cache dibagi antar-pemanggil tanpa network_id eksplisit).
     """
-    from flask import g as _g
-    nid = getattr(_g, 'network_id', '')
+    nid = network_id
+    if nid is None:
+        try:
+            from flask import g as _g
+            nid = getattr(_g, 'network_id', '')
+        except RuntimeError:
+            nid = ''
     now = time.time()
 
     cached = _mt_cache.get(nid)
@@ -60,9 +71,15 @@ def _fetch_pppoe_active(conn):
     devs = []
     try:
         from mikrotik import MikroTikClient
+        # TIDAK filter by status='connected' — kolom itu cuma hasil tes
+        # koneksi TERAKHIR (bisa basi/'pending' walau device sebenarnya
+        # online), bukan status realtime. Device dgn status basi yg
+        # ternyata punya banyak pelanggan akan membuat SEMUA pelanggannya
+        # salah ditandai offline kalau di-skip di sini. Coba konek
+        # langsung & lewati per-device kalau gagal (sudah ditangani
+        # try/except di loop bawah).
         devs = conn.execute(
-            'SELECT id, name, ip, port, username, password '
-            "FROM devices WHERE status='connected'"
+            'SELECT id, name, ip, port, username, password FROM devices'
         ).fetchall()
 
         for dev in devs:
@@ -803,6 +820,173 @@ def maps_topology():
         'is_kolektor': locals().get('is_kolektor', False),
         'koordinat_kosong': locals().get('koordinat_kosong', 0),
     }), 200
+
+
+# ══════════════════════════════════════════════════════════════
+# GET /api/maps/problems
+# Daftar live semua gangguan aktif (router/OLT offline, ONU offline atau
+# redaman jelek) — beda dari /topology yang HANYA mengambil node dengan
+# koordinat valid. Problems mengambil SEMUA, tanpa syarat koordinat,
+# karena perangkat yang belum diplot di peta tetap perlu dipantau.
+# Reuse _bulk_status_check() & _fetch_pppoe_active() yang sudah ada,
+# TIDAK menyalin/menulis ulang query topology yang besar & berisiko.
+# ══════════════════════════════════════════════════════════════
+
+RX_CRIT_DBM = -27   # konsisten dengan threshold di dashboard.js
+RX_WARN_DBM = -24
+
+def _compute_problems(conn, network_id=None):
+    """Hitung daftar problems (router/OLT/ONU offline + redaman) untuk 1 owner.
+    Dipakai endpoint /api/maps/problems DAN worker alert WA (lihat wa.py) —
+    satu sumber kebenaran, jangan duplikasi logic ini di tempat lain.
+
+    network_id: wajib diisi kalau dipanggil dari luar request Flask (worker
+    background, tidak ada g.network_id) — diteruskan ke _fetch_pppoe_active
+    sbg cache key. Endpoint Flask boleh biarkan None (auto dari g)."""
+    problems = []
+
+    # ── Router (MikroTik) ──
+    try:
+        devices = conn.execute('SELECT id, name, ip, port FROM devices').fetchall()
+    except Exception:
+        devices = []
+    router_status = _bulk_status_check([
+        {'ip': d['ip'], 'port': int(d['port'] or 8728), 'key': d['id']} for d in devices
+    ])
+    for d in devices:
+        if not router_status.get(d['id'], False):
+            problems.append({
+                'id': 'router-{}'.format(d['id']), 'name': d['name'], 'type': 'router',
+                'severity': 'critical', 'reason': 'offline', 'detail': '',
+            })
+
+    # ── OLT ──
+    try:
+        olts = conn.execute('SELECT id, name, ip, port FROM olt').fetchall()
+    except Exception:
+        olts = []
+    olt_status = _bulk_status_check([
+        {'ip': o['ip'], 'port': int(o['port'] or 23), 'key': o['id']} for o in olts
+    ])
+    for o in olts:
+        if not olt_status.get(o['id'], False):
+            problems.append({
+                'id': 'olt-{}'.format(o['id']), 'name': o['name'], 'type': 'olt',
+                'severity': 'critical', 'reason': 'offline', 'detail': '',
+            })
+
+    # ── ONU / Pelanggan ──
+    try:
+        rows = conn.execute('''
+            SELECT p.id, p.username, p.nama, m.rx_power
+            FROM pelanggan p
+            LEFT JOIN onu_mapping m ON m.username = p.username
+            WHERE p.aktif = 1
+        ''').fetchall()
+    except Exception:
+        rows = []
+
+    pppoe = _fetch_pppoe_active(conn, network_id)
+    if pppoe is not None:
+        online_set = set(pppoe.keys())
+    else:
+        online_set = {r['username'] for r in rows}  # tanpa MikroTik, anggap semua aktif online
+
+    # Data nama pelanggan di sebagian besar owner ternyata berisi status
+    # billing ("Lunas"/"Belum Lunas") bukan nama asli — bug data lama,
+    # bukan dibuat di sini. Jangan tampilkan junk itu sebagai "nama" di
+    # Problems — fallback ke username (tidak mengubah data di DB).
+    _NAMA_JUNK = {'lunas', 'belum lunas', 'sudah lunas'}
+    for r in rows:
+        username = r['username'] or ''
+        raw_nama = (r['nama'] if 'nama' in r.keys() else '') or ''
+        display  = username if raw_nama.strip().lower() in _NAMA_JUNK else (raw_nama or username)
+        if username not in online_set:
+            problems.append({
+                'id': 'onu-{}'.format(r['id']), 'name': display, 'type': 'onu',
+                'severity': 'critical', 'reason': 'offline', 'detail': '',
+            })
+            continue
+        try:
+            rx = float(r['rx_power']) if r['rx_power'] is not None else None
+        except (TypeError, ValueError):
+            rx = None
+        if rx is None:
+            continue
+        if rx < RX_CRIT_DBM:
+            problems.append({
+                'id': 'onu-{}'.format(r['id']), 'name': display, 'type': 'onu',
+                'severity': 'critical', 'reason': 'redaman_kritis', 'detail': '{:.1f} dBm'.format(rx),
+            })
+        elif rx < RX_WARN_DBM:
+            problems.append({
+                'id': 'onu-{}'.format(r['id']), 'name': display, 'type': 'onu',
+                'severity': 'warning', 'reason': 'redaman_lemah', 'detail': '{:.1f} dBm'.format(rx),
+            })
+
+    # ── Acknowledge: tempel status ack ke problem yg masih aktif, lalu
+    # bersihkan ack utk problem yg sudah TIDAK muncul lagi (sudah
+    # online/normal) — supaya ack lama tidak menumpuk selamanya. ──
+    live_ids = {p['id'] for p in problems}
+    ack_rows = conn.execute('SELECT problem_id, acked_by, acked_at FROM problem_ack').fetchall()
+    ack_map  = {r['problem_id']: r for r in ack_rows}
+    stale_ids = [r['problem_id'] for r in ack_rows if r['problem_id'] not in live_ids]
+    if stale_ids:
+        conn.executemany('DELETE FROM problem_ack WHERE problem_id = ?', [(sid,) for sid in stale_ids])
+        conn.commit()
+    for p in problems:
+        ack = ack_map.get(p['id'])
+        p['acked']    = bool(ack)
+        p['acked_by'] = ack['acked_by'] if ack else None
+        p['acked_at'] = ack['acked_at'] if ack else None
+
+    problems.sort(key=lambda p: 0 if p['severity'] == 'critical' else 1)
+    return problems
+
+
+@maps_bp.route('/problems', methods=['GET'])
+def maps_problems():
+    conn = get_db()
+    try:
+        problems = _compute_problems(conn)
+    finally:
+        conn.close()
+
+    return jsonify({
+        'problems': problems,
+        'total':    len(problems),
+        'critical': sum(1 for p in problems if p['severity'] == 'critical'),
+        'warning':  sum(1 for p in problems if p['severity'] == 'warning'),
+    }), 200
+
+
+# ══════════════════════════════════════════════════════════════
+# POST/DELETE /api/maps/problems/<problem_id>/ack
+# Acknowledge / batalkan acknowledge 1 problem. problem_id = id stabil
+# dari hasil /api/maps/problems (mis. 'onu-15').
+# ══════════════════════════════════════════════════════════════
+
+@maps_bp.route('/problems/<problem_id>/ack', methods=['POST'])
+def maps_ack_problem(problem_id):
+    conn = get_db()
+    acted_by = g.current_user.get('username', 'unknown')
+    conn.execute('''
+        INSERT INTO problem_ack (problem_id, acked_by, acked_at)
+        VALUES (?, ?, ?)
+        ON CONFLICT(problem_id) DO UPDATE SET acked_by=excluded.acked_by, acked_at=excluded.acked_at
+    ''', (problem_id, acted_by, datetime.now().isoformat(timespec='seconds')))
+    conn.commit()
+    conn.close()
+    return jsonify({'status': 'ok', 'acked_by': acted_by}), 200
+
+
+@maps_bp.route('/problems/<problem_id>/ack', methods=['DELETE'])
+def maps_unack_problem(problem_id):
+    conn = get_db()
+    conn.execute('DELETE FROM problem_ack WHERE problem_id = ?', (problem_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'status': 'ok'}), 200
 
 
 # ══════════════════════════════════════════════════════════════

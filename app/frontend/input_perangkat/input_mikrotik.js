@@ -169,6 +169,7 @@ async function addDevice() {
   const user      = val('f-user');
   const pass      = val('f-pass');
   const koordinat = val('f-koordinat');
+  const wan_interface = val('f-wan-interface');
 
   if (!name || !ip || !user || !pass) {
     toast('Mohon isi semua field yang wajib diisi.', 'warning'); return;
@@ -179,7 +180,7 @@ async function addDevice() {
 
   try {
     const res  = await _post(`${API_BASE}/devices`,
-      { name, ip, port, username: user, password: pass, koordinat });
+      { name, ip, port, username: user, password: pass, koordinat, wan_interface });
     const data = await res.json();
 
     if (res.ok) {
@@ -205,6 +206,7 @@ async function saveEdit() {
   const user      = val('f-user');
   const pass      = val('f-pass');
   const koordinat = val('f-koordinat');
+  const wan_interface = val('f-wan-interface');
 
   if (!name || !ip || !user) {
     toast('Mohon isi semua field yang wajib diisi.', 'warning'); return;
@@ -215,7 +217,7 @@ async function saveEdit() {
 
   try {
     const res  = await _put(`${API_BASE}/devices/${editingId}`,
-      { name, ip, port, username: user, password: pass, koordinat });
+      { name, ip, port, username: user, password: pass, koordinat, wan_interface });
     const data = await res.json();
 
     if (res.ok) {
@@ -473,14 +475,14 @@ function showForm(prefill = null) {
         </div>
 
         <!-- Username -->
-        <div class="form-group full">
+        <div class="form-group">
           <label class="form-label">Username MikroTik <span class="req">*</span></label>
           <input class="form-input" type="text" id="f-user"
                  placeholder="admin" value="${v('username')}">
         </div>
 
         <!-- Password -->
-        <div class="form-group full">
+        <div class="form-group">
           <label class="form-label">
             Password ${isEdit ? '' : '<span class="req">*</span>'}
           </label>
@@ -497,11 +499,7 @@ function showForm(prefill = null) {
 
         <!-- ✅ TITIK KOORDINAT — untuk integrasi Maps -->
         <div class="form-group full">
-          <label class="form-label">
-            <span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;color:var(--primary)">location_on</span>
-            Titik Koordinat
-            <span style="font-size:10px;font-weight:400;color:var(--text-dim);margin-left:4px">(untuk halaman Maps)</span>
-          </label>
+          <label class="form-label">Titik Koordinat MikroTik</label>
           <div class="koordinat-row">
             <input class="form-input" type="text" id="f-koordinat"
                    placeholder="-6.200000, 106.816666"
@@ -512,17 +510,33 @@ function showForm(prefill = null) {
               Deteksi
             </button>
           </div>
-          <span class="form-hint">
-            Format: latitude, longitude — contoh: -6.200000, 106.816666 &nbsp;|&nbsp;
-            <a href="https://maps.google.com" target="_blank"
-               style="color:var(--primary);font-size:11px">Cari di Google Maps</a>
-          </span>
           <!-- Preview peta mini -->
           <div class="koordinat-preview" id="koordinat-preview">
             <iframe id="koordinat-iframe" src="" loading="lazy"></iframe>
           </div>
         </div>
 
+        <!-- Interface WAN — untuk grafik riwayat bandwidth -->
+        <div class="form-group full">
+          <label class="form-label">
+            <span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;color:var(--primary)">lan</span>
+            Interface WAN
+            <span style="font-size:10px;font-weight:400;color:var(--text-dim);margin-left:4px">(opsional, untuk grafik riwayat bandwidth)</span>
+          </label>
+          ${isEdit ? `
+          <select class="form-input" id="f-wan-interface" disabled>
+            <option>Memuat daftar interface dari MikroTik...</option>
+          </select>
+          <span class="form-hint" id="wan-iface-hint">
+            <span class="material-symbols-outlined spin" style="font-size:12px;vertical-align:-2px">refresh</span>
+            Menghubungi MikroTik untuk ambil daftar interface, mohon tunggu...
+          </span>
+          ` : `
+          <input class="form-input" type="text" id="f-wan-interface"
+                 placeholder="Contoh: ether1">
+          <span class="form-hint">Kosongkan jika belum mau dipantau. Bisa dipilih dari dropdown setelah perangkat disimpan.</span>
+          `}
+        </div>
 
       </div>
 
@@ -544,7 +558,47 @@ function showForm(prefill = null) {
     document.getElementById('f-name')?.focus();
     // Jika edit dan ada koordinat, tampilkan preview
     if (isEdit && prefill?.koordinat) previewKoordinat();
+    // Jika edit, ambil daftar interface asli dari MikroTik utk dropdown WAN
+    if (isEdit) _loadWanInterfaceOptions(prefill.id, prefill.wan_interface || '');
   });
+}
+
+/** Isi dropdown Interface WAN dengan daftar interface asli dari MikroTik
+ *  (reuse endpoint /api/mikrotik/<id>/interfaces yang sudah dipakai Dashboard).
+ *  Fallback ke text input kalau gagal fetch (mis. perangkat sedang offline). */
+async function _loadWanInterfaceOptions(deviceId, currentVal) {
+  const sel  = document.getElementById('f-wan-interface');
+  const hint = document.getElementById('wan-iface-hint');
+  if (!sel) return;
+
+  try {
+    const res  = await _get(`${API_BASE}/api/mikrotik/${deviceId}/interfaces`);
+    const data = await res.json();
+    const list = Array.isArray(data) ? data : (data.interfaces || data.data || []);
+    if (!res.ok || !list.length) throw new Error('kosong');
+
+    const options = ['<option value="">— Tidak dipantau —</option>']
+      .concat(list.map(d => `<option value="${escHtml(d.name)}">${escHtml(d.name)} (${escHtml(d.type || '')})</option>`));
+    // Kalau wan_interface tersimpan tidak ada di daftar live (mis. sudah dihapus/diganti), tetap tampilkan sebagai opsi
+    if (currentVal && !list.some(d => d.name === currentVal)) {
+      options.push(`<option value="${escHtml(currentVal)}">${escHtml(currentVal)} (tersimpan, tidak ditemukan)</option>`);
+    }
+    sel.innerHTML = options.join('');
+    sel.value    = currentVal || '';
+    sel.disabled = false;
+    if (hint) hint.textContent = 'Interface yang menghadap internet — dipakai untuk grafik riwayat bandwidth di Dashboard.';
+  } catch (e) {
+    // Fallback: ganti jadi text input biasa supaya tetap bisa diisi manual
+    const wrap = sel.parentElement;
+    const input = document.createElement('input');
+    input.className   = 'form-input';
+    input.type        = 'text';
+    input.id           = 'f-wan-interface';
+    input.placeholder  = 'Contoh: ether1';
+    input.value        = currentVal || '';
+    sel.replaceWith(input);
+    if (hint) hint.textContent = 'Gagal memuat daftar interface (perangkat offline?) — isi manual nama interface-nya.';
+  }
 }
 
 /** Deteksi lokasi perangkat via GPS browser */

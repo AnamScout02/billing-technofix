@@ -91,14 +91,14 @@ async function loadRequests() {
 }
 
 async function approveReq(id) {
-  if (!confirm('Setujui permintaan ini? Paket owner akan langsung aktif.')) return;
+  if (!(await tfConfirm('Setujui permintaan ini? Paket owner akan langsung aktif.'))) return;
   const r = await fetch(`${ADMIN_API}/requests/${id}/approve`, { method: 'POST', credentials: 'include' });
   const d = await r.json();
   toast(r.ok ? (d.message || 'Disetujui') : (d.message || 'Gagal'), r.ok ? 'success' : 'danger');
   if (r.ok) { loadRequests(); loadOwners(); }
 }
 async function rejectReq(id) {
-  if (!confirm('Tolak permintaan upgrade ini?')) return;
+  if (!(await tfConfirm('Tolak permintaan upgrade ini?'))) return;
   const r = await fetch(`${ADMIN_API}/requests/${id}/reject`, { method: 'POST', credentials: 'include' });
   toast(r.ok ? 'Permintaan ditolak' : 'Gagal', r.ok ? 'success' : 'danger');
   if (r.ok) loadRequests();
@@ -231,7 +231,7 @@ async function doActivate(){
 }
 
 async function extendTrial(nid){
-  const hari = prompt('Perpanjang trial berapa hari?', '7');
+  const hari = await tfPrompt('Perpanjang trial berapa hari?', '7', { type: 'number' });
   if(!hari) return;
   const r = await fetch(`${ADMIN_API}/networks/${nid}/extend-trial`, {
     method:'POST', credentials:'include', headers:{'Content-Type':'application/json'},
@@ -243,7 +243,7 @@ async function extendTrial(nid){
 }
 
 async function suspend(nid){
-  if(!confirm('Suspend owner ini? Akses datanya akan diblokir.')) return;
+  if(!(await tfConfirm('Suspend owner ini? Akses datanya akan diblokir.'))) return;
   const r = await fetch(`${ADMIN_API}/networks/${nid}/suspend`, { method:'POST', credentials:'include' });
   toast(r.ok?'Owner disuspend':'Gagal', r.ok?'success':'danger'); if(r.ok) loadOwners();
 }
@@ -253,7 +253,7 @@ async function unsuspend(nid){
 }
 
 async function hapus(nid, nama){
-  if(!confirm(`Hapus owner "${nama}" beserta SEMUA datanya? Tindakan ini permanen.`)) return;
+  if(!(await tfConfirm(`Hapus owner "${nama}" beserta SEMUA datanya? Tindakan ini permanen.`, { danger: true, icon: 'delete_forever', okText: 'Ya, hapus permanen' }))) return;
   const r = await fetch(`${ADMIN_API}/networks/${nid}`, { method:'DELETE', credentials:'include' });
   toast(r.ok?'Owner dihapus':'Gagal menghapus', r.ok?'success':'danger'); if(r.ok) loadOwners();
 }
@@ -281,7 +281,7 @@ function exportOwnersCSV(){
 /* ── Reset password owner ── */
 let _lastResetPw = '';
 async function resetPassword(nid, nama){
-  if(!confirm(`Reset password akun owner "${nama}"? Sesi login owner ini di semua perangkat akan dihapus.`)) return;
+  if(!(await tfConfirm(`Reset password akun owner "${nama}"? Sesi login owner ini di semua perangkat akan dihapus.`, { icon: 'lock_reset' }))) return;
   const r = await fetch(`${ADMIN_API}/networks/${nid}/reset-password`, { method:'POST', credentials:'include' });
   const d = await r.json();
   if(!r.ok){ toast(d.message||'Gagal reset password','danger'); return; }
@@ -472,7 +472,7 @@ async function doAddSuperadmin(){
 }
 
 async function deleteSuperadmin(id, username){
-  if(!confirm(`Hapus akun superadmin "${username}"?`)) return;
+  if(!(await tfConfirm(`Hapus akun superadmin "${username}"?`, { danger: true, icon: 'delete' }))) return;
   const r = await fetch(`${ADMIN_API}/superadmins/${id}`, { method:'DELETE', credentials:'include' });
   const d = await r.json();
   toast(r.ok?(d.message||'Akun dihapus'):(d.message||'Gagal'), r.ok?'success':'danger');

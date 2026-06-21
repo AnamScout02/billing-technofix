@@ -1,5 +1,5 @@
 """
-auth.py — TechnoFix · Blueprint Autentikasi Multi-Tenant
+auth.py — TechnoFix-Bill · Blueprint Autentikasi Multi-Tenant
 ============================================================
 Menyediakan endpoint Login & Registrasi ISP (SaaS Multi-Tenant).
 
@@ -580,6 +580,7 @@ def login():
 
     username = data.get('username', '').strip()
     password = data.get('password', '').strip()
+    login_as = (data.get('login_as') or '').strip().lower()  # 'owner' | 'team' (opsional — dikirim dari tab pilihan peran di halaman login)
 
     if not username or not password:
         return jsonify({'status': 'error', 'message': 'Username dan password wajib diisi'}), 400
@@ -598,6 +599,14 @@ def login():
 
     if not row or not check_password_hash(row['password_hash'], password):
         return jsonify({'status': 'error', 'message': 'Username atau password salah'}), 401
+
+    # Cocokkan peran akun dengan tab yang dipilih user di halaman login —
+    # mencegah salah pilih tab tanpa membocorkan keberadaan akun (dicek
+    # SETELAH password terbukti benar).
+    if login_as == 'owner' and row['role'] != 'owner':
+        return jsonify({'status': 'error', 'message': 'Akun ini bukan akun Owner. Pilih tab "Tim" untuk login.'}), 403
+    if login_as == 'team' and row['role'] == 'owner':
+        return jsonify({'status': 'error', 'message': 'Akun ini adalah akun Owner. Pilih tab "Owner" untuk login.'}), 403
 
     # Cek akun aktif (kolom aktif bisa NULL pada akun lama — anggap aktif)
     if row['aktif'] is not None and row['aktif'] == 0:
@@ -1057,6 +1066,52 @@ def remove_team_member(target_id):
     logger.info(f'[Auth] Hapus user: {target["username"]} oleh {owner["username"]}')
     log_audit(owner['network_id'], owner['username'], 'hapus_user', target['username'], f'role={target["role"]}')
     return jsonify({'status': 'success', 'message': f'Akun {target["username"]} berhasil dihapus'}), 200
+
+
+# ── POST /api/auth/team/<id>/reset-password — Owner/Admin reset password anggota tim ─
+@auth_bp.route('/team/<int:target_id>/reset-password', methods=['POST'])
+@manajemen_user_required
+def reset_team_member_password(target_id):
+    """Owner/Admin reset password anggota tim (Admin/Teknisi/Kolektor) di
+    workspace sendiri. Tidak bisa target diri sendiri atau Owner lain —
+    sama seperti aturan toggle_team_member/remove_team_member."""
+    owner = g.current_user
+    if target_id == owner['id']:
+        return jsonify({'status': 'error', 'message': 'Tidak bisa reset password akun sendiri — gunakan menu Profil'}), 400
+
+    conn = get_db()
+    target = conn.execute(
+        'SELECT id, username, role, network_id FROM users WHERE id = ?',
+        (target_id,)
+    ).fetchone()
+    if not target:
+        conn.close()
+        return jsonify({'status': 'error', 'message': 'User tidak ditemukan'}), 404
+    if target['network_id'] != owner['network_id']:
+        conn.close()
+        return jsonify({'status': 'error', 'message': 'Akses ditolak'}), 403
+    if target['role'] == 'owner':
+        conn.close()
+        return jsonify({'status': 'error', 'message': 'Tidak bisa reset password akun Owner lain'}), 403
+
+    import string
+    alphabet = string.ascii_letters + string.digits
+    new_password = ''.join(secrets.choice(alphabet) for _ in range(10))
+    conn.execute(
+        "UPDATE users SET password_hash=?, session_tokens='[]' WHERE id=?",
+        (generate_password_hash(new_password), target_id)
+    )
+    conn.commit()
+    conn.close()
+
+    logger.info(f'[Auth] Reset password tim: {target["username"]} oleh {owner["username"]}')
+    log_audit(owner['network_id'], owner['username'], 'reset_password_user', target['username'])
+    return jsonify({
+        'status': 'success',
+        'message': f'Password {target["username"]} berhasil direset',
+        'username': target['username'],
+        'password': new_password,
+    }), 200
 
 
 # ══════════════════════════════════════════════════════════════

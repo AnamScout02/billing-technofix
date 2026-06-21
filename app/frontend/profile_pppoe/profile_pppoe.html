@@ -3,8 +3,8 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PPPoE Profile — TechnoFix Billing</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>PPPoE Profile — TechnoFix-Bill</title>
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -12,10 +12,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 
   <!-- Material Icons -->
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,0..200" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,0..200&display=block" rel="stylesheet" />
 
   <!-- global.css WAJIB pertama -->
-  <link rel="stylesheet" href="/app/frontend/statis/global.css?v=87" />
+  <link rel="stylesheet" href="/app/frontend/statis/global.css?v=100" />
 
   <style>
     /* â”€â”€ Tambahan spesifik halaman profile_pppoe â”€â”€ */
@@ -189,9 +189,9 @@
   <header class="header">
     <div class="header-inner">
       <div class="header-brand">
-        <div class="brand-logo"><img src="/app/frontend/statis/technofixlogo.png" alt="TechnoFix" /></div>
+        <div class="brand-logo"><img src="/app/frontend/statis/technofixlogo.png" alt="TechnoFix-Bill" /></div>
         <div>
-          <div class="brand-name">TechnoFix</div>
+          <div class="brand-name">TechnoFix-Bill</div>
           <div class="brand-sub">Monitoring status jaringan &amp; pelanggan</div>
         </div>
       </div>
@@ -497,6 +497,24 @@
         <div class="psheet-item-badge">Distribusi</div>
         <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
       </a>
+      <a href="/app/frontend/diagnostik/diagnostik.html" class="psheet-item psheet-diagnostik">
+        <div class="psheet-item-icon"><span class="material-symbols-outlined">network_ping</span></div>
+        <div class="psheet-item-body">
+          <div class="psheet-item-name">Diagnostik</div>
+          <div class="psheet-item-desc">Tes ping & traceroute via MikroTik</div>
+        </div>
+        <div class="psheet-item-badge">Ping/Trace</div>
+        <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
+      </a>
+      <a href="/app/frontend/problems/problems.html" class="psheet-item psheet-problems">
+        <div class="psheet-item-icon"><span class="material-symbols-outlined">crisis_alert</span></div>
+        <div class="psheet-item-body">
+          <div class="psheet-item-name">Problems</div>
+          <div class="psheet-item-desc">Daftar live gangguan aktif</div>
+        </div>
+        <div class="psheet-item-badge">NOC</div>
+        <span class="material-symbols-outlined psheet-item-arrow">chevron_right</span>
+      </a>
    </div>
   </div>
 
@@ -519,8 +537,8 @@
       <a href="/app/frontend/tiket/tiket.html" class="psheet-item psheet-tiket" data-perm="pelanggan"><div class="psheet-item-icon"><span class="material-symbols-outlined">support_agent</span></div><div class="psheet-item-body"><div class="psheet-item-name">Tiket Laporan <span id="tiket-badge-nav" style="display:none;background:#dc2626;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:6px;vertical-align:1px"></span></div><div class="psheet-item-desc">Laporan gangguan pelanggan</div></div><div class="psheet-item-badge">Support</div><span class="material-symbols-outlined psheet-item-arrow">chevron_right</span></a>
     </div>
   </div>
-  <script src="/app/frontend/statis/global.js?v=56"></script>
-  <script src="/app/frontend/profile_pppoe/profile_pppoe.js?v=5"></script>
+  <script src="/app/frontend/statis/global.js?v=66"></script>
+  <script src="/app/frontend/profile_pppoe/profile_pppoe.js?v=6"></script>
 
 </body>
 </html>

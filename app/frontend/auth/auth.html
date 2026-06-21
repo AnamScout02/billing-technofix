@@ -4,14 +4,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Login — TechnoFix Billing</title>
+  <title>Login — TechnoFix-Bill</title>
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,0..200" rel="stylesheet" />
-  <link rel="stylesheet" href="/app/frontend/statis/global.css?v=87" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,0..200&display=block" rel="stylesheet" />
+  <link rel="stylesheet" href="/app/frontend/statis/global.css?v=100" />
 
   <style>
     /* ══════════════════════════════════════════════════════════
@@ -65,7 +65,7 @@
       overflow: hidden;
     }
 
-    /* Watermark motif "F" (identitas TechnoFix), di-recolor jadi abu/putih
+    /* Watermark motif "F" (identitas TechnoFix-Bill), di-recolor jadi abu/putih
        transparan lewat filter agar menyatu dengan latar navy gelap */
     .auth-left::before {
       content: '';
@@ -278,6 +278,32 @@
     }
     .auth-tab:hover:not(.active) { color: #475569; background: #e9eef5; }
 
+    /* Tab pilihan peran login (Owner/Tim) — sengaja beda warna & gaya dari
+       .auth-tab (Masuk/Daftarkan ISP) di atas supaya tidak tertukar:
+       isi solid navy saat aktif, bukan teks biru di atas putih. */
+    .role-tabs {
+      display: flex; gap: 4px; padding: 4px;
+      background: #eef2f7;
+      border: 1px solid #dde3ec;
+      border-radius: 12px;
+    }
+    .role-tab {
+      flex: 1; padding: 9px 12px;
+      font-size: 12.5px; font-weight: 600;
+      font-family: 'Poppins', sans-serif;
+      color: #64748b;
+      background: none; border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      transition: color .2s, background .2s;
+      border-radius: 9px;
+    }
+    .role-tab .material-symbols-outlined { font-size: 16px; }
+    .role-tab.active {
+      color: #ffffff;
+      background: #0f1f3d;
+    }
+    .role-tab:hover:not(.active) { color: #334155; background: #e2e8f0; }
+
     /* Panel visibility */
     .auth-panel { display: none; }
     .auth-panel.active { display: block; animation: panelIn .25s ease both; }
@@ -446,10 +472,10 @@
       <!-- Brand -->
       <div class="left-brand">
         <div class="left-brand-logo">
-          <img src="/app/frontend/statis/technofixlogo.png" alt="TechnoFix" style="width:36px;height:36px;object-fit:contain;border-radius:8px">
+          <img src="/app/frontend/statis/technofixlogo.png" alt="TechnoFix-Bill" style="width:36px;height:36px;object-fit:contain;border-radius:8px">
         </div>
         <div>
-          <div class="brand-name">TechnoFix</div>
+          <div class="brand-name">TechnoFix-Bill</div>
           <div class="brand-tagline">Billing &amp; Monitoring ISP</div>
         </div>
       </div>
@@ -484,7 +510,7 @@
       </div>
 
       <!-- Footer -->
-      <div class="left-footer">TechnoFix Billing System &nbsp;·&nbsp; v2.0</div>
+      <div class="left-footer">TechnoFix-Bill System &nbsp;·&nbsp; v2.0</div>
     </div>
 
     <!-- ══ PANEL KANAN ══ -->
@@ -523,6 +549,15 @@
             </div>
 
             <form id="form-login" onsubmit="submitLogin(event); return false;">
+            <label class="form-label" style="display:block;margin-bottom:8px">Login sebagai</label>
+            <div class="role-tabs" id="login-role-tabs" style="margin-bottom:18px">
+              <button type="button" class="role-tab active" id="role-tab-owner" onclick="setLoginAsRole('owner')">
+                <span class="material-symbols-outlined">workspace_premium</span>Owner
+              </button>
+              <button type="button" class="role-tab" id="role-tab-team" onclick="setLoginAsRole('team')">
+                <span class="material-symbols-outlined">group</span>Tim
+              </button>
+            </div>
             <div class="auth-fields">
               <div class="form-group">
                 <label class="form-label" for="login-username">Username <span class="req">*</span></label>
@@ -586,7 +621,7 @@
                   <label class="form-label" for="reg-username">Username Owner <span class="req">*</span></label>
                   <input type="text" class="form-input" id="reg-username" placeholder="Huruf kecil, tanpa spasi"
                     autocapitalize="none" autocomplete="new-username" />
-                  <div class="form-hint">Dipakai untuk login. Tidak bisa diubah setelah terdaftar.</div>
+                  <div class="form-hint">Tidak bisa diubah setelah terdaftar.</div>
                 </div>
 
                 <div class="form-group">
@@ -629,20 +664,38 @@
 
         </div><!-- /.auth-card -->
 
-        <div class="auth-ver">© 2025 TechnoFix &nbsp;·&nbsp; Billing &amp; Monitoring ISP</div>
+        <div class="auth-ver">© 2025 TechnoFix-Bill &nbsp;·&nbsp; Billing &amp; Monitoring ISP</div>
       </div>
     </div>
   </div>
 
-  <script src="/app/frontend/statis/global.js?v=56"></script>
-  <script src="/app/frontend/statis/auth.js?v=3"></script>
+  <script src="/app/frontend/statis/global.js?v=66"></script>
+  <script src="/app/frontend/statis/auth.js?v=4"></script>
 
   <script>
+    /* Peran yang dipilih di tab login (Owner / Tim) — dipakai untuk validasi
+       login (login_as) dan supaya "Lupa password?" langsung tahu instruksi
+       yang tepat tanpa tanya ulang. */
+    let loginAsRole = 'owner';
+    function setLoginAsRole(role) {
+      loginAsRole = role;
+      document.getElementById('role-tab-owner').classList.toggle('active', role === 'owner');
+      document.getElementById('role-tab-team').classList.toggle('active', role === 'team');
+    }
+
     function openForgotPasswordModal() {
+      if (loginAsRole === 'team') {
+        showForgotAsTeam();
+      } else {
+        showForgotAsOwner();
+      }
+    }
+
+    function showForgotAsOwner() {
       const username = (document.getElementById('login-username').value || '').trim();
       const pesan = username
-        ? `Halo TechnoFix, saya lupa password akun login (username: ${username}). Mohon bantuan reset password.`
-        : 'Halo TechnoFix, saya lupa password akun login. Mohon bantuan reset password.';
+        ? `Halo TechnoFix-Bill, saya lupa password akun login (username: ${username}). Mohon bantuan reset password.`
+        : 'Halo TechnoFix-Bill, saya lupa password akun login. Mohon bantuan reset password.';
       const waUrl = `https://wa.me/6283135851605?text=${encodeURIComponent(pesan)}`;
 
       openModalForm(`
@@ -650,17 +703,37 @@
           <div class="hapus-icon-wrap" style="background:var(--primary-light)">
             <span class="material-symbols-outlined hapus-icon" style="color:var(--primary)">support_agent</span>
           </div>
-          <div class="hapus-title">Lupa Password?</div>
+          <div class="hapus-title">Lupa Password Owner</div>
           <div class="hapus-sub">
-            Untuk keamanan akun, reset password dibantu langsung oleh tim TechnoFix.
-            Hubungi kami via WhatsApp dengan menyertakan <strong>username</strong> dan
-            nama ISP Anda — password baru akan diberikan setelah verifikasi.
+            Karena Owner tidak punya atasan di workspace, reset password dibantu
+            langsung oleh tim TechnoFix-Bill. Hubungi kami via WhatsApp dengan
+            menyertakan <strong>username</strong> dan nama ISP Anda — password
+            baru akan diberikan setelah verifikasi.
           </div>
           <div class="modal-actions" style="flex-direction:column;gap:8px;margin-top:18px">
             <a class="btn-primary" style="width:100%;justify-content:center;text-decoration:none" href="${waUrl}" target="_blank" rel="noopener noreferrer">
               <span class="material-symbols-outlined">chat</span> Hubungi via WhatsApp
             </a>
             <button class="btn" style="width:100%;justify-content:center" onclick="closeModalForm()">Tutup</button>
+          </div>
+        </div>`);
+    }
+
+    function showForgotAsTeam() {
+      openModalForm(`
+        <div class="modal">
+          <div class="hapus-icon-wrap" style="background:var(--primary-light)">
+            <span class="material-symbols-outlined hapus-icon" style="color:var(--primary)">group</span>
+          </div>
+          <div class="hapus-title">Lupa Password Tim</div>
+          <div class="hapus-sub">
+            Untuk akun Admin, Teknisi, atau Kolektor, reset password dilakukan
+            oleh <strong>Owner atau Admin di ISP/perusahaan Anda sendiri</strong>
+            lewat menu Manajemen User — bukan oleh TechnoFix-Bill. Silakan hubungi
+            Owner/Admin Anda untuk meminta password baru.
+          </div>
+          <div class="modal-actions" style="flex-direction:column;gap:8px;margin-top:18px">
+            <button class="btn" style="width:100%;justify-content:center" onclick="closeModalForm()">Mengerti</button>
           </div>
         </div>`);
     }

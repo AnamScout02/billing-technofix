@@ -1,5 +1,5 @@
 """
-wa.py — TechnoFix · Blueprint Notifikasi WhatsApp
+wa.py — TechnoFix-Bill · Blueprint Notifikasi WhatsApp
 =================================================
 Kirim pengingat tagihan & notifikasi ke pelanggan lewat WA
 gateway (Fonnte / Wablas). MODE MOCK: bila gateway belum
@@ -66,7 +66,8 @@ def _wa_guard():
 
 
 # ── Config ─────────────────────────────────────────────────────
-_KEYS = ('wa_provider', 'wa_url', 'wa_token', 'wa_enabled', 'wa_auto_enabled', 'wa_tpl_reminder')
+_KEYS = ('wa_provider', 'wa_url', 'wa_token', 'wa_enabled', 'wa_auto_enabled', 'wa_tpl_reminder',
+         'wa_alert_enabled', 'wa_alert_hp')
 
 
 def _load_config(conn):
@@ -82,6 +83,8 @@ def _load_config(conn):
         'enabled':      (d.get('wa_enabled') or '0') == '1',
         'auto_enabled': (d.get('wa_auto_enabled') or '0') == '1',
         'template':     d.get('wa_tpl_reminder') or DEFAULT_TPL,
+        'alert_enabled': (d.get('wa_alert_enabled') or '0') == '1',
+        'alert_hp':      d.get('wa_alert_hp') or '',
     }
 
 
@@ -101,6 +104,8 @@ def get_config():
         'enabled': cfg['enabled'], 'has_token': bool(cfg['token']),
         'auto_enabled': cfg['auto_enabled'],
         'template': cfg['template'],
+        'alert_enabled': cfg['alert_enabled'],
+        'alert_hp': cfg['alert_hp'],
     }}), 200
 
 
@@ -110,9 +115,12 @@ def save_config():
     provider = (data.get('provider') or 'fonnte').strip()
     if provider not in ('fonnte', 'wablas'):
         return jsonify({'status': 'error', 'message': 'Provider tidak didukung'}), 400
+    url = (data.get('url') or '').strip().rstrip('/')
+    if url and not (url.startswith('http://') or url.startswith('https://')):
+        return jsonify({'status': 'error', 'message': 'URL gateway harus diawali http:// atau https://'}), 400
     conn = get_db()
     _save_setting(conn, 'wa_provider', provider)
-    _save_setting(conn, 'wa_url', (data.get('url') or '').strip().rstrip('/'))
+    _save_setting(conn, 'wa_url', url)
     if 'token' in data and data.get('token') is not None and data.get('token') != '':
         _save_setting(conn, 'wa_token', str(data.get('token')))
     _save_setting(conn, 'wa_enabled', '1' if data.get('enabled') else '0')
@@ -120,6 +128,10 @@ def save_config():
         _save_setting(conn, 'wa_auto_enabled', '1' if data.get('auto_enabled') else '0')
     if data.get('template'):
         _save_setting(conn, 'wa_tpl_reminder', str(data.get('template')))
+    if 'alert_enabled' in data:
+        _save_setting(conn, 'wa_alert_enabled', '1' if data.get('alert_enabled') else '0')
+    if 'alert_hp' in data:
+        _save_setting(conn, 'wa_alert_hp', _normalize_hp(str(data.get('alert_hp') or '')))
     conn.commit(); conn.close()
     return jsonify({'status': 'success', 'message': 'Pengaturan WhatsApp tersimpan'}), 200
 
@@ -199,7 +211,7 @@ def _render_tpl(tpl, isp, nama, nominal, periode, jatuh_tempo):
                .replace('{nominal}', rp(nominal))
                .replace('{periode}', periode or '')
                .replace('{jatuh_tempo}', jatuh_tempo or '-')
-               .replace('{isp}', isp or 'TechnoFix'))
+               .replace('{isp}', isp or 'TechnoFix-Bill'))
 
 
 @wa_bp.route('/reminder', methods=['POST'])
@@ -210,9 +222,9 @@ def blast_reminder():
     isp = ''
     try:
         row = get_network_row(g.current_user['network_id'])
-        isp = (row['isp_name'] if row else '') or 'TechnoFix'
+        isp = (row['isp_name'] if row else '') or 'TechnoFix-Bill'
     except Exception:
-        isp = 'TechnoFix'
+        isp = 'TechnoFix-Bill'
 
     conn = get_db(); cfg = _load_config(conn)
     # gabung tagihan belum lunas (termasuk piutang yg sudah disetujui tapi
@@ -294,12 +306,12 @@ def _run_owner_auto_reminder(network_id):
         if not (cfg['enabled'] and cfg['token'] and cfg['auto_enabled']):
             return
 
-        isp = 'TechnoFix'
+        isp = 'TechnoFix-Bill'
         try:
             master = get_master_db()
             r = master.execute('SELECT isp_name FROM networks WHERE network_id=?', (network_id,)).fetchone()
             master.close()
-            isp = (r['isp_name'] if r else '') or 'TechnoFix'
+            isp = (r['isp_name'] if r else '') or 'TechnoFix-Bill'
         except Exception:
             pass
 
@@ -351,3 +363,95 @@ def run_auto_reminders():
             _run_owner_auto_reminder(nid)
         except Exception as e:
             log.error('[WA Auto Reminder] %s: %s', nid[:8], e)
+
+
+_PROBLEM_REASON_LABEL = {
+    'offline':        'OFFLINE',
+    'redaman_kritis':  'Redaman Kritis',
+    'redaman_lemah':   'Redaman Lemah',
+}
+_PROBLEM_TYPE_LABEL = {'router': 'Router', 'olt': 'OLT', 'onu': 'ONU/Pelanggan'}
+
+
+def _run_owner_problem_alert(network_id):
+    """Kirim alert WA utk gangguan (Problems) Critical & Warning yg baru
+    muncul, ke 1 nomor admin/teknisi (wa_alert_hp). Dedup via
+    wa_problem_alert_log — problem_id yg sudah TIDAK aktif (sudah online/
+    normal lagi) dibersihkan dari log supaya kalau muncul lagi nanti,
+    alert dikirim ulang (bukan dianggap 'sudah pernah')."""
+    from utils import get_owner_db, get_network_row
+    from maps import _compute_problems
+
+    net = get_network_row(network_id)
+    if not net:
+        return
+
+    conn = get_owner_db(network_id)
+    try:
+        cfg = _load_config(conn)
+        if not (cfg['enabled'] and cfg['token'] and cfg['alert_enabled'] and cfg['alert_hp']):
+            return
+
+        problems = _compute_problems(conn, network_id)
+        live_ids = {p['id'] for p in problems}
+
+        logged = {r['problem_id'] for r in
+                  conn.execute('SELECT problem_id FROM wa_problem_alert_log').fetchall()}
+        stale = logged - live_ids
+        if stale:
+            conn.executemany('DELETE FROM wa_problem_alert_log WHERE problem_id = ?',
+                              [(pid,) for pid in stale])
+            conn.commit()
+
+        isp = 'TechnoFix-Bill'
+        try:
+            from utils import get_master_db
+            master = get_master_db()
+            r = master.execute('SELECT isp_name FROM networks WHERE network_id=?', (network_id,)).fetchone()
+            master.close()
+            isp = (r['isp_name'] if r else '') or 'TechnoFix-Bill'
+        except Exception:
+            pass
+
+        for p in problems:
+            if p['id'] in logged or p.get('acked'):
+                continue
+            try:
+                conn.execute('INSERT INTO wa_problem_alert_log (problem_id) VALUES (?)', (p['id'],))
+            except sqlite3.IntegrityError:
+                continue  # race - sudah dicatat proses lain
+            conn.commit()
+
+            tipe  = _PROBLEM_TYPE_LABEL.get(p['type'], p['type'])
+            label = _PROBLEM_REASON_LABEL.get(p['reason'], p['reason'])
+            detail = ' ({})'.format(p['detail']) if p.get('detail') else ''
+            msg = (
+                '⚠️ *Gangguan Terdeteksi — {isp}*\n\n'
+                'Tipe: {tipe}\n'
+                'Nama: {nama}\n'
+                'Status: {label}{detail}\n'
+                'Tingkat: {severity}\n\n'
+                'Cek halaman Problems untuk detail & tindak lanjut.'
+            ).format(isp=isp, tipe=tipe, nama=p['name'], label=label, detail=detail,
+                     severity=p['severity'].upper())
+            _do_send(conn, cfg, cfg['alert_hp'], msg, isp)
+    finally:
+        conn.close()
+
+
+def run_problem_alerts():
+    """Iterasi semua owner & kirim alert WA gangguan baru.
+    Dipanggil dari worker background (lihat _start_problem_alert_worker di input.py)."""
+    from utils import get_master_db
+    master = get_master_db()
+    try:
+        owners = master.execute('SELECT network_id FROM networks').fetchall()
+    finally:
+        master.close()
+
+    for row in owners:
+        nid = row['network_id']
+        try:
+            _run_owner_problem_alert(nid)
+        except Exception as e:
+            log.error('[WA Problem Alert] %s: %s', nid[:8], e)

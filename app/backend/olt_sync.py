@@ -1,5 +1,5 @@
 """
-olt_sync.py — TechnoFix · Background Worker Sinkronisasi OLT
+olt_sync.py — TechnoFix-Bill · Background Worker Sinkronisasi OLT
 =============================================================
 Worker berjalan terus-menerus (loop setiap 3 menit) dan
 menyinkronkan data ONU dari semua OLT yang berstatus 'connected'
@@ -45,7 +45,7 @@ import logging
 import re
 import time
 import socket
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from scrapli.driver.generic import GenericDriver
 
@@ -1448,7 +1448,25 @@ def _sync_owner_olts(network_id: str):
     if gpon_olt_ids:
         _patch_vlan_from_mikrotik_bulk(conn, gpon_olt_ids)
 
+    _record_onu_metrics_snapshot(conn)
+
     conn.close()
+
+
+def _record_onu_metrics_snapshot(conn):
+    """Rekam snapshot rx_power/tx_power/is_online tiap ONU ke
+    onu_metrics_history — fondasi grafik historis sinyal. Dipanggil tiap
+    siklus sync OLT (~5 menit), sekaligus bersihkan baris >14 hari supaya
+    tabel tidak membengkak tanpa batas."""
+    now = datetime.now().isoformat(timespec='seconds')
+    conn.execute('''
+        INSERT INTO onu_metrics_history (username, rx_power, tx_power, is_online, recorded_at)
+        SELECT username, rx_power, tx_power, is_online, ?
+        FROM onu_mapping
+    ''', (now,))
+    cutoff = (datetime.now() - timedelta(days=14)).isoformat(timespec='seconds')
+    conn.execute('DELETE FROM onu_metrics_history WHERE recorded_at < ?', (cutoff,))
+    conn.commit()
 
 
 def sync_single_olt(network_id: str, olt_id: int):
@@ -1519,7 +1537,7 @@ def sync_single_olt(network_id: str, olt_id: int):
 
 # ── BACKGROUND LOOP ────────────────────────────────────────────
 if __name__ == '__main__':
-    logger.info('TechnoFix OLT Sync Worker dimulai.')
+    logger.info('TechnoFix-Bill OLT Sync Worker dimulai.')
     while True:
         try:
             sync_all_olts()

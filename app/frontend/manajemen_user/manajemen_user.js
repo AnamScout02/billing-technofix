@@ -75,6 +75,8 @@ function renderUsers(list) {
              <span class="material-symbols-outlined">devices</span></button>
            <button class="ico-btn ${m.aktif ? 'amber' : 'green'}" title="${m.aktif ? 'Nonaktifkan' : 'Aktifkan'}" onclick="konfirmasiToggle(${m.id})">
              <span class="material-symbols-outlined">${m.aktif ? 'person_off' : 'person_check'}</span></button>
+           <button class="ico-btn blue" title="Reset Password" onclick="resetTeamPassword(${m.id},'${esc(m.username)}')">
+             <span class="material-symbols-outlined">key</span></button>
            <button class="ico-btn red" title="Hapus" onclick="hapusUser(${m.id},'${esc(m.username)}')">
              <span class="material-symbols-outlined">delete</span></button>
          </div>`;
@@ -287,6 +289,30 @@ async function eksekusiHapus() {
   if (btn) btn.disabled = false;
 }
 
+/* ── RESET PASSWORD ANGGOTA TIM ── */
+let _lastTeamResetPw = '';
+async function resetTeamPassword(id, username) {
+  if (!(await tfConfirm(`Reset password akun "${username}"? Sesi login user ini di semua perangkat akan dihapus.`, { icon: 'lock_reset' }))) return;
+  try {
+    const r = await fetch(`${TEAM_API}/team/${id}/reset-password`, { method: 'POST', credentials: 'include', headers: _hdr() });
+    const d = await r.json();
+    if (!r.ok) { toast(d.message || 'Gagal reset password', 'danger'); return; }
+    _lastTeamResetPw = d.password;
+    document.getElementById('mu-resetpw-username').textContent = d.username;
+    document.getElementById('mu-resetpw-password').textContent = d.password;
+    document.getElementById('mu-resetpw-modal').classList.add('open');
+    loadAuditLog();
+  } catch (e) { toast('Tidak bisa menghubungi server', 'danger'); }
+}
+function closeTeamResetPwModal(e) {
+  if (e && e.target !== e.currentTarget) return;
+  document.getElementById('mu-resetpw-modal').classList.remove('open');
+}
+async function copyTeamResetPw() {
+  try { await navigator.clipboard.writeText(_lastTeamResetPw); toast('Password disalin', 'success'); }
+  catch { toast('Gagal menyalin', 'danger'); }
+}
+
 /* ── LOG AKTIVITAS ── */
 const AUDIT_ICON = {
   invite:            { icon: 'person_add',   cls: 'green' },
@@ -294,6 +320,7 @@ const AUDIT_ICON = {
   nonaktifkan_user:  { icon: 'person_off',   cls: 'amber' },
   ubah_max_devices:  { icon: 'devices',      cls: 'blue' },
   hapus_user:        { icon: 'person_remove', cls: 'red' },
+  reset_password_user: { icon: 'key',        cls: 'blue' },
 };
 const AUDIT_LABEL = {
   invite:           (a, t, d) => `<b>${esc(a)}</b> menambahkan anggota <b>${esc(t)}</b>${d ? ` (${esc(d)})` : ''}`,
@@ -301,6 +328,7 @@ const AUDIT_LABEL = {
   nonaktifkan_user: (a, t)    => `<b>${esc(a)}</b> menonaktifkan akun <b>${esc(t)}</b>`,
   ubah_max_devices: (a, t, d) => `<b>${esc(a)}</b> mengubah batas perangkat <b>${esc(t)}</b>${d ? ` (${esc(d)})` : ''}`,
   hapus_user:       (a, t, d) => `<b>${esc(a)}</b> menghapus akun <b>${esc(t)}</b>${d ? ` (${esc(d)})` : ''}`,
+  reset_password_user: (a, t) => `<b>${esc(a)}</b> mereset password akun <b>${esc(t)}</b>`,
 };
 function fmtTglWaktu(iso) {
   if (!iso) return '-';

@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>TechnoFix — Platform Billing &amp; Monitoring ISP Terdepan</title>
-  <meta name="description" content="TechnoFix menyatukan billing otomatis, monitoring MikroTik & OLT, peta topologi jaringan, dan manajemen tim ISP dalam satu platform SaaS multi-tenant."/>
+  <title>TechnoFix-Bill — Platform Billing &amp; Monitoring ISP Terdepan</title>
+  <meta name="description" content="TechnoFix-Bill menyatukan billing otomatis, monitoring MikroTik & OLT, peta topologi jaringan, dan manajemen tim ISP dalam satu platform SaaS multi-tenant."/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,0..200&display=optional" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,0..200&display=block" rel="stylesheet"/>
   <style>
   /* ── RESET ── */
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -170,6 +170,7 @@
       linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
     background-size:52px 52px;pointer-events:none;z-index:0;
   }
+  .hero-network-canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
   .hero-orb{position:absolute;border-radius:50%;pointer-events:none;filter:blur(80px);z-index:0}
   .hero-orb-1{width:520px;height:520px;top:-110px;left:-90px;background:radial-gradient(circle,rgba(37,99,235,.18),transparent 70%);animation:float 9s ease-in-out infinite}
   .hero-orb-2{width:420px;height:420px;bottom:40px;right:-70px;background:radial-gradient(circle,rgba(79,70,229,.15),transparent 70%);animation:float 11s ease-in-out infinite reverse}
@@ -273,11 +274,13 @@
   .msd{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.28);transition:all .3s}
   .msd.active{background:var(--accent);width:18px;border-radius:3px}
 
-  /* Phone overlay — mengambang di pojok kiri-bawah, hanya menutup sudut kecil.
+  /* Phone — diletakkan mengalir DI BAWAH mockup desktop (bukan menumpuk di
+     atasnya dengan posisi absolute) supaya tidak ada masalah blending/alpha
+     antara frame foto HP dan screenshot di baliknya.
      Frame foto HP asli (hp.png) menutupi bezel; screenshot mengisi "lubang
      layar"-nya lewat .mockup-phone-shots (posisi % hasil ukur alpha hp.png). */
   .mockup-phone{
-    position:absolute;width:92px;left:-30px;bottom:-38px;z-index:2;
+    position:relative;width:92px;margin:28px auto 0;
     aspect-ratio:375/666;animation:float 8s ease-in-out infinite;
   }
   .mockup-phone-frame{
@@ -295,7 +298,7 @@
   .mock-phone-shot.active{opacity:1}
 
   @media(max-width:1180px){
-    .mockup-phone{width:76px;left:-22px;bottom:-28px}
+    .mockup-phone{width:76px}
   }
 
   @media(max-width:960px){
@@ -304,7 +307,7 @@
     .hero-mockup{max-width:480px;width:100%;margin:40px auto 0}
   }
   @media(max-width:640px){
-    .mockup-phone{width:64px;left:-12px;bottom:-20px}
+    .mockup-phone{width:64px}
   }
 
   /* ======================================================
@@ -321,7 +324,7 @@
     background:linear-gradient(90deg,transparent,rgba(0,212,255,.04),transparent);
     background-size:200% 100%;animation:gradShift 7s ease infinite;
   }
-  /* Watermark motif "F" (identitas TechnoFix), recolor jadi abu/putih
+  /* Watermark motif "F" (identitas TechnoFix-Bill), recolor jadi abu/putih
      transparan agar menyatu dengan latar navy gelap */
   .stats-bar::after{
     content:'';position:absolute;inset:0;
@@ -358,7 +361,7 @@
     background:linear-gradient(160deg,rgba(13,27,62,.97),rgba(15,32,78,.97));
     position:relative;overflow:hidden;
   }
-  /* Watermark motif "F" (identitas TechnoFix) — sama seperti panel auth & CTA */
+  /* Watermark motif "F" (identitas TechnoFix-Bill) — sama seperti panel auth & CTA */
   .sec-alt::before{
     content:'';position:absolute;inset:0;
     background-image:url('/app/frontend/statis/mockup/pattern.png');
@@ -582,7 +585,7 @@
       radial-gradient(ellipse 50% 60% at 80% 30%,rgba(124,58,237,.15),transparent 70%);
     pointer-events:none;
   }
-  /* Watermark motif "F" (identitas TechnoFix), di-recolor jadi abu/putih
+  /* Watermark motif "F" (identitas TechnoFix-Bill), di-recolor jadi abu/putih
      transparan lewat filter agar menyatu dengan latar gradient navy/biru */
   .cta-sec::after{
     content:'';position:absolute;inset:0;
@@ -609,7 +612,7 @@
      FOOTER
   ====================================================== */
   footer{position:relative;overflow:hidden;background:rgba(8,16,40,.98);border-top:1px solid rgba(255,255,255,.07);padding:56px 0 0}
-  /* Watermark motif "F" (identitas TechnoFix), di-recolor jadi abu/putih
+  /* Watermark motif "F" (identitas TechnoFix-Bill), di-recolor jadi abu/putih
      transparan lewat filter agar menyatu dengan latar gelap footer */
   footer::before{
     content:'';position:absolute;inset:0;
@@ -904,9 +907,9 @@
   <div class="nav-inner">
     <a href="#" class="nav-brand">
       <div class="nav-logo">
-        <img src="/app/frontend/statis/technofixlogo.png" alt="TechnoFix" onerror="this.style.display='none';this.parentElement.innerHTML='<span class=nav-logo-fallback>TF</span>'"/>
+        <img src="/app/frontend/statis/technofixlogo.png" alt="TechnoFix-Bill" onerror="this.style.display='none';this.parentElement.innerHTML='<span class=nav-logo-fallback>TF</span>'"/>
       </div>
-      <span class="nav-name">TechnoFix</span>
+      <span class="nav-name">TechnoFix-Bill</span>
     </a>
     <div class="nav-links">
       <a href="#fitur">Fitur</a>
@@ -947,6 +950,7 @@
   <div class="hero-orb hero-orb-1"></div>
   <div class="hero-orb hero-orb-2"></div>
   <div class="hero-orb hero-orb-3"></div>
+  <canvas id="hero-network-canvas" class="hero-network-canvas"></canvas>
 
   <div class="hero-inner">
     <!-- Left: copy -->
@@ -959,7 +963,7 @@
         <span class="hl-grad">Operasional ISP</span>
       </h1>
       <p class="hero-sub">
-        TechnoFix menyatukan billing otomatis, monitoring MikroTik &amp; OLT realtime,
+        TechnoFix-Bill menyatukan billing otomatis, monitoring MikroTik &amp; OLT realtime,
         peta topologi jaringan, dan manajemen tim dalam satu dasbor terintegrasi.
       </p>
       <div class="hero-type-wrap">
@@ -1011,9 +1015,9 @@
       <div class="mockup-glow"></div>
       <div class="mockup-window">
         <div class="mock-shots">
-          <img class="mock-shot active" src="/app/frontend/statis/mockup/Mockup-Dekstop-Dashboard1.png" alt="Dashboard Realtime TechnoFix">
-          <img class="mock-shot" src="/app/frontend/statis/mockup/Mockup-Dekstop-Maps.png" alt="Peta Topologi Jaringan TechnoFix">
-          <img class="mock-shot" src="/app/frontend/statis/mockup/Mockup-Dekstop-Dashboard2.png" alt="Monitoring Bandwidth Realtime TechnoFix">
+          <img class="mock-shot active" src="/app/frontend/statis/mockup/Mockup-Dekstop-Dashboard1.png" alt="Dashboard Realtime TechnoFix-Bill">
+          <img class="mock-shot" src="/app/frontend/statis/mockup/Mockup-Dekstop-Maps.png" alt="Peta Topologi Jaringan TechnoFix-Bill">
+          <img class="mock-shot" src="/app/frontend/statis/mockup/Mockup-Dekstop-Dashboard2.png" alt="Monitoring Bandwidth Realtime TechnoFix-Bill">
         </div>
         <div class="mockup-live-badge"><span class="mockup-live-dot"></span>Live</div>
         <div class="mock-bottombar">
@@ -1025,9 +1029,9 @@
       </div>
       <div class="mockup-phone">
         <div class="mockup-phone-shots">
-          <img class="mock-phone-shot active" src="/app/frontend/statis/mockup/Mockup-MobileArtboard-2.png" alt="Dashboard mobile TechnoFix">
-          <img class="mock-phone-shot" src="/app/frontend/statis/mockup/Mockup-MobileArtboard-5.png" alt="Peta mobile TechnoFix">
-          <img class="mock-phone-shot" src="/app/frontend/statis/mockup/Mockup-MobileArtboard-3.png" alt="Monitoring bandwidth mobile TechnoFix">
+          <img class="mock-phone-shot active" src="/app/frontend/statis/mockup/Mockup-MobileArtboard-2.png" alt="Dashboard mobile TechnoFix-Bill">
+          <img class="mock-phone-shot" src="/app/frontend/statis/mockup/Mockup-MobileArtboard-5.png" alt="Peta mobile TechnoFix-Bill">
+          <img class="mock-phone-shot" src="/app/frontend/statis/mockup/Mockup-MobileArtboard-3.png" alt="Monitoring bandwidth mobile TechnoFix-Bill">
         </div>
         <img class="mockup-phone-frame" src="/app/frontend/statis/mockup/hp.png" alt="">
       </div>
@@ -1345,15 +1349,15 @@
   <div class="container">
     <div class="tc">
       <div class="eyebrow rv">Kata Mereka</div>
-      <h2 class="sec-title rv d1">ISP yang Sudah<br/><span class="hl2">Mempercayai TechnoFix</span></h2>
-      <p class="sec-sub tc rv d2">Dari ISP kecil hingga menengah, TechnoFix membantu operasional lebih efisien setiap harinya.</p>
+      <h2 class="sec-title rv d1">ISP yang Sudah<br/><span class="hl2">Mempercayai TechnoFix-Bill</span></h2>
+      <p class="sec-sub tc rv d2">Dari ISP kecil hingga menengah, TechnoFix-Bill membantu operasional lebih efisien setiap harinya.</p>
     </div>
     <div class="testi-grid">
       <div class="testi-card rvl d1">
         <div class="testi-stars">
           <span class="testi-star">&#9733;</span><span class="testi-star">&#9733;</span><span class="testi-star">&#9733;</span><span class="testi-star">&#9733;</span><span class="testi-star">&#9733;</span>
         </div>
-        <div class="testi-text">Sebelum pakai TechnoFix, billing manual bikin kepala pusing tiap akhir bulan. Sekarang generate tagihan 400 pelanggan cukup satu klik, isolir langsung dari HP.</div>
+        <div class="testi-text">Sebelum pakai TechnoFix-Bill, billing manual bikin kepala pusing tiap akhir bulan. Sekarang generate tagihan 400 pelanggan cukup satu klik, isolir langsung dari HP.</div>
         <div class="testi-author">
           <div class="testi-avatar ta-blue">H</div>
           <div>
@@ -1630,7 +1634,7 @@
           Apakah data ISP saya aman dan terisolasi dari ISP lain?
           <span class="faq-icon"><span class="material-symbols-outlined">expand_more</span></span>
         </button>
-        <div class="faq-a">Ya, sepenuhnya. TechnoFix menggunakan arsitektur multi-tenant dengan satu database terisolasi per ISP (SQLite terpisah per workspace). Data pelanggan, perangkat, dan keuangan Anda tidak pernah bercampur dengan ISP lain di platform yang sama.</div>
+        <div class="faq-a">Ya, sepenuhnya. TechnoFix-Bill menggunakan arsitektur multi-tenant dengan satu database terisolasi per ISP (SQLite terpisah per workspace). Data pelanggan, perangkat, dan keuangan Anda tidak pernah bercampur dengan ISP lain di platform yang sama.</div>
       </div>
       <div class="faq-item rv d2">
         <button class="faq-q" onclick="toggleFaq(this)">
@@ -1694,7 +1698,7 @@
   <div class="cta-inner">
     <div class="eyebrow rv" style="color:var(--accent);border-color:rgba(0,212,255,.3)">Siap Dimulai</div>
     <h2 class="cta-title rv d1">Kelola ISP Anda Lebih<br/>Cerdas Mulai Hari Ini</h2>
-    <p class="cta-sub rv d2">Bergabunglah dengan operator ISP yang sudah menggunakan TechnoFix. Trial 7 hari penuh &mdash; tidak perlu kartu kredit.</p>
+    <p class="cta-sub rv d2">Bergabunglah dengan operator ISP yang sudah menggunakan TechnoFix-Bill. Trial 7 hari penuh &mdash; tidak perlu kartu kredit.</p>
     <div class="cta-btns rv d3">
       <a href="/app/frontend/auth/auth.html?register=1" class="btn-cta-white">
         <span class="material-symbols-outlined" style="font-size:18px">rocket_launch</span>Mulai Trial Gratis
@@ -1719,9 +1723,9 @@
     <div>
       <div class="footer-brand-logo">
         <div class="footer-logo-box">
-          <img src="/app/frontend/statis/technofixlogo.png" alt="TechnoFix" onerror="this.style.display='none';this.parentElement.innerHTML='<span style=font-family:var(--head);font-size:15px;font-weight:700;color:#fff>TF</span>'"/>
+          <img src="/app/frontend/statis/technofixlogo.png" alt="TechnoFix-Bill" onerror="this.style.display='none';this.parentElement.innerHTML='<span style=font-family:var(--head);font-size:15px;font-weight:700;color:#fff>TF</span>'"/>
         </div>
-        <span class="footer-logo-name">TechnoFix</span>
+        <span class="footer-logo-name">TechnoFix-Bill</span>
       </div>
       <p class="footer-desc">Platform SaaS billing &amp; monitoring jaringan terpadu untuk operator ISP Indonesia. Multi-tenant, aman, dan selalu berkembang.</p>
       <div class="footer-badges">
@@ -1772,13 +1776,13 @@
     </div>
   </div>
   <div class="footer-bottom">
-    <span>&copy; 2026 TechnoFix. Hak cipta dilindungi.</span>
+    <span>&copy; 2026 TechnoFix-Bill. Hak cipta dilindungi.</span>
     <span>Platform billing &amp; monitoring untuk ISP Indonesia</span>
   </div>
 </footer>
 
 <!-- Floating WhatsApp Button -->
-<a href="https://wa.me/6283135851605?text=Halo%20TechnoFix%2C%20saya%20ingin%20tahu%20lebih%20lanjut%20tentang%20platform%20ISP%20ini." class="wa-float" target="_blank" rel="noopener">
+<a href="https://wa.me/6283135851605?text=Halo%20TechnoFix-Bill%2C%20saya%20ingin%20tahu%20lebih%20lanjut%20tentang%20platform%20ISP%20ini." class="wa-float" target="_blank" rel="noopener">
   <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
     <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
   </svg>
@@ -2014,6 +2018,59 @@ document.querySelectorAll('a[href^="#"]').forEach(function(a){
     document.querySelectorAll('.faq-item.open').forEach(function(i){ i.classList.remove('open'); });
     if (!isOpen) item.classList.add('open');
   }
+
+  // ── ANIMASI JARINGAN DI HERO (node bergerak + garis koneksi) ──
+  // Sama seperti panel kiri halaman login (auth.html) — dipindah ke sini
+  // sebagai layer latar belakang hero, di bawah konten (z-index:0).
+  (function() {
+    const canvas = document.getElementById('hero-network-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let W, H, nodes, RAF;
+    const NC = 30, CD = 140;
+
+    function isMobile() { return window.innerWidth <= 640; }
+    function resize() { W = canvas.width = canvas.offsetWidth; H = canvas.height = canvas.offsetHeight; }
+    function initNodes() {
+      nodes = Array.from({ length: NC }, () => ({
+        x: Math.random() * W, y: Math.random() * H,
+        vx: (Math.random() - .5) * .4, vy: (Math.random() - .5) * .4,
+        r: Math.random() * 2.5 + 1.5, pulse: Math.random() * Math.PI * 2,
+      }));
+    }
+    function draw() {
+      if (isMobile()) { cancelAnimationFrame(RAF); ctx.clearRect(0,0,W,H); return; }
+      ctx.clearRect(0,0,W,H);
+      nodes.forEach(n => {
+        n.x += n.vx; n.y += n.vy; n.pulse += 0.02;
+        if (n.x < 0 || n.x > W) n.vx *= -1;
+        if (n.y < 0 || n.y > H) n.vy *= -1;
+      });
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i+1; j < nodes.length; j++) {
+          const dx = nodes[i].x - nodes[j].x, dy = nodes[i].y - nodes[j].y;
+          const d  = Math.sqrt(dx*dx + dy*dy);
+          if (d < CD) {
+            ctx.beginPath();
+            ctx.moveTo(nodes[i].x, nodes[i].y);
+            ctx.lineTo(nodes[j].x, nodes[j].y);
+            ctx.strokeStyle = `rgba(56,189,248,${(1 - d/CD) * 0.18})`;
+            ctx.lineWidth = .8; ctx.stroke();
+          }
+        }
+      }
+      nodes.forEach(n => {
+        const g = .5 + Math.sin(n.pulse) * .3;
+        ctx.beginPath(); ctx.arc(n.x, n.y, n.r, 0, Math.PI*2);
+        ctx.fillStyle = `rgba(255,255,255,${g * .65})`; ctx.fill();
+        ctx.beginPath(); ctx.arc(n.x, n.y, n.r + 3 + Math.sin(n.pulse)*2, 0, Math.PI*2);
+        ctx.strokeStyle = `rgba(56,189,248,.28)`; ctx.lineWidth = .7; ctx.stroke();
+      });
+      RAF = requestAnimationFrame(draw);
+    }
+    window.addEventListener('resize', () => { resize(); initNodes(); if (!isMobile()) { cancelAnimationFrame(RAF); draw(); } });
+    resize(); initNodes(); draw();
+  })();
 
 </script>
 </body>

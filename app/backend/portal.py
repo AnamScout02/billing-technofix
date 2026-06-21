@@ -1,5 +1,5 @@
 """
-portal.py — TechnoFix · Blueprint Portal Pelanggan
+portal.py — TechnoFix-Bill · Blueprint Portal Pelanggan
 ====================================================
 Portal self-service untuk pelanggan ISP:
   - Login dengan username PPPoE + nomor telepon
@@ -19,7 +19,7 @@ import json as _json
 import glob
 import os
 from functools import wraps
-from datetime import date
+from datetime import date, datetime, timedelta
 from flask import Blueprint, request, jsonify, session
 
 from utils import get_owner_db, get_master_db, OWNER_DB_DIR, is_isolir_profil, catat_aktivitas
@@ -30,6 +30,29 @@ logger    = logging.getLogger(__name__)
 # Key session khusus portal
 PORTAL_USERNAME_KEY   = 'portal_username'
 PORTAL_NETWORK_ID_KEY = 'portal_network_id'
+PORTAL_LOGIN_AT_KEY   = 'portal_login_at'
+PORTAL_SESSION_MAX_AGE_HOURS = 1   # wajib login ulang setelah 1 jam
+
+
+def _portal_session_expired():
+    """True kalau sesi portal sudah lewat PORTAL_SESSION_MAX_AGE_HOURS sejak
+    login. Sesi lama (dibuat sebelum field ini ada) dianggap TIDAK expired —
+    baru mulai dihitung dari login berikutnya, supaya tidak ada yang
+    ter-logout paksa mendadak saat fitur ini di-deploy."""
+    login_at = session.get(PORTAL_LOGIN_AT_KEY)
+    if not login_at:
+        return False
+    try:
+        elapsed = datetime.now() - datetime.fromisoformat(login_at)
+    except (ValueError, TypeError):
+        return False
+    return elapsed > timedelta(hours=PORTAL_SESSION_MAX_AGE_HOURS)
+
+
+def _clear_portal_session():
+    session.pop(PORTAL_USERNAME_KEY, None)
+    session.pop(PORTAL_NETWORK_ID_KEY, None)
+    session.pop(PORTAL_LOGIN_AT_KEY, None)
 
 
 # ══════════════════════════════════════════════════════════════
@@ -41,6 +64,9 @@ def portal_required(f):
     def decorated(*args, **kwargs):
         if not session.get(PORTAL_USERNAME_KEY) or not session.get(PORTAL_NETWORK_ID_KEY):
             return jsonify({'error': 'Sesi tidak valid. Silakan login kembali.', 'logged_in': False}), 401
+        if _portal_session_expired():
+            _clear_portal_session()
+            return jsonify({'error': 'Sesi sudah berakhir (1 jam). Silakan login kembali.', 'logged_in': False}), 401
         return f(*args, **kwargs)
     return decorated
 
@@ -295,6 +321,9 @@ def _get_portal_setting(nid: str) -> dict:
 @portal_bp.route('/check', methods=['GET'])
 def portal_check():
     username = session.get(PORTAL_USERNAME_KEY)
+    if username and _portal_session_expired():
+        _clear_portal_session()
+        return jsonify({'logged_in': False, 'username': '', 'expired': True}), 200
     return jsonify({'logged_in': bool(username), 'username': username or ''}), 200
 
 
@@ -325,6 +354,7 @@ def portal_login():
 
     session[PORTAL_USERNAME_KEY]   = row['username']
     session[PORTAL_NETWORK_ID_KEY] = nid
+    session[PORTAL_LOGIN_AT_KEY]   = datetime.now().isoformat(timespec='seconds')
     session.permanent = True
 
     logger.info(f'[Portal] Login: {row["username"]} @ {nid[:8]}')
@@ -337,8 +367,8 @@ def portal_login():
 
 @portal_bp.route('/logout', methods=['POST'])
 def portal_logout():
-    username = session.pop(PORTAL_USERNAME_KEY, None)
-    session.pop(PORTAL_NETWORK_ID_KEY, None)
+    username = session.get(PORTAL_USERNAME_KEY)
+    _clear_portal_session()
     logger.info(f'[Portal] Logout: {username}')
     return jsonify({'success': True}), 200
 
@@ -450,6 +480,9 @@ def portal_detail():
         'router_name':   p.get('device_name') or '',
         'tagihan_aktif': tagihan_aktif,
         'welcome_msg':   portal_cfg.get('welcome_msg') or '',
+        # disimpan naive-UTC (server jalan di UTC) — tandai 'Z' eksplisit
+        # supaya Date() di browser parse sebagai UTC, bukan dikira waktu lokal.
+        'login_at':      (session.get(PORTAL_LOGIN_AT_KEY) + 'Z') if session.get(PORTAL_LOGIN_AT_KEY) else '',
     }), 200
 
 
